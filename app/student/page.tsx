@@ -32,11 +32,23 @@ export default function StudentPage() {
   const [fattibilita, setFattibilita] = useState(50);
   const [responsabilita, setResponsabilita] = useState(50);
   const [vitalita, setVitalita] = useState(50);
+  const [codiceGruppo, setCodiceGruppo] = useState('');
+  const [erroreSalvataggio, setErroreSalvataggio] = useState('');
+  const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 
   useEffect(() => {
     caricaDati();
+
+    const channel = supabase
+      .channel('realtime-casi-studio-studenti')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, caricaDati)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const caricaDati = async () => {
@@ -75,8 +87,24 @@ export default function StudentPage() {
     }
   };
 
+  const messaggioErrore = (codice: string) => {
+    switch (codice) {
+      case 'codice_errato':
+        return 'Codice di gruppo errato. Inserisci il codice scelto quando hai creato questa scheda.';
+      case 'codice_troppo_corto':
+        return 'Il codice di gruppo deve avere almeno 4 caratteri.';
+      case 'caso_non_trovato':
+        return 'Questo caso studio non esiste più (forse è stato cancellato).';
+      default:
+        return 'Errore durante il salvataggio. Riprova.';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErroreSalvataggio('');
+    setSalvataggioInCorso(true);
+
     const x = fattibilita - desiderabilita;
     const y = vitalita - responsabilita;
 
@@ -85,29 +113,45 @@ export default function StudentPage() {
       ? [...tagsSelezionati, tagPersonalizzatoTrim]
       : tagsSelezionati;
 
-    const payload = {
-      id: editId !== null ? editId : Date.now(),
-      gruppo_nome: gruppoNome,
-      gruppo_num: gruppoNum,
-      titolo,
-      descrizione,
-      immagine,
-      tags: tagsFinali,
-      driver: { desiderabilita, fattibilita, responsabilita, vitalita },
-      x,
-      y
-    };
+    const driver = { desiderabilita, fattibilita, responsabilita, vitalita };
 
-    const { error } = await supabase.from('casi_studio').upsert(payload);
+    const { error } = editId !== null
+      ? await supabase.rpc('aggiorna_caso_studio', {
+          p_id: editId,
+          p_codice: codiceGruppo,
+          p_gruppo_nome: gruppoNome,
+          p_gruppo_num: Number(gruppoNum),
+          p_titolo: titolo,
+          p_descrizione: descrizione,
+          p_immagine: immagine,
+          p_tags: tagsFinali,
+          p_driver: driver,
+          p_x: x,
+          p_y: y,
+        })
+      : await supabase.rpc('crea_caso_studio', {
+          p_gruppo_nome: gruppoNome,
+          p_gruppo_num: Number(gruppoNum),
+          p_titolo: titolo,
+          p_descrizione: descrizione,
+          p_immagine: immagine,
+          p_tags: tagsFinali,
+          p_driver: driver,
+          p_x: x,
+          p_y: y,
+          p_codice: codiceGruppo,
+        });
+
+    setSalvataggioInCorso(false);
 
     if (error) {
-      console.error("Errore nel salvataggio:", error);
-      alert("Errore durante il salvataggio della consegna su Supabase.");
+      console.error('Errore nel salvataggio:', error);
+      setErroreSalvataggio(messaggioErrore(error.message));
       return;
     }
 
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
-    setTagsSelezionati([]); setTagPersonalizzato('');
+    setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
     setEditId(null);
     await caricaDati();
@@ -121,6 +165,8 @@ export default function StudentPage() {
     setTitolo(c.titolo);
     setDescrizione(c.descrizione);
     setImmagine(c.immagine || '');
+    setCodiceGruppo('');
+    setErroreSalvataggio('');
     const tagsEsistenti: string[] = c.tags || [];
     setTagsSelezionati(tagsEsistenti.filter(t => TAG_OPTIONS.includes(t)));
     setTagPersonalizzato(tagsEsistenti.find(t => !TAG_OPTIONS.includes(t)) || '');
@@ -168,6 +214,24 @@ export default function StudentPage() {
                 <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
                 <input type="number" required value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:border-stone-900" />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+              <input
+                type="password"
+                required
+                minLength={4}
+                value={codiceGruppo}
+                onChange={e => setCodiceGruppo(e.target.value)}
+                placeholder={editId !== null ? 'Inserisci il codice scelto alla creazione...' : 'Scegli un codice (min. 4 caratteri)...'}
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:border-stone-900"
+              />
+              <p className="text-[11px] text-stone-400 mt-1">
+                {editId !== null
+                  ? 'Serve a confermare che questa scheda è vostra: usate lo stesso codice inserito alla creazione.'
+                  : 'Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.'}
+              </p>
             </div>
 
             <div>
@@ -244,8 +308,12 @@ export default function StudentPage() {
               </div>
             </div>
 
-            <button type="submit" className="w-full bg-stone-900 text-white py-3.5 rounded-xl font-medium hover:bg-stone-800 transition shadow-sm">
-              {editId !== null ? 'Salva Modifiche' : 'Invia Consegna'}
+            {erroreSalvataggio && (
+              <p className="text-xs text-red-600 font-medium text-center bg-red-50 border border-red-200 rounded-xl p-3">{erroreSalvataggio}</p>
+            )}
+
+            <button type="submit" disabled={salvataggioInCorso} className="w-full bg-stone-900 text-white py-3.5 rounded-xl font-medium hover:bg-stone-800 transition shadow-sm disabled:opacity-50">
+              {salvataggioInCorso ? 'Salvataggio...' : editId !== null ? 'Salva Modifiche' : 'Invia Consegna'}
             </button>
           </form>
         </div>

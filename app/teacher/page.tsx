@@ -36,10 +36,13 @@ export default function TeacherPage() {
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
 
+  const [passcodeAttivo, setPasscodeAttivo] = useState('');
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passLogin === 'admin2026') {
       setIsAuth(true);
+      setPasscodeAttivo(passLogin);
       setErroreLogin(false);
       setPassLogin('');
     } else {
@@ -97,25 +100,20 @@ export default function TeacherPage() {
 
   const resettaTuttoConPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordReset === 'admin2026') {
-      const { error } = await supabase.from('casi_studio').delete().gte('id', 0);
-      if (error) {
-        console.error('Errore nel reset:', error);
-        setErroreReset(true);
-        setSuccessoReset(false);
-        return;
-      }
-      setCasi([]);
-      setSelezionato(null);
-      setAiCritica('');
-      setPasswordReset('');
-      setErroreReset(false);
-      setSuccessoReset(true);
-      setTimeout(() => setSuccessoReset(false), 4000);
-    } else {
+    const { error } = await supabase.rpc('docente_resetta_tutto', { p_passcode: passwordReset });
+    if (error) {
+      console.error('Errore nel reset:', error);
       setErroreReset(true);
       setSuccessoReset(false);
+      return;
     }
+    setCasi([]);
+    setSelezionato(null);
+    setAiCritica('');
+    setPasswordReset('');
+    setErroreReset(false);
+    setSuccessoReset(true);
+    setTimeout(() => setSuccessoReset(false), 4000);
   };
 
   const generaCriticaAi = async (caso: any, persona: string) => {
@@ -180,10 +178,13 @@ export default function TeacherPage() {
     });
     setCasi(aggiornati);
 
-    const { error } = await supabase
-      .from('casi_studio')
-      .update({ x: xClamped, y: yClamped, driver: nuovoDriver })
-      .eq('id', id);
+    const { error } = await supabase.rpc('docente_aggiorna_posizione', {
+      p_id: id,
+      p_x: xClamped,
+      p_y: yClamped,
+      p_driver: nuovoDriver,
+      p_passcode: passcodeAttivo,
+    });
 
     if (error) {
       console.error('Errore nel salvataggio della posizione:', error);
