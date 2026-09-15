@@ -2,6 +2,19 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
+const TAG_OPTIONS = [
+  'Eco-feedback interfaces',
+  'Bio-digital architecture',
+  'Non-human interaction design (NHID)',
+  'Algorithmic conservation',
+  'Multispecies product design',
+  'Regenerative urban prototyping',
+  'Foraged and bio-based materials',
+  'More-than-human service design',
+  'Speculative multispecies products',
+  'Microbial design',
+];
+
 export default function StudentPage() {
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
@@ -12,6 +25,8 @@ export default function StudentPage() {
   const [titolo, setTitolo] = useState('');
   const [descrizione, setDescrizione] = useState('');
   const [immagine, setImmagine] = useState<string>('');
+  const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
+  const [tagPersonalizzato, setTagPersonalizzato] = useState('');
   const [desiderabilita, setDesiderabilita] = useState(50);
   const [fattibilita, setFattibilita] = useState(50);
   const [responsabilita, setResponsabilita] = useState(50);
@@ -33,12 +48,19 @@ export default function StudentPage() {
         titolo: c.titolo,
         descrizione: c.descrizione,
         immagine: c.immagine,
+        tags: c.tags || [],
         driver: c.driver,
         x: Number(c.x),
         y: Number(c.y)
       }));
       setCasi(formattati);
     }
+  };
+
+  const toggleTag = (tag: string) => {
+    setTagsSelezionati(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,8 +76,13 @@ export default function StudentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const x = fattibilita - desiderabilita; 
+    const x = fattibilita - desiderabilita;
     const y = vitalita - responsabilita;
+
+    const tagPersonalizzatoTrim = tagPersonalizzato.trim();
+    const tagsFinali = tagPersonalizzatoTrim
+      ? [...tagsSelezionati, tagPersonalizzatoTrim]
+      : tagsSelezionati;
 
     const payload = {
       id: editId !== null ? editId : Date.now(),
@@ -64,6 +91,7 @@ export default function StudentPage() {
       titolo,
       descrizione,
       immagine,
+      tags: tagsFinali,
       driver: { desiderabilita, fattibilita, responsabilita, vitalita },
       x,
       y
@@ -78,6 +106,7 @@ export default function StudentPage() {
     }
 
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
+    setTagsSelezionati([]); setTagPersonalizzato('');
     setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
     setEditId(null);
     await caricaDati();
@@ -91,6 +120,9 @@ export default function StudentPage() {
     setTitolo(c.titolo);
     setDescrizione(c.descrizione);
     setImmagine(c.immagine || '');
+    const tagsEsistenti: string[] = c.tags || [];
+    setTagsSelezionati(tagsEsistenti.filter(t => TAG_OPTIONS.includes(t)));
+    setTagPersonalizzato(tagsEsistenti.find(t => !TAG_OPTIONS.includes(t)) || '');
     if (c.driver) {
       setDesiderabilita(c.driver.desiderabilita);
       setFattibilita(c.driver.fattibilita);
@@ -161,6 +193,30 @@ export default function StudentPage() {
             <div>
               <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Descrizione Critica</label>
               <textarea rows={4} required value={descrizione} onChange={e => setDescrizione(e.target.value)} placeholder="Analizza il contesto, le leve di cambiamento e il valore generato..." className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:border-stone-900"></textarea>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium uppercase text-stone-500 mb-2">Tag Tematici</label>
+              <div className="grid grid-cols-2 gap-2">
+                {TAG_OPTIONS.map(tag => (
+                  <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={tagsSelezionati.includes(tag)}
+                      onChange={() => toggleTag(tag)}
+                      className="accent-stone-900"
+                    />
+                    <span>{tag}</span>
+                  </label>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={tagPersonalizzato}
+                onChange={e => setTagPersonalizzato(e.target.value)}
+                placeholder="Altro (tag personalizzato)..."
+                className="w-full mt-2 border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:border-stone-900"
+              />
             </div>
 
             <div className="border-t border-stone-100 pt-6 space-y-5">

@@ -1,5 +1,19 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
+
+const TAG_OPTIONS = [
+  'Eco-feedback interfaces',
+  'Bio-digital architecture',
+  'Non-human interaction design (NHID)',
+  'Algorithmic conservation',
+  'Multispecies product design',
+  'Regenerative urban prototyping',
+  'Foraged and bio-based materials',
+  'More-than-human service design',
+  'Speculative multispecies products',
+  'Microbial design',
+];
 
 export default function TeacherPage() {
   const [isAuth, setIsAuth] = useState(false);
@@ -19,13 +33,23 @@ export default function TeacherPage() {
   const [successoReset, setSuccessoReset] = useState(false);
 
   const matrixRef = useRef<HTMLDivElement>(null);
+  const [filtroTag, setFiltroTag] = useState('');
 
-  import { supabase } from '@/lib/supabase';
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passLogin === 'admin2026') {
+      setIsAuth(true);
+      setErroreLogin(false);
+      setPassLogin('');
+    } else {
+      setErroreLogin(true);
+    }
+  };
 
   // Dentro il componente TeacherPage:
   useEffect(() => {
     if (!isAuth) return;
-  
+
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
       const { data, error } = await supabase.from('casi_studio').select('*');
@@ -38,12 +62,19 @@ export default function TeacherPage() {
           titolo: c.titolo,
           descrizione: c.descrizione,
           immagine: c.immagine,
+          tags: c.tags || [],
           driver: c.driver,
           x: Number(c.x),
           y: Number(c.y)
         }));
         setCasi(formattati);
-        if (formattati.length > 0 && !selezionato) setSelezionato(formattati[0]);
+        setSelezionato((prev: any) => {
+          if (prev) {
+            const aggiornato = formattati.find(f => f.id === prev.id);
+            if (aggiornato) return aggiornato;
+          }
+          return formattati.length > 0 ? formattati[0] : null;
+        });
       }
     };
   
@@ -63,10 +94,16 @@ export default function TeacherPage() {
     };
   }, [isAuth]);
 
-  const resettaTuttoConPassword = (e: React.FormEvent) => {
+  const resettaTuttoConPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordReset === 'admin2026') {
-      localStorage.removeItem('casiStudio');
+      const { error } = await supabase.from('casi_studio').delete().gte('id', 0);
+      if (error) {
+        console.error('Errore nel reset:', error);
+        setErroreReset(true);
+        setSuccessoReset(false);
+        return;
+      }
       setCasi([]);
       setSelezionato(null);
       setAiCritica('');
@@ -111,46 +148,52 @@ export default function TeacherPage() {
     }
   };
 
-  const aggiornaPosizioneDaDrop = (e: React.DragEvent, id: number) => {
+  const aggiornaPosizioneDaDrop = async (e: React.DragEvent, id: number) => {
     e.preventDefault();
     if (!matrixRef.current) return;
     const rect = matrixRef.current.getBoundingClientRect();
-    
+
     const xPx = e.clientX - rect.left;
     const yPx = e.clientY - rect.top;
-    
+
     const x = Math.round(((xPx / rect.width) * 200) - 100);
     const y = Math.round((((rect.height - yPx) / rect.height) * 200) - 100);
 
     const xClamped = Math.max(-100, Math.min(100, x));
     const yClamped = Math.max(-100, Math.min(100, y));
 
-    const salvati = JSON.parse(localStorage.getItem('casiStudio') || '[]');
-    const aggiornati = salvati.map((c: any) => {
-      if (c.id === id) {
-        const nuovoFattibilita = xClamped >= 0 ? 50 + (xClamped / 2) : 50 + (xClamped / 2);
-        const nuovoDesiderabilita = xClamped <= 0 ? 50 - (xClamped / 2) : 50 - (xClamped / 2);
-        const nuovoVitalita = yClamped <= 0 ? 50 - (yClamped / 2) : 50 - (yClamped / 2);
-        const nuovoResponsabilita = yClamped >= 0 ? 50 + (yClamped / 2) : 50 + (yClamped / 2);
+    const nuovoDriver = {
+      desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
+      fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
+      responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
+      vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
+    };
 
-        const casoAggiornato = {
-          ...c, x: xClamped, y: yClamped,
-          driver: {
-            desiderabilita: Math.max(0, Math.min(100, Math.round(nuovoDesiderabilita))),
-            fattibilita: Math.max(0, Math.min(100, Math.round(nuovoFattibilita))),
-            responsabilita: Math.max(0, Math.min(100, Math.round(nuovoResponsabilita))),
-            vitalita: Math.max(0, Math.min(100, Math.round(nuovoVitalita)))
-          }
-        };
+    const aggiornati = casi.map(c => {
+      if (c.id === id) {
+        const casoAggiornato = { ...c, x: xClamped, y: yClamped, driver: nuovoDriver };
         if (selezionato?.id === id) setSelezionato(casoAggiornato);
         return casoAggiornato;
       }
       return c;
     });
-
     setCasi(aggiornati);
-    localStorage.setItem('casiStudio', JSON.stringify(aggiornati));
+
+    const { error } = await supabase
+      .from('casi_studio')
+      .update({ x: xClamped, y: yClamped, driver: nuovoDriver })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Errore nel salvataggio della posizione:', error);
+    }
   };
+
+  const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
+
+  const casiFiltrati = filtroTag
+    ? casi.filter(c => (c.tags || []).includes(filtroTag))
+    : casi;
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -218,6 +261,12 @@ export default function TeacherPage() {
           <button onClick={() => setActiveTab('slides')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'slides' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             🖥️ Modalità Slide PDF
           </button>
+          <a href="/teacher/radar" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
+            🕸️ Radar Multicriterio
+          </a>
+          <a href="/teacher/review" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
+            🗳️ Peer Review in Aula
+          </a>
           <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             ⚙️ Controllo &amp; Reset
           </button>
@@ -226,7 +275,7 @@ export default function TeacherPage() {
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
-          <div 
+          <div
             ref={matrixRef}
             onDragOver={e => e.preventDefault()}
             className="flex-1 relative bg-[#FCFBF9] border-r border-stone-200 flex items-center justify-center overflow-hidden"
@@ -239,13 +288,28 @@ export default function TeacherPage() {
             <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
             <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            {casi.length === 0 && (
+            <div className="absolute top-16 left-8 z-20">
+              <select
+                value={filtroTag}
+                onChange={e => setFiltroTag(e.target.value)}
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900"
+              >
+                <option value="">Tutti i tag ({casi.length})</option>
+                {tuttiITag.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
+
+            {casiFiltrati.length === 0 && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
-                Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.
+                {casi.length === 0
+                  ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
+                  : <>Nessun caso studio corrisponde al tag selezionato.</>}
               </div>
             )}
 
-            {casi.map(c => {
+            {casiFiltrati.map(c => {
               const left = `${((c.x + 100) / 200) * 100}%`;
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
@@ -301,6 +365,16 @@ export default function TeacherPage() {
                     {selezionato.descrizione || "Nessuna descrizione inserita."}
                   </p>
                 </div>
+
+                {selezionato.tags && selezionato.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selezionato.tags.map((tag: string) => (
+                      <span key={tag} className="text-[10px] bg-white border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div className="space-y-2 border-t border-stone-200 pt-3">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
