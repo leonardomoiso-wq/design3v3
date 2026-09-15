@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, type NoteDriver } from '@/lib/driver';
 
 type Caso = {
   id: number;
@@ -12,6 +12,7 @@ type Caso = {
   immagine: string;
   tags: string[];
   driver: { desiderabilita: number; fattibilita: number; responsabilita: number; vitalita: number };
+  driverNote: NoteDriver;
 };
 
 const ASSI = [
@@ -68,6 +69,7 @@ export default function RadarPage() {
           immagine: c.immagine,
           tags: c.tags || [],
           driver: normalizzaDriver(c.driver),
+          driverNote: estraiNote(c.driver),
         }));
         setCasi(formattati);
       }
@@ -363,6 +365,7 @@ export default function RadarPage() {
                 <div className="space-y-2.5">
                   {ASSI.map(asse => {
                     const valore = casoEspanso.driver?.[asse.chiave] ?? 0;
+                    const nota = casoEspanso.driverNote?.[asse.chiave];
                     return (
                       <div key={asse.chiave}>
                         <div className="flex justify-between text-xs mb-1">
@@ -375,6 +378,9 @@ export default function RadarPage() {
                             style={{ width: `${valore}%`, backgroundColor: coloreDi(casoEspanso.id) }}
                           />
                         </div>
+                        {nota && (
+                          <p className="text-[11px] text-stone-500 italic mt-1.5">&ldquo;{nota}&rdquo;</p>
+                        )}
                       </div>
                     );
                   })}

@@ -29,3 +29,23 @@ export function normalizzaDriver(driver: any, fallback = 50): Driver {
   }
   return risultato;
 }
+
+export type NoteDriver = Record<ChiaveDriver, string>;
+
+export function estraiNote(driver: any): NoteDriver {
+  const risultato = {} as NoteDriver;
+  for (const chiave of CHIAVI) {
+    risultato[chiave] = estraiNota(driver, chiave);
+  }
+  return risultato;
+}
+
+// Costruisce il payload da salvare: ogni driver diventa { valore, nota },
+// così il "perché" scritto dagli studenti resta insieme al punteggio.
+export function costruisciDriver(valori: Driver, note: Partial<NoteDriver>): Record<ChiaveDriver, { valore: number; nota: string }> {
+  const risultato = {} as Record<ChiaveDriver, { valore: number; nota: string }>;
+  for (const chiave of CHIAVI) {
+    risultato[chiave] = { valore: valori[chiave], nota: (note[chiave] || '').trim() };
+  }
+  return risultato;
+}

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { normalizzaDriver } from '../../lib/driver';
+import { normalizzaDriver, estraiNote, costruisciDriver, type NoteDriver } from '../../lib/driver';
 
 const TAG_OPTIONS = [
   'Eco-feedback interfaces',
@@ -64,6 +64,7 @@ export default function StudentPage() {
   const [fattibilita, setFattibilita] = useState(50);
   const [responsabilita, setResponsabilita] = useState(50);
   const [vitalita, setVitalita] = useState(50);
+  const [note, setNote] = useState<NoteDriver>({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
   const [codiceGruppo, setCodiceGruppo] = useState('');
   const [erroreSalvataggio, setErroreSalvataggio] = useState('');
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
@@ -110,6 +111,7 @@ export default function StudentPage() {
         immagine: c.immagine,
         tags: c.tags || [],
         driver: normalizzaDriver(c.driver),
+        driverNote: estraiNote(c.driver),
         x: Number(c.x),
         y: Number(c.y)
       }));
@@ -151,6 +153,7 @@ export default function StudentPage() {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
+    setNote({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setEditId(null);
     setStep('gruppo');
     setMaxStepRaggiunto(0);
@@ -168,7 +171,7 @@ export default function StudentPage() {
       ? [...tagsSelezionati, tagPersonalizzatoTrim]
       : tagsSelezionati;
 
-    const driver = { desiderabilita, fattibilita, responsabilita, vitalita };
+    const driver = costruisciDriver({ desiderabilita, fattibilita, responsabilita, vitalita }, note);
 
     const { error } = editId !== null
       ? await supabase.rpc('aggiorna_caso_studio', {
@@ -228,6 +231,7 @@ export default function StudentPage() {
       setResponsabilita(c.driver.responsabilita);
       setVitalita(c.driver.vitalita);
     }
+    setNote(c.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setStep('gruppo');
     setMaxStepRaggiunto(0);
     setActiveTab('crea');
@@ -491,6 +495,15 @@ export default function StudentPage() {
                       onChange={e => (setValore as (n: number) => void)(Number(e.target.value))}
                       className="w-full accent-stone-900 cursor-pointer"
                     />
+                    <label htmlFor={`nota-${chiave}`} className="sr-only">Motivazione per {DRIVER_INFO[chiave].etichetta}</label>
+                    <textarea
+                      id={`nota-${chiave}`}
+                      rows={2}
+                      value={note[chiave]}
+                      onChange={e => setNote(prev => ({ ...prev, [chiave]: e.target.value }))}
+                      placeholder="Perché questo punteggio? Motivate brevemente la scelta (facoltativo)..."
+                      className="w-full mt-2 border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    />
                   </div>
                 ))}
               </div>
@@ -526,11 +539,20 @@ export default function StudentPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 flex justify-between"><span className="text-stone-500">Desiderabilità</span><b>{desiderabilita}</b></div>
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 flex justify-between"><span className="text-stone-500">Fattibilità</span><b>{fattibilita}</b></div>
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 flex justify-between"><span className="text-stone-500">Responsabilità</span><b>{responsabilita}</b></div>
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 flex justify-between"><span className="text-stone-500">Vitalità</span><b>{vitalita}</b></div>
+                <div className="space-y-2">
+                  {([
+                    ['desiderabilita', desiderabilita],
+                    ['fattibilita', fattibilita],
+                    ['responsabilita', responsabilita],
+                    ['vitalita', vitalita],
+                  ] as const).map(([chiave, valore]) => (
+                    <div key={chiave} className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
+                      <div className="flex justify-between"><span className="text-stone-500">{DRIVER_INFO[chiave].etichetta}</span><b>{valore}</b></div>
+                      {note[chiave].trim() && (
+                        <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{note[chiave]}&rdquo;</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
 
                 {erroreSalvataggio && (

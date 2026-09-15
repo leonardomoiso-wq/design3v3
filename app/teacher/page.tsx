@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 
 const TAG_OPTIONS = [
@@ -51,6 +51,7 @@ export default function TeacherPage() {
           immagine: c.immagine,
           tags: c.tags || [],
           driver: normalizzaDriver(c.driver),
+          driverNote: estraiNote(c.driver),
           x: Number(c.x),
           y: Number(c.y)
         }));
@@ -131,16 +132,28 @@ export default function TeacherPage() {
   };
 
   const applicaPosizione = async (id: number, xClamped: number, yClamped: number) => {
-    const nuovoDriver = {
+    const caso = casi.find(c => c.id === id);
+    const noteEsistenti = caso?.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' };
+
+    const valoriDriver = {
       desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
       fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
       responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
       vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
     };
 
+    // Il driver salvato può contenere anche la motivazione testuale dello
+    // studente: la preserviamo, aggiornando solo il valore numerico.
+    const nuovoDriverConNote = {
+      desiderabilita: { valore: valoriDriver.desiderabilita, nota: noteEsistenti.desiderabilita },
+      fattibilita: { valore: valoriDriver.fattibilita, nota: noteEsistenti.fattibilita },
+      responsabilita: { valore: valoriDriver.responsabilita, nota: noteEsistenti.responsabilita },
+      vitalita: { valore: valoriDriver.vitalita, nota: noteEsistenti.vitalita },
+    };
+
     const aggiornati = casi.map(c => {
       if (c.id === id) {
-        const casoAggiornato = { ...c, x: xClamped, y: yClamped, driver: nuovoDriver };
+        const casoAggiornato = { ...c, x: xClamped, y: yClamped, driver: valoriDriver };
         if (selezionato?.id === id) setSelezionato(casoAggiornato);
         return casoAggiornato;
       }
@@ -152,7 +165,7 @@ export default function TeacherPage() {
       p_id: id,
       p_x: xClamped,
       p_y: yClamped,
-      p_driver: nuovoDriver,
+      p_driver: nuovoDriverConNote,
       p_passcode: passcodeAttivo,
     });
 
@@ -324,11 +337,26 @@ export default function TeacherPage() {
 
                 <div className="space-y-2 border-t border-stone-200 pt-3">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Desiderabilità: <b className="text-xs">{selezionato.driver?.desiderabilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Fattibilità: <b className="text-xs">{selezionato.driver?.fattibilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Responsabilità: <b className="text-xs">{selezionato.driver?.responsabilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Vitalità: <b className="text-xs">{selezionato.driver?.vitalita ?? 50}</b></div>
+                  <div className="space-y-1.5">
+                    {([
+                      ['desiderabilita', 'Desiderabilità'],
+                      ['fattibilita', 'Fattibilità'],
+                      ['responsabilita', 'Responsabilità'],
+                      ['vitalita', 'Vitalità'],
+                    ] as const).map(([chiave, etichetta]) => {
+                      const nota = selezionato.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
+                          <div className="flex justify-between">
+                            <span>{etichetta}</span>
+                            <b>{selezionato.driver?.[chiave] ?? 50}</b>
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
