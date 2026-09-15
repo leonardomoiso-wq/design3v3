@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { normalizzaDriver } from '@/lib/driver';
 
 type Caso = {
   id: number;
@@ -41,7 +42,7 @@ export default function ReviewPage() {
           descrizione: c.descrizione,
           immagine: c.immagine,
           tags: c.tags || [],
-          driver: c.driver || { desiderabilita: 50, fattibilita: 50, responsabilita: 50, vitalita: 50 },
+          driver: normalizzaDriver(c.driver),
         }));
         setCasi(formattati);
       }

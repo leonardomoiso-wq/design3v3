@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { normalizzaDriver } from '@/lib/driver';
 
 const TAG_OPTIONS = [
   'Eco-feedback interfaces',
@@ -63,7 +64,7 @@ export default function TeacherPage() {
           descrizione: c.descrizione,
           immagine: c.immagine,
           tags: c.tags || [],
-          driver: c.driver,
+          driver: normalizzaDriver(c.driver),
           x: Number(c.x),
           y: Number(c.y)
         }));
