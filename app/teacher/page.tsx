@@ -130,20 +130,7 @@ export default function TeacherPage() {
     }
   };
 
-  const aggiornaPosizioneDaDrop = async (e: React.DragEvent, id: number) => {
-    e.preventDefault();
-    if (!matrixRef.current) return;
-    const rect = matrixRef.current.getBoundingClientRect();
-
-    const xPx = e.clientX - rect.left;
-    const yPx = e.clientY - rect.top;
-
-    const x = Math.round(((xPx / rect.width) * 200) - 100);
-    const y = Math.round((((rect.height - yPx) / rect.height) * 200) - 100);
-
-    const xClamped = Math.max(-100, Math.min(100, x));
-    const yClamped = Math.max(-100, Math.min(100, y));
-
+  const applicaPosizione = async (id: number, xClamped: number, yClamped: number) => {
     const nuovoDriver = {
       desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
       fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
@@ -172,6 +159,28 @@ export default function TeacherPage() {
     if (error) {
       console.error('Errore nel salvataggio della posizione:', error);
     }
+  };
+
+  const aggiornaPosizioneDaDrop = (e: React.DragEvent, id: number) => {
+    e.preventDefault();
+    if (!matrixRef.current) return;
+    const rect = matrixRef.current.getBoundingClientRect();
+
+    const xPx = e.clientX - rect.left;
+    const yPx = e.clientY - rect.top;
+
+    const x = Math.round(((xPx / rect.width) * 200) - 100);
+    const y = Math.round((((rect.height - yPx) / rect.height) * 200) - 100);
+
+    applicaPosizione(id, Math.max(-100, Math.min(100, x)), Math.max(-100, Math.min(100, y)));
+  };
+
+  const spostaConTastiera = (id: number, dx: number, dy: number) => {
+    const caso = casi.find(c => c.id === id);
+    if (!caso) return;
+    const xClamped = Math.max(-100, Math.min(100, caso.x + dx));
+    const yClamped = Math.max(-100, Math.min(100, caso.y + dy));
+    applicaPosizione(id, xClamped, yClamped);
   };
 
   const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
@@ -262,7 +271,7 @@ export default function TeacherPage() {
                 >
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -290,7 +299,7 @@ export default function TeacherPage() {
 
                 <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
                   {selezionato.immagine ? (
-                    <img src={selezionato.immagine} alt="" className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+                    <img src={selezionato.immagine} alt={selezionato.titolo} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
                   ) : (
                     <span className="text-xs text-stone-400">Nessuna immagine disponibile</span>
                   )}
@@ -321,6 +330,19 @@ export default function TeacherPage() {
                     <div className="bg-white p-2.5 rounded-xl border border-stone-200">Responsabilità: <b className="text-xs">{selezionato.driver?.responsabilita ?? 50}</b></div>
                     <div className="bg-white p-2.5 rounded-xl border border-stone-200">Vitalità: <b className="text-xs">{selezionato.driver?.vitalita ?? 50}</b></div>
                   </div>
+                </div>
+
+                <div className="space-y-2 border-t border-stone-200 pt-3">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sposta sulla Matrice (da tastiera)</h3>
+                  <div className="grid grid-cols-3 gap-1.5 w-32 mx-auto">
+                    <span></span>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label="Sposta verso l'alto (più vitale)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
+                    <span></span>
+                    <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label="Sposta a sinistra (più desiderabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label="Sposta verso il basso (più responsabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label="Sposta a destra (più fattibile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
+                  </div>
+                  <p className="text-[10px] text-stone-400 text-center">Alternativa al trascinamento per chi usa la tastiera.</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
@@ -406,7 +428,7 @@ export default function TeacherPage() {
 
                     <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
-                        <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+                        <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
                         <span className="text-xs text-stone-400">Nessuna immagine</span>
                       )}

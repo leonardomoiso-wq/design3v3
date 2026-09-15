@@ -52,23 +52,24 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password (admin2026)</label>
+              <label htmlFor="docente-password" className="block text-xs font-medium uppercase text-stone-500 mb-1">Password (admin2026)</label>
               <input
+                id="docente-password"
                 type="password"
                 value={passLogin}
                 onChange={e => setPassLogin(e.target.value)}
                 placeholder="Password..."
-                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:border-stone-900"
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 required
                 autoFocus
               />
             </div>
 
             {erroreLogin && (
-              <p className="text-xs text-red-600 font-medium text-center">Password errata. Riprova.</p>
+              <p role="alert" className="text-xs text-red-600 font-medium text-center">Password errata. Riprova.</p>
             )}
 
-            <button type="submit" className="w-full bg-stone-900 text-white py-3 rounded-xl font-medium hover:bg-stone-800 transition text-xs">
+            <button type="submit" className="w-full bg-stone-900 text-white py-3 rounded-xl font-medium hover:bg-stone-800 transition text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
               Sblocca Area Docente
             </button>
           </form>
