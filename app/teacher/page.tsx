@@ -1,15 +1,29 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
+import { normalizzaDriver, estraiNote } from '@/lib/driver';
+import { useDocente } from '@/lib/docente-context';
+
+const TAG_OPTIONS = [
+  'Eco-feedback interfaces',
+  'Bio-digital architecture',
+  'Non-human interaction design (NHID)',
+  'Algorithmic conservation',
+  'Multispecies product design',
+  'Regenerative urban prototyping',
+  'Foraged and bio-based materials',
+  'More-than-human service design',
+  'Speculative multispecies products',
+  'Microbial design',
+];
 
 export default function TeacherPage() {
-  const [isAuth, setIsAuth] = useState(false);
-  const [passLogin, setPassLogin] = useState('');
-  const [erroreLogin, setErroreLogin] = useState(false);
+  const { passcode: passcodeAttivo } = useDocente();
 
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
-  
+
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
   const [loadingAi, setLoadingAi] = useState(false);
@@ -19,13 +33,10 @@ export default function TeacherPage() {
   const [successoReset, setSuccessoReset] = useState(false);
 
   const matrixRef = useRef<HTMLDivElement>(null);
+  const [filtroTag, setFiltroTag] = useState('');
 
-  import { supabase } from '@/lib/supabase';
-
-  // Dentro il componente TeacherPage:
   useEffect(() => {
-    if (!isAuth) return;
-  
+
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
       const { data, error } = await supabase.from('casi_studio').select('*');
@@ -38,12 +49,20 @@ export default function TeacherPage() {
           titolo: c.titolo,
           descrizione: c.descrizione,
           immagine: c.immagine,
-          driver: c.driver,
+          tags: c.tags || [],
+          driver: normalizzaDriver(c.driver),
+          driverNote: estraiNote(c.driver),
           x: Number(c.x),
           y: Number(c.y)
         }));
         setCasi(formattati);
-        if (formattati.length > 0 && !selezionato) setSelezionato(formattati[0]);
+        setSelezionato((prev: any) => {
+          if (prev) {
+            const aggiornato = formattati.find(f => f.id === prev.id);
+            if (aggiornato) return aggiornato;
+          }
+          return formattati.length > 0 ? formattati[0] : null;
+        });
       }
     };
   
@@ -61,23 +80,24 @@ export default function TeacherPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAuth]);
+  }, []);
 
-  const resettaTuttoConPassword = (e: React.FormEvent) => {
+  const resettaTuttoConPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordReset === 'admin2026') {
-      localStorage.removeItem('casiStudio');
-      setCasi([]);
-      setSelezionato(null);
-      setAiCritica('');
-      setPasswordReset('');
-      setErroreReset(false);
-      setSuccessoReset(true);
-      setTimeout(() => setSuccessoReset(false), 4000);
-    } else {
+    const { error } = await supabase.rpc('docente_resetta_tutto', { p_passcode: passwordReset });
+    if (error) {
+      console.error('Errore nel reset:', error);
       setErroreReset(true);
       setSuccessoReset(false);
+      return;
     }
+    setCasi([]);
+    setSelezionato(null);
+    setAiCritica('');
+    setPasswordReset('');
+    setErroreReset(false);
+    setSuccessoReset(true);
+    setTimeout(() => setSuccessoReset(false), 4000);
   };
 
   const generaCriticaAi = async (caso: any, persona: string) => {
@@ -111,46 +131,76 @@ export default function TeacherPage() {
     }
   };
 
-  const aggiornaPosizioneDaDrop = (e: React.DragEvent, id: number) => {
-    e.preventDefault();
-    if (!matrixRef.current) return;
-    const rect = matrixRef.current.getBoundingClientRect();
-    
-    const xPx = e.clientX - rect.left;
-    const yPx = e.clientY - rect.top;
-    
-    const x = Math.round(((xPx / rect.width) * 200) - 100);
-    const y = Math.round((((rect.height - yPx) / rect.height) * 200) - 100);
+  const applicaPosizione = async (id: number, xClamped: number, yClamped: number) => {
+    const caso = casi.find(c => c.id === id);
+    const noteEsistenti = caso?.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' };
 
-    const xClamped = Math.max(-100, Math.min(100, x));
-    const yClamped = Math.max(-100, Math.min(100, y));
+    const valoriDriver = {
+      desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
+      fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
+      responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
+      vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
+    };
 
-    const salvati = JSON.parse(localStorage.getItem('casiStudio') || '[]');
-    const aggiornati = salvati.map((c: any) => {
+    // Il driver salvato può contenere anche la motivazione testuale dello
+    // studente: la preserviamo, aggiornando solo il valore numerico.
+    const nuovoDriverConNote = {
+      desiderabilita: { valore: valoriDriver.desiderabilita, nota: noteEsistenti.desiderabilita },
+      fattibilita: { valore: valoriDriver.fattibilita, nota: noteEsistenti.fattibilita },
+      responsabilita: { valore: valoriDriver.responsabilita, nota: noteEsistenti.responsabilita },
+      vitalita: { valore: valoriDriver.vitalita, nota: noteEsistenti.vitalita },
+    };
+
+    const aggiornati = casi.map(c => {
       if (c.id === id) {
-        const nuovoFattibilita = xClamped >= 0 ? 50 + (xClamped / 2) : 50 + (xClamped / 2);
-        const nuovoDesiderabilita = xClamped <= 0 ? 50 - (xClamped / 2) : 50 - (xClamped / 2);
-        const nuovoVitalita = yClamped <= 0 ? 50 - (yClamped / 2) : 50 - (yClamped / 2);
-        const nuovoResponsabilita = yClamped >= 0 ? 50 + (yClamped / 2) : 50 + (yClamped / 2);
-
-        const casoAggiornato = {
-          ...c, x: xClamped, y: yClamped,
-          driver: {
-            desiderabilita: Math.max(0, Math.min(100, Math.round(nuovoDesiderabilita))),
-            fattibilita: Math.max(0, Math.min(100, Math.round(nuovoFattibilita))),
-            responsabilita: Math.max(0, Math.min(100, Math.round(nuovoResponsabilita))),
-            vitalita: Math.max(0, Math.min(100, Math.round(nuovoVitalita)))
-          }
-        };
+        const casoAggiornato = { ...c, x: xClamped, y: yClamped, driver: valoriDriver };
         if (selezionato?.id === id) setSelezionato(casoAggiornato);
         return casoAggiornato;
       }
       return c;
     });
-
     setCasi(aggiornati);
-    localStorage.setItem('casiStudio', JSON.stringify(aggiornati));
+
+    const { error } = await supabase.rpc('docente_aggiorna_posizione', {
+      p_id: id,
+      p_x: xClamped,
+      p_y: yClamped,
+      p_driver: nuovoDriverConNote,
+      p_passcode: passcodeAttivo,
+    });
+
+    if (error) {
+      console.error('Errore nel salvataggio della posizione:', error);
+    }
   };
+
+  const aggiornaPosizioneDaDrop = (e: React.DragEvent, id: number) => {
+    e.preventDefault();
+    if (!matrixRef.current) return;
+    const rect = matrixRef.current.getBoundingClientRect();
+
+    const xPx = e.clientX - rect.left;
+    const yPx = e.clientY - rect.top;
+
+    const x = Math.round(((xPx / rect.width) * 200) - 100);
+    const y = Math.round((((rect.height - yPx) / rect.height) * 200) - 100);
+
+    applicaPosizione(id, Math.max(-100, Math.min(100, x)), Math.max(-100, Math.min(100, y)));
+  };
+
+  const spostaConTastiera = (id: number, dx: number, dy: number) => {
+    const caso = casi.find(c => c.id === id);
+    if (!caso) return;
+    const xClamped = Math.max(-100, Math.min(100, caso.x + dx));
+    const yClamped = Math.max(-100, Math.min(100, caso.y + dy));
+    applicaPosizione(id, xClamped, yClamped);
+  };
+
+  const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
+
+  const casiFiltrati = filtroTag
+    ? casi.filter(c => (c.tags || []).includes(filtroTag))
+    : casi;
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -162,52 +212,10 @@ export default function TeacherPage() {
 
   const clusters = getClusterAnalitici();
 
-  if (!isAuth) {
-    return (
-      <main className="h-screen w-screen flex items-center justify-center bg-[#FBF9F5] px-4">
-        <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm max-w-md w-full space-y-6">
-          <div className="text-center space-y-2">
-            <a href="/" className="text-xs uppercase tracking-widest text-stone-400 font-medium hover:text-stone-900">&larr; Home</a>
-            <h1 className="text-2xl font-serif">Area Riservata Docente</h1>
-            <p className="text-stone-500 text-xs">Inserisci la password amministrativa per accedere alla matrice e ai controlli.</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password (admin2026)</label>
-              <input 
-                type="password" 
-                value={passLogin} 
-                onChange={e => setPassLogin(e.target.value)} 
-                placeholder="Password..." 
-                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:border-stone-900" 
-                required
-              />
-            </div>
-
-            {erroreLogin && (
-              <p className="text-xs text-red-600 font-medium text-center">Password errata. Riprova.</p>
-            )}
-
-            <button type="submit" className="w-full bg-stone-900 text-white py-3 rounded-xl font-medium hover:bg-stone-800 transition text-xs">
-              Sblocca Area Docente
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950 select-none">
-      
-      <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <div className="flex items-center space-x-4">
-          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-          <span className="text-stone-300">/</span>
-          <h1 className="font-serif text-base font-medium">Dashboard Docente &amp; Matrice</h1>
-        </div>
+    <div className="flex-1 overflow-hidden flex flex-col select-none">
 
+      <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
         <div className="flex items-center space-x-2">
           <button onClick={() => setActiveTab('matrice')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'matrice' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             Matrice Globale
@@ -222,11 +230,11 @@ export default function TeacherPage() {
             ⚙️ Controllo &amp; Reset
           </button>
         </div>
-      </header>
+      </div>
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
-          <div 
+          <div
             ref={matrixRef}
             onDragOver={e => e.preventDefault()}
             className="flex-1 relative bg-[#FCFBF9] border-r border-stone-200 flex items-center justify-center overflow-hidden"
@@ -239,13 +247,28 @@ export default function TeacherPage() {
             <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
             <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            {casi.length === 0 && (
+            <div className="absolute top-16 left-8 z-20">
+              <select
+                value={filtroTag}
+                onChange={e => setFiltroTag(e.target.value)}
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900"
+              >
+                <option value="">Tutti i tag ({casi.length})</option>
+                {tuttiITag.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
+
+            {casiFiltrati.length === 0 && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
-                Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.
+                {casi.length === 0
+                  ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
+                  : <>Nessun caso studio corrisponde al tag selezionato.</>}
               </div>
             )}
 
-            {casi.map(c => {
+            {casiFiltrati.map(c => {
               const left = `${((c.x + 100) / 200) * 100}%`;
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
@@ -261,7 +284,7 @@ export default function TeacherPage() {
                 >
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -289,7 +312,7 @@ export default function TeacherPage() {
 
                 <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
                   {selezionato.immagine ? (
-                    <img src={selezionato.immagine} alt="" className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+                    <img src={selezionato.immagine} alt={selezionato.titolo} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
                   ) : (
                     <span className="text-xs text-stone-400">Nessuna immagine disponibile</span>
                   )}
@@ -302,14 +325,52 @@ export default function TeacherPage() {
                   </p>
                 </div>
 
+                {selezionato.tags && selezionato.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selezionato.tags.map((tag: string) => (
+                      <span key={tag} className="text-[10px] bg-white border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-2 border-t border-stone-200 pt-3">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Desiderabilità: <b className="text-xs">{selezionato.driver?.desiderabilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Fattibilità: <b className="text-xs">{selezionato.driver?.fattibilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Responsabilità: <b className="text-xs">{selezionato.driver?.responsabilita ?? 50}</b></div>
-                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">Vitalità: <b className="text-xs">{selezionato.driver?.vitalita ?? 50}</b></div>
+                  <div className="space-y-1.5">
+                    {([
+                      ['desiderabilita', 'Desiderabilità'],
+                      ['fattibilita', 'Fattibilità'],
+                      ['responsabilita', 'Responsabilità'],
+                      ['vitalita', 'Vitalità'],
+                    ] as const).map(([chiave, etichetta]) => {
+                      const nota = selezionato.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
+                          <div className="flex justify-between">
+                            <span>{etichetta}</span>
+                            <b>{selezionato.driver?.[chiave] ?? 50}</b>
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
+
+                <div className="space-y-2 border-t border-stone-200 pt-3">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sposta sulla Matrice (da tastiera)</h3>
+                  <div className="grid grid-cols-3 gap-1.5 w-32 mx-auto">
+                    <span></span>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label="Sposta verso l'alto (più vitale)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
+                    <span></span>
+                    <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label="Sposta a sinistra (più desiderabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label="Sposta verso il basso (più responsabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
+                    <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label="Sposta a destra (più fattibile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
+                  </div>
+                  <p className="text-[10px] text-stone-400 text-center">Alternativa al trascinamento per chi usa la tastiera.</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
@@ -395,7 +456,7 @@ export default function TeacherPage() {
 
                     <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
-                        <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+                        <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
                         <span className="text-xs text-stone-400">Nessuna immagine</span>
                       )}
@@ -516,6 +577,6 @@ export default function TeacherPage() {
         </div>
       )}
 
-    </main>
+    </div>
   );
 }
