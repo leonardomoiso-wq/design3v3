@@ -102,13 +102,9 @@ export default function RadarPage() {
   const casiAttivi = casiFiltrati.filter(c => attivi.includes(c.id));
 
   return (
-    <main className="h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
-      <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <div className="flex items-center space-x-4">
-          <a href="/teacher" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Dashboard Docente</a>
-          <span className="text-stone-300">/</span>
-          <h1 className="font-serif text-base font-medium">Analisi Radar Multicriterio</h1>
-        </div>
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="px-6 py-2.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
+        <h1 className="font-serif text-sm font-medium text-stone-500">Analisi Radar Multicriterio</h1>
         <div className="flex items-center space-x-2">
           <select
             value={filtroTag}
@@ -131,7 +127,7 @@ export default function RadarPage() {
             ))}
           </select>
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-72 border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
@@ -247,6 +243,6 @@ export default function RadarPage() {
           })}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

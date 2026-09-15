@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver } from '@/lib/driver';
+import { useDocente } from '@/lib/docente-context';
 
 const TAG_OPTIONS = [
   'Eco-feedback interfaces',
@@ -17,14 +18,12 @@ const TAG_OPTIONS = [
 ];
 
 export default function TeacherPage() {
-  const [isAuth, setIsAuth] = useState(false);
-  const [passLogin, setPassLogin] = useState('');
-  const [erroreLogin, setErroreLogin] = useState(false);
+  const { passcode: passcodeAttivo } = useDocente();
 
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
-  
+
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
   const [loadingAi, setLoadingAi] = useState(false);
@@ -36,23 +35,7 @@ export default function TeacherPage() {
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
 
-  const [passcodeAttivo, setPasscodeAttivo] = useState('');
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passLogin === 'admin2026') {
-      setIsAuth(true);
-      setPasscodeAttivo(passLogin);
-      setErroreLogin(false);
-      setPassLogin('');
-    } else {
-      setErroreLogin(true);
-    }
-  };
-
-  // Dentro il componente TeacherPage:
   useEffect(() => {
-    if (!isAuth) return;
 
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
@@ -96,7 +79,7 @@ export default function TeacherPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAuth]);
+  }, []);
 
   const resettaTuttoConPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,52 +190,10 @@ export default function TeacherPage() {
 
   const clusters = getClusterAnalitici();
 
-  if (!isAuth) {
-    return (
-      <main className="h-screen w-screen flex items-center justify-center bg-[#FBF9F5] px-4">
-        <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm max-w-md w-full space-y-6">
-          <div className="text-center space-y-2">
-            <a href="/" className="text-xs uppercase tracking-widest text-stone-400 font-medium hover:text-stone-900">&larr; Home</a>
-            <h1 className="text-2xl font-serif">Area Riservata Docente</h1>
-            <p className="text-stone-500 text-xs">Inserisci la password amministrativa per accedere alla matrice e ai controlli.</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password (admin2026)</label>
-              <input 
-                type="password" 
-                value={passLogin} 
-                onChange={e => setPassLogin(e.target.value)} 
-                placeholder="Password..." 
-                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:border-stone-900" 
-                required
-              />
-            </div>
-
-            {erroreLogin && (
-              <p className="text-xs text-red-600 font-medium text-center">Password errata. Riprova.</p>
-            )}
-
-            <button type="submit" className="w-full bg-stone-900 text-white py-3 rounded-xl font-medium hover:bg-stone-800 transition text-xs">
-              Sblocca Area Docente
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950 select-none">
-      
-      <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <div className="flex items-center space-x-4">
-          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-          <span className="text-stone-300">/</span>
-          <h1 className="font-serif text-base font-medium">Dashboard Docente &amp; Matrice</h1>
-        </div>
+    <div className="flex-1 overflow-hidden flex flex-col select-none">
 
+      <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
         <div className="flex items-center space-x-2">
           <button onClick={() => setActiveTab('matrice')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'matrice' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             Matrice Globale
@@ -263,17 +204,11 @@ export default function TeacherPage() {
           <button onClick={() => setActiveTab('slides')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'slides' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             🖥️ Modalità Slide PDF
           </button>
-          <a href="/teacher/radar" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
-            🕸️ Radar Multicriterio
-          </a>
-          <a href="/teacher/review" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
-            🗳️ Peer Review in Aula
-          </a>
           <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             ⚙️ Controllo &amp; Reset
           </button>
         </div>
-      </header>
+      </div>
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
@@ -592,6 +527,6 @@ export default function TeacherPage() {
         </div>
       )}
 
-    </main>
+    </div>
   );
 }

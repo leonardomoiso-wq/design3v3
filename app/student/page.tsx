@@ -16,8 +16,10 @@ const TAG_OPTIONS = [
   'Microbial design',
 ];
 
+type Colore = 'verde' | 'giallo' | 'rosso';
+
 export default function StudentPage() {
-  const [activeTab, setActiveTab] = useState<'crea' | 'gestisci'>('crea');
+  const [activeTab, setActiveTab] = useState<'crea' | 'gestisci' | 'vota'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
   
   const [editId, setEditId] = useState<number | null>(null);
@@ -38,18 +40,33 @@ export default function StudentPage() {
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 
+  const [numeroGruppoVoto, setNumeroGruppoVoto] = useState('');
+  const [casoAttivoId, setCasoAttivoId] = useState<number | null>(null);
+  const [mioVoto, setMioVoto] = useState<Colore | null>(null);
+  const [erroreVoto, setErroreVoto] = useState('');
+  const [votoInCorso, setVotoInCorso] = useState(false);
+
   useEffect(() => {
     caricaDati();
+    caricaStatoRevisione();
 
     const channel = supabase
       .channel('realtime-casi-studio-studenti')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, caricaDati)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStatoRevisione)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const caricaStatoRevisione = async () => {
+    const { data, error } = await supabase.from('revisione_stato').select('caso_attivo_id').eq('id', true).single();
+    if (!error && data) {
+      setCasoAttivoId(data.caso_attivo_id !== null ? Number(data.caso_attivo_id) : null);
+    }
+  };
 
   const caricaDati = async () => {
     const { data, error } = await supabase.from('casi_studio').select('*');
@@ -179,9 +196,56 @@ export default function StudentPage() {
     setActiveTab('crea');
   };
 
-  const casiFiltrati = filtroGruppo.trim() 
+  const casiFiltrati = filtroGruppo.trim()
     ? casi.filter(c => String(c.gruppoNum) === String(filtroGruppo.trim()))
     : casi;
+
+  const casoInVotazione = casoAttivoId !== null ? casi.find(c => c.id === casoAttivoId) || null : null;
+
+  useEffect(() => {
+    setMioVoto(null);
+    setErroreVoto('');
+    if (casoAttivoId === null || !numeroGruppoVoto.trim()) return;
+
+    const caricaMioVoto = async () => {
+      const { data } = await supabase
+        .from('voti_revisione')
+        .select('colore')
+        .eq('caso_id', casoAttivoId)
+        .eq('gruppo_num', Number(numeroGruppoVoto.trim()))
+        .maybeSingle();
+      if (data) setMioVoto(data.colore as Colore);
+    };
+    caricaMioVoto();
+  }, [casoAttivoId, numeroGruppoVoto]);
+
+  const votaCartellino = async (colore: Colore) => {
+    if (casoAttivoId === null) return;
+    const numero = numeroGruppoVoto.trim();
+    if (!numero) {
+      setErroreVoto('Inserisci il numero del tuo gruppo prima di votare.');
+      return;
+    }
+
+    setVotoInCorso(true);
+    setErroreVoto('');
+    const { error } = await supabase.rpc('vota_caso_studio', {
+      p_caso_id: casoAttivoId,
+      p_gruppo_num: Number(numero),
+      p_colore: colore,
+    });
+    setVotoInCorso(false);
+
+    if (error) {
+      setErroreVoto(
+        error.message === 'votazione_non_attiva'
+          ? 'La votazione per questo caso studio si è chiusa proprio ora. Attendi che il/la docente ne apra una nuova.'
+          : 'Errore durante il voto. Riprova.'
+      );
+      return;
+    }
+    setMioVoto(colore);
+  };
 
   return (
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
@@ -193,6 +257,12 @@ export default function StudentPage() {
           </button>
           <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2 rounded-full text-xs font-medium transition ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             Elenco & Modifiche ({casi.length})
+          </button>
+          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2 rounded-full text-xs font-medium transition relative ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+            🗳️ Vota in Aula
+            {casoInVotazione && activeTab !== 'vota' && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span>
+            )}
           </button>
         </div>
       </div>
@@ -317,7 +387,7 @@ export default function StudentPage() {
             </button>
           </form>
         </div>
-      ) : (
+      ) : activeTab === 'gestisci' ? (
         <div className="space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
             <div>
@@ -355,6 +425,80 @@ export default function StudentPage() {
                   </button>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-serif">Vota in Aula</h1>
+            <p className="text-stone-500 text-xs mt-1">Quando il/la docente apre la votazione su un caso studio, esprimete il vostro cartellino come gruppo.</p>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+            <div>
+              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Il vostro Numero Gruppo</label>
+              <input
+                type="number"
+                value={numeroGruppoVoto}
+                onChange={e => setNumeroGruppoVoto(e.target.value)}
+                placeholder="Es. 4"
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:border-stone-900"
+              />
+            </div>
+
+            {!casoInVotazione ? (
+              <div className="text-center text-stone-400 text-sm py-8">
+                Nessuna votazione attiva al momento. Attendi che il/la docente apra il voto su un caso studio.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                  {casoInVotazione.immagine ? (
+                    <div className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
+                      <img src={casoInVotazione.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-[10px] text-stone-400 font-bold flex-shrink-0">IMG</div>
+                  )}
+                  <div>
+                    <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">🟢 In votazione ora</span>
+                    <h3 className="font-serif font-bold text-base text-stone-900">{casoInVotazione.titolo}</h3>
+                    <p className="text-xs text-stone-500">Gruppo {casoInVotazione.gruppoNum} — {casoInVotazione.gruppoNome}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {(['verde', 'giallo', 'rosso'] as Colore[]).map(colore => {
+                    const stile = {
+                      verde: 'bg-emerald-500',
+                      giallo: 'bg-amber-400',
+                      rosso: 'bg-red-500',
+                    }[colore];
+                    const selezionato = mioVoto === colore;
+                    return (
+                      <button
+                        key={colore}
+                        onClick={() => votaCartellino(colore)}
+                        disabled={votoInCorso}
+                        className={`flex flex-col items-center space-y-2 p-4 rounded-2xl border-2 transition disabled:opacity-50 ${selezionato ? 'border-stone-900' : 'border-transparent hover:border-stone-300'}`}
+                      >
+                        <span className={`w-14 h-14 rounded-2xl ${stile} shadow-md flex items-center justify-center text-white text-xl`}>
+                          {selezionato ? '✓' : ''}
+                        </span>
+                        <span className="text-xs font-medium capitalize text-stone-700">{colore}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {mioVoto && (
+                  <p className="text-xs text-emerald-700 text-center font-medium">Voto registrato: {mioVoto}. Puoi cambiarlo finché la votazione resta aperta.</p>
+                )}
+                {erroreVoto && (
+                  <p className="text-xs text-red-600 font-medium text-center bg-red-50 border border-red-200 rounded-xl p-3">{erroreVoto}</p>
+                )}
+              </div>
             )}
           </div>
         </div>
