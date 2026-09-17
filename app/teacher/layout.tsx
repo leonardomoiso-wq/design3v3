@@ -21,7 +21,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passLogin === 'admin2026') {
+    if (passLogin === 'polito27') {
       sessionStorage.setItem(CHIAVE_SESSIONE, passLogin);
       setPasscode(passLogin);
       setErroreLogin(false);
@@ -52,7 +52,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="docente-password" className="block text-xs font-medium uppercase text-stone-500 mb-1">Password (admin2026)</label>
+              <label htmlFor="docente-password" className="block text-xs font-medium uppercase text-stone-500 mb-1">Password</label>
               <input
                 id="docente-password"
                 type="password"

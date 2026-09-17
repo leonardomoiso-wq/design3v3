@@ -66,10 +66,16 @@ export default function StudentPage() {
   const [vitalita, setVitalita] = useState(50);
   const [note, setNote] = useState<NoteDriver>({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
   const [codiceGruppo, setCodiceGruppo] = useState('');
+  const [codiceGiaVerificato, setCodiceGiaVerificato] = useState(false);
   const [erroreSalvataggio, setErroreSalvataggio] = useState('');
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
+
+  const [casoDaSbloccare, setCasoDaSbloccare] = useState<any | null>(null);
+  const [codiceSblocco, setCodiceSblocco] = useState('');
+  const [erroreSblocco, setErroreSblocco] = useState('');
+  const [verificaInCorso, setVerificaInCorso] = useState(false);
 
   const [numeroGruppoVoto, setNumeroGruppoVoto] = useState('');
   const [casoAttivoId, setCasoAttivoId] = useState<number | null>(null);
@@ -152,6 +158,7 @@ export default function StudentPage() {
   const resetForm = () => {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
+    setCodiceGiaVerificato(false);
     setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
     setNote({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setEditId(null);
@@ -213,14 +220,15 @@ export default function StudentPage() {
     setActiveTab('gestisci');
   };
 
-  const avviaModifica = (c: any) => {
+  const avviaModifica = (c: any, codiceVerificato: string) => {
     setEditId(c.id);
     setGruppoNome(c.gruppoNome);
     setGruppoNum(c.gruppoNum);
     setTitolo(c.titolo);
     setDescrizione(c.descrizione);
     setImmagine(c.immagine || '');
-    setCodiceGruppo('');
+    setCodiceGruppo(codiceVerificato);
+    setCodiceGiaVerificato(true);
     setErroreSalvataggio('');
     const tagsEsistenti: string[] = c.tags || [];
     setTagsSelezionati(tagsEsistenti.filter(t => TAG_OPTIONS.includes(t)));
@@ -237,7 +245,39 @@ export default function StudentPage() {
     setActiveTab('crea');
   };
 
-  const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && codiceGruppo.trim().length >= 4;
+  const chiediSblocco = (c: any) => {
+    setCasoDaSbloccare(c);
+    setCodiceSblocco('');
+    setErroreSblocco('');
+  };
+
+  const confermaSblocco = async () => {
+    if (!casoDaSbloccare) return;
+    setVerificaInCorso(true);
+    setErroreSblocco('');
+
+    const { data, error } = await supabase.rpc('verifica_codice_caso_studio', {
+      p_id: casoDaSbloccare.id,
+      p_codice: codiceSblocco,
+    });
+
+    setVerificaInCorso(false);
+
+    if (error) {
+      setErroreSblocco('Errore di connessione. Riprova.');
+      return;
+    }
+    if (!data) {
+      setErroreSblocco('Codice errato. Controlla di aver scritto quello scelto alla creazione.');
+      return;
+    }
+
+    const caso = casoDaSbloccare;
+    setCasoDaSbloccare(null);
+    avviaModifica(caso, codiceSblocco);
+  };
+
+  const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && (codiceGiaVerificato || codiceGruppo.trim().length >= 4);
   const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '';
 
   const stepValido = (s: Step) => {
@@ -388,24 +428,29 @@ export default function StudentPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
-                  <input
-                    id="codice-gruppo"
-                    type="password"
-                    required
-                    minLength={4}
-                    value={codiceGruppo}
-                    onChange={e => setCodiceGruppo(e.target.value)}
-                    placeholder={editId !== null ? 'Inserisci il codice scelto alla creazione...' : 'Scegli un codice (min. 4 caratteri)...'}
-                    className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
-                  />
-                  <p className="text-[11px] text-stone-400 mt-1">
-                    {editId !== null
-                      ? 'Serve a confermare che questa scheda è vostra: usate lo stesso codice inserito alla creazione.'
-                      : 'Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.'}
-                  </p>
-                </div>
+                {codiceGiaVerificato ? (
+                  <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-3 text-xs font-medium">
+                    <span aria-hidden="true">✓</span>
+                    <span>Codice di gruppo verificato — potete modificare questa scheda.</span>
+                  </div>
+                ) : (
+                  <div>
+                    <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+                    <input
+                      id="codice-gruppo"
+                      type="password"
+                      required
+                      minLength={4}
+                      value={codiceGruppo}
+                      onChange={e => setCodiceGruppo(e.target.value)}
+                      placeholder="Scegli un codice (min. 4 caratteri)..."
+                      className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    />
+                    <p className="text-[11px] text-stone-400 mt-1">
+                      Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -627,7 +672,7 @@ export default function StudentPage() {
                       <p className="text-xs text-stone-500">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
                     </div>
                   </div>
-                  <button onClick={() => avviaModifica(c)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
+                  <button onClick={() => chiediSblocco(c)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     Modifica
                   </button>
                 </div>
@@ -710,6 +755,62 @@ export default function StudentPage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {casoDaSbloccare && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Sblocca modifica: ${casoDaSbloccare.titolo}`}
+          onClick={() => setCasoDaSbloccare(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="font-serif font-bold text-lg">Sblocca modifica</h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Inserisci il codice di gruppo scelto quando avete creato &ldquo;{casoDaSbloccare.titolo}&rdquo;.
+              </p>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); confermaSblocco(); }}>
+              <label htmlFor="codice-sblocco" className="sr-only">Codice di gruppo</label>
+              <input
+                id="codice-sblocco"
+                type="password"
+                autoFocus
+                value={codiceSblocco}
+                onChange={e => setCodiceSblocco(e.target.value)}
+                placeholder="Codice di gruppo..."
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+              />
+
+              {erroreSblocco && (
+                <p role="alert" className="text-xs text-red-600 font-medium mt-2 bg-red-50 border border-red-200 rounded-xl p-2.5">{erroreSblocco}</p>
+              )}
+
+              <div className="flex space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCasoDaSbloccare(null)}
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={verificaInCorso || !codiceSblocco.trim()}
+                  className="flex-1 bg-stone-900 text-white hover:bg-stone-800 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                >
+                  {verificaInCorso ? 'Verifica...' : 'Sblocca'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
