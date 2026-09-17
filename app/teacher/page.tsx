@@ -32,6 +32,12 @@ export default function TeacherPage() {
   const [erroreReset, setErroreReset] = useState(false);
   const [successoReset, setSuccessoReset] = useState(false);
 
+  const [casoDaReimpostare, setCasoDaReimpostare] = useState<any | null>(null);
+  const [nuovoCodice, setNuovoCodice] = useState('');
+  const [erroreReimposta, setErroreReimposta] = useState('');
+  const [reimpostaInCorso, setReimpostaInCorso] = useState(false);
+  const [successoReimposta, setSuccessoReimposta] = useState<{ titolo: string; codice: string } | null>(null);
+
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
 
@@ -98,6 +104,35 @@ export default function TeacherPage() {
     setErroreReset(false);
     setSuccessoReset(true);
     setTimeout(() => setSuccessoReset(false), 4000);
+  };
+
+  const confermaReimpostaCodice = async () => {
+    if (!casoDaReimpostare) return;
+    if (nuovoCodice.trim().length < 4) {
+      setErroreReimposta('Il codice deve avere almeno 4 caratteri.');
+      return;
+    }
+
+    setReimpostaInCorso(true);
+    setErroreReimposta('');
+
+    const { error } = await supabase.rpc('docente_reimposta_codice', {
+      p_caso_id: casoDaReimpostare.id,
+      p_nuovo_codice: nuovoCodice.trim(),
+      p_passcode: passcodeAttivo,
+    });
+
+    setReimpostaInCorso(false);
+
+    if (error) {
+      console.error('Errore nel reimpostare il codice:', error);
+      setErroreReimposta('Errore durante il salvataggio. Riprova.');
+      return;
+    }
+
+    setSuccessoReimposta({ titolo: casoDaReimpostare.titolo, codice: nuovoCodice.trim() });
+    setCasoDaReimpostare(null);
+    setNuovoCodice('');
   };
 
   const generaCriticaAi = async (caso: any, persona: string) => {
@@ -534,7 +569,17 @@ export default function TeacherPage() {
       )}
 
       {activeTab === 'controllo' && (
-        <div className="flex-1 p-8 overflow-y-auto max-w-xl mx-auto w-full space-y-6 flex flex-col justify-center">
+        <div className="flex-1 p-8 overflow-y-auto max-w-xl mx-auto w-full space-y-6">
+          {successoReimposta && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm flex items-start justify-between space-x-3">
+              <div>
+                <p className="font-medium text-emerald-800">Nuovo codice per &ldquo;{successoReimposta.titolo}&rdquo;</p>
+                <p className="text-emerald-700 mt-1">Comunica questo codice al gruppo: <b className="font-mono bg-white px-2 py-0.5 rounded border border-emerald-200">{successoReimposta.codice}</b></p>
+              </div>
+              <button onClick={() => setSuccessoReimposta(null)} aria-label="Chiudi" className="text-emerald-600 hover:text-emerald-900 text-xs flex-shrink-0">✕</button>
+            </div>
+          )}
+
           <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
             <div>
               <h2 className="text-2xl font-serif text-center">Pannello di Controllo &amp; Sicurezza</h2>
@@ -548,12 +593,12 @@ export default function TeacherPage() {
             <form onSubmit={resettaTuttoConPassword} className="space-y-4 pt-2">
               <div>
                 <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password per Reset Totale</label>
-                <input 
-                  type="password" 
-                  value={passwordReset} 
-                  onChange={e => setPasswordReset(e.target.value)} 
-                  placeholder="Inserisci password..." 
-                  className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:border-stone-900" 
+                <input
+                  type="password"
+                  value={passwordReset}
+                  onChange={e => setPasswordReset(e.target.value)}
+                  placeholder="Inserisci password..."
+                  className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:border-stone-900"
                   required
                 />
               </div>
@@ -566,12 +611,94 @@ export default function TeacherPage() {
                 <p className="text-xs text-emerald-600 font-medium text-center">Piattaforma resettata con successo!</p>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full bg-red-600 text-white py-3 rounded-xl font-medium hover:bg-red-700 transition shadow-sm text-xs"
               >
                 Conferma e Svuota Database Piattaforma
               </button>
+            </form>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-lg font-serif font-bold">Gestione Codici di Gruppo</h2>
+              <p className="text-stone-500 text-xs mt-1">I codici non sono mai leggibili (nemmeno da qui): se un gruppo lo dimentica, imposta qui uno nuovo e comunicaglielo.</p>
+            </div>
+
+            {casi.length === 0 ? (
+              <p className="text-xs text-stone-400 text-center py-4">Nessun caso studio registrato.</p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {casi.map(c => (
+                  <div key={c.id} className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-xl p-3">
+                    <div className="overflow-hidden">
+                      <p className="text-sm font-medium truncate">{c.titolo}</p>
+                      <p className="text-xs text-stone-500">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
+                    </div>
+                    <button
+                      onClick={() => { setCasoDaReimpostare(c); setNuovoCodice(''); setErroreReimposta(''); }}
+                      className="text-xs bg-white border border-stone-300 hover:border-stone-500 px-3 py-2 rounded-xl font-medium transition flex-shrink-0 ml-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                    >
+                      Reimposta codice
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {casoDaReimpostare && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Reimposta codice: ${casoDaReimpostare.titolo}`}
+          onClick={() => setCasoDaReimpostare(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h2 className="font-serif font-bold text-lg">Nuovo codice di gruppo</h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Stai per sostituire il codice di &ldquo;{casoDaReimpostare.titolo}&rdquo; (Gruppo {casoDaReimpostare.gruppoNum}). Il vecchio codice smetterà di funzionare.
+              </p>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); confermaReimpostaCodice(); }}>
+              <label htmlFor="nuovo-codice" className="sr-only">Nuovo codice</label>
+              <input
+                id="nuovo-codice"
+                type="text"
+                autoFocus
+                minLength={4}
+                value={nuovoCodice}
+                onChange={e => setNuovoCodice(e.target.value)}
+                placeholder="Nuovo codice (min. 4 caratteri)..."
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+              />
+
+              {erroreReimposta && (
+                <p role="alert" className="text-xs text-red-600 font-medium mt-2 bg-red-50 border border-red-200 rounded-xl p-2.5">{erroreReimposta}</p>
+              )}
+
+              <div className="flex space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCasoDaReimpostare(null)}
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={reimpostaInCorso}
+                  className="flex-1 bg-stone-900 text-white hover:bg-stone-800 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                >
+                  {reimpostaInCorso ? 'Salvataggio...' : 'Reimposta'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
