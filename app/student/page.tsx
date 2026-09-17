@@ -77,6 +77,11 @@ export default function StudentPage() {
   const [erroreSblocco, setErroreSblocco] = useState('');
   const [verificaInCorso, setVerificaInCorso] = useState(false);
 
+  const [casoDaEliminare, setCasoDaEliminare] = useState<any | null>(null);
+  const [codiceEliminazione, setCodiceEliminazione] = useState('');
+  const [erroreEliminazione, setErroreEliminazione] = useState('');
+  const [eliminazioneInCorso, setEliminazioneInCorso] = useState(false);
+
   const [numeroGruppoVoto, setNumeroGruppoVoto] = useState('');
   const [casoAttivoId, setCasoAttivoId] = useState<number | null>(null);
   const [mioVoto, setMioVoto] = useState<Colore | null>(null);
@@ -275,6 +280,38 @@ export default function StudentPage() {
     const caso = casoDaSbloccare;
     setCasoDaSbloccare(null);
     avviaModifica(caso, codiceSblocco);
+  };
+
+  const chiediEliminazione = (c: any) => {
+    setCasoDaEliminare(c);
+    setCodiceEliminazione('');
+    setErroreEliminazione('');
+  };
+
+  const confermaEliminazione = async () => {
+    if (!casoDaEliminare) return;
+    setEliminazioneInCorso(true);
+    setErroreEliminazione('');
+
+    const { error } = await supabase.rpc('elimina_caso_studio', {
+      p_id: casoDaEliminare.id,
+      p_codice: codiceEliminazione,
+    });
+
+    setEliminazioneInCorso(false);
+
+    if (error) {
+      setErroreEliminazione(
+        error.message === 'codice_errato'
+          ? 'Codice errato. Controlla di aver scritto quello scelto alla creazione.'
+          : 'Errore durante la cancellazione. Riprova.'
+      );
+      return;
+    }
+
+    setCasoDaEliminare(null);
+    if (editId === casoDaEliminare.id) resetForm();
+    await caricaDati();
   };
 
   const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && (codiceGiaVerificato || codiceGruppo.trim().length >= 4);
@@ -672,9 +709,14 @@ export default function StudentPage() {
                       <p className="text-xs text-stone-500">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
                     </div>
                   </div>
-                  <button onClick={() => chiediSblocco(c)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    Modifica
-                  </button>
+                  <div className="flex space-x-2 flex-shrink-0">
+                    <button onClick={() => chiediSblocco(c)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
+                      Modifica
+                    </button>
+                    <button onClick={() => chiediEliminazione(c)} className="text-xs bg-stone-100 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
+                      Elimina
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -808,6 +850,62 @@ export default function StudentPage() {
                   className="flex-1 bg-stone-900 text-white hover:bg-stone-800 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
                 >
                   {verificaInCorso ? 'Verifica...' : 'Sblocca'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {casoDaEliminare && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Elimina: ${casoDaEliminare.titolo}`}
+          onClick={() => setCasoDaEliminare(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="font-serif font-bold text-lg text-red-700">Elimina definitivamente</h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Stai per cancellare &ldquo;{casoDaEliminare.titolo}&rdquo; e tutti i voti ricevuti. Questa azione non si può annullare. Inserisci il codice di gruppo per confermare.
+              </p>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); confermaEliminazione(); }}>
+              <label htmlFor="codice-eliminazione" className="sr-only">Codice di gruppo</label>
+              <input
+                id="codice-eliminazione"
+                type="password"
+                autoFocus
+                value={codiceEliminazione}
+                onChange={e => setCodiceEliminazione(e.target.value)}
+                placeholder="Codice di gruppo..."
+                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+
+              {erroreEliminazione && (
+                <p role="alert" className="text-xs text-red-600 font-medium mt-2 bg-red-50 border border-red-200 rounded-xl p-2.5">{erroreEliminazione}</p>
+              )}
+
+              <div className="flex space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCasoDaEliminare(null)}
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={eliminazioneInCorso || !codiceEliminazione.trim()}
+                  className="flex-1 bg-red-600 text-white hover:bg-red-700 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                >
+                  {eliminazioneInCorso ? 'Eliminazione...' : 'Elimina'}
                 </button>
               </div>
             </form>
