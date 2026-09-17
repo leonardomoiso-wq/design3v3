@@ -547,7 +547,7 @@ export default function TeacherPage() {
 
             <form onSubmit={resettaTuttoConPassword} className="space-y-4 pt-2">
               <div>
-                <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password per Reset Totale (admin2026)</label>
+                <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Password per Reset Totale</label>
                 <input 
                   type="password" 
                   value={passwordReset} 
