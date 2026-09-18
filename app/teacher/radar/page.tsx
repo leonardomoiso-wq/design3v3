@@ -22,7 +22,12 @@ const ASSI = [
   { chiave: 'vitalita', etichetta: 'Vitalità' },
 ] as const;
 
-const PALETTE = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#1d4ed8', '#15803d', '#a16207', '#9333ea'];
+// Palette categorica validata (8 tonalità, ordine fisso, CVD-safe): vedi
+// il capitolo colore della skill dataviz. La precedente era scelta a
+// occhio e falliva la verifica (due viola quasi indistinguibili anche a
+// vista normale) — questa passa lightness/chroma/CVD/contrasto.
+const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+const LIMITE_ATTIVI = 6;
 
 const RAGGIO = 200;
 const LABEL_OFFSET = 32;
@@ -59,6 +64,7 @@ export default function RadarPage() {
   const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
   const [ricerca, setRicerca] = useState('');
+  const [limiteRaggiunto, setLimiteRaggiunto] = useState(false);
   const cardRefs = useRef<Record<number, HTMLElement | null>>({});
 
   const [zoom, setZoom] = useState(1);
@@ -160,11 +166,22 @@ export default function RadarPage() {
   }, [casiFiltrati]);
 
   const toggleAttivo = (id: number) => {
-    setAttivi(prev => (prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]));
+    setAttivi(prev => {
+      if (prev.includes(id)) return prev.filter(a => a !== id);
+      if (prev.length >= LIMITE_ATTIVI) {
+        setLimiteRaggiunto(true);
+        setTimeout(() => setLimiteRaggiunto(false), 2500);
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const casiAttivi = casiFiltrati.filter(c => attivi.includes(c.id));
-  const coloreDi = (id: number) => PALETTE[casiFiltrati.findIndex(x => x.id === id) % PALETTE.length];
+  // Il colore segue l'id del caso studio, mai la sua posizione nell'elenco
+  // filtrato: altrimenti cambiare ricerca/filtro "ridipingerebbe" i
+  // progetti già selezionati, confondendo chi li sta confrontando.
+  const coloreDi = (id: number) => PALETTE[id % PALETTE.length];
 
   // Più si zooma, più le linee/punti in unità SVG vanno assottigliati: la
   // trasformazione CSS le scala comunque, e a zoom alto uno spessore fisso
@@ -223,6 +240,12 @@ export default function RadarPage() {
             className="w-full text-xs border border-stone-200 rounded-full px-3 py-2 bg-white mb-2 focus:outline-none focus:ring-2 focus:ring-stone-900"
           />
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Progetti ({casiFiltrati.length})</h2>
+          <p className="text-[10px] text-stone-400 px-1 pb-1">{attivi.length}/{LIMITE_ATTIVI} attivi sul radar</p>
+          {limiteRaggiunto && (
+            <p role="alert" className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-1">
+              Massimo {LIMITE_ATTIVI} progetti insieme, oltre diventa illeggibile. Deselezionane uno per aggiungerne un altro.
+            </p>
+          )}
           {casiFiltrati.length === 0 && (
             <p className="text-xs text-stone-400 px-1">Nessun caso studio corrisponde alla ricerca.</p>
           )}
@@ -312,6 +335,14 @@ export default function RadarPage() {
               const punti = ASSI.map((asse, i) => ({ ...puntoAsse(i, c.driver?.[asse.chiave] ?? 0), asse }));
               const path = punti.map(p => `${p.x},${p.y}`).join(' ');
               const inEvidenza = casoHoverId === c.id;
+              // Etichetta diretta sul centroide del poligono: secondaria all'hue,
+              // necessaria perché oltre 3 serie un radar (forma "all-pairs") non
+              // garantisce più l'identificazione basata solo sul colore.
+              const centroide = {
+                x: punti.reduce((s, p) => s + p.x, 0) / punti.length,
+                y: punti.reduce((s, p) => s + p.y, 0) / punti.length,
+              };
+              const etichettaBreve = c.titolo.length > 16 ? c.titolo.slice(0, 16) + '…' : c.titolo;
               return (
                 <g key={c.id} className="transition-opacity duration-300">
                   <polygon
@@ -351,6 +382,30 @@ export default function RadarPage() {
                       </circle>
                     );
                   })}
+                  <g style={{ pointerEvents: 'none', opacity: inEvidenza ? 1 : 0.85 }}>
+                    <rect
+                      x={centroide.x - (etichettaBreve.length * 3.2 + 8)}
+                      y={centroide.y - 8}
+                      width={etichettaBreve.length * 6.4 + 16}
+                      height={16}
+                      rx={8}
+                      fill="white"
+                      fillOpacity={0.82}
+                      stroke={colore}
+                      strokeWidth={1}
+                    />
+                    <circle cx={centroide.x - (etichettaBreve.length * 3.2 - 2)} cy={centroide.y} r={3} fill={colore} />
+                    <text
+                      x={centroide.x + 4}
+                      y={centroide.y}
+                      textAnchor="start"
+                      dominantBaseline="middle"
+                      className="fill-stone-800"
+                      style={{ fontSize: 9, fontWeight: 700 }}
+                    >
+                      {etichettaBreve}
+                    </text>
+                  </g>
                 </g>
               );
             })}
