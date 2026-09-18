@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { normalizzaDriver, estraiNote, costruisciDriver, type NoteDriver } from '../../lib/driver';
+import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
+
+const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
 const TAG_OPTIONS = [
   'Eco-feedback interfaces',
@@ -60,10 +62,10 @@ export default function StudentPage() {
   const [immagine, setImmagine] = useState<string>('');
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
-  const [desiderabilita, setDesiderabilita] = useState(50);
-  const [fattibilita, setFattibilita] = useState(50);
-  const [responsabilita, setResponsabilita] = useState(50);
-  const [vitalita, setVitalita] = useState(50);
+  const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
+  const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
+  const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
+  const [vitalita, setVitalita] = useState(DRIVER_DEFAULT);
   const [note, setNote] = useState<NoteDriver>({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
   const [codiceGruppo, setCodiceGruppo] = useState('');
   const [codiceGiaVerificato, setCodiceGiaVerificato] = useState(false);
@@ -164,7 +166,7 @@ export default function StudentPage() {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setCodiceGiaVerificato(false);
-    setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
+    setDesiderabilita(DRIVER_DEFAULT); setFattibilita(DRIVER_DEFAULT); setResponsabilita(DRIVER_DEFAULT); setVitalita(DRIVER_DEFAULT);
     setNote({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setEditId(null);
     setStep('gruppo');
@@ -175,8 +177,7 @@ export default function StudentPage() {
     setErroreSalvataggio('');
     setSalvataggioInCorso(true);
 
-    const x = fattibilita - desiderabilita;
-    const y = vitalita - responsabilita;
+    const { x, y } = coordinateDaDriver(desiderabilita, fattibilita, responsabilita, vitalita);
 
     const tagPersonalizzatoTrim = tagPersonalizzato.trim();
     const tagsFinali = tagPersonalizzatoTrim
@@ -555,7 +556,7 @@ export default function StudentPage() {
 
             {step === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
+                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione, da 0 a {MAX_DRIVER}. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
                 {([
                   ['desiderabilita', desiderabilita, setDesiderabilita],
                   ['fattibilita', fattibilita, setFattibilita],
@@ -568,15 +569,27 @@ export default function StudentPage() {
                       <span className="text-stone-500">{valore}</span>
                     </div>
                     <p className="text-[11px] text-stone-400 mb-2">{DRIVER_INFO[chiave].domanda}</p>
-                    <input
+                    <div
+                      role="radiogroup"
                       id={`driver-${chiave}`}
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={valore}
-                      onChange={e => (setValore as (n: number) => void)(Number(e.target.value))}
-                      className="w-full accent-stone-900 cursor-pointer"
-                    />
+                      aria-label={`${DRIVER_INFO[chiave].etichetta}, da 0 a ${MAX_DRIVER}`}
+                      className="flex gap-1.5"
+                    >
+                      {Array.from({ length: MAX_DRIVER + 1 }, (_, n) => n).map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          role="radio"
+                          aria-checked={valore === n}
+                          onClick={() => (setValore as (n: number) => void)(n)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${
+                            valore === n ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                     <label htmlFor={`nota-${chiave}`} className="sr-only">Motivazione per {DRIVER_INFO[chiave].etichetta}</label>
                     <textarea
                       id={`nota-${chiave}`}

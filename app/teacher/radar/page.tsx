@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver, estraiNote, type NoteDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 
 type Caso = {
   id: number;
@@ -37,7 +37,7 @@ const TAGLIA_SVG = CENTRO * 2;
 
 function puntoAsse(indice: number, valore: number) {
   const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
-  const distanza = (valore / 100) * RAGGIO;
+  const distanza = (valore / MAX_DRIVER) * RAGGIO;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
     y: CENTRO + distanza * Math.sin(angolo),
@@ -335,14 +335,6 @@ export default function RadarPage() {
               const punti = ASSI.map((asse, i) => ({ ...puntoAsse(i, c.driver?.[asse.chiave] ?? 0), asse }));
               const path = punti.map(p => `${p.x},${p.y}`).join(' ');
               const inEvidenza = casoHoverId === c.id;
-              // Etichetta diretta sul centroide del poligono: secondaria all'hue,
-              // necessaria perché oltre 3 serie un radar (forma "all-pairs") non
-              // garantisce più l'identificazione basata solo sul colore.
-              const centroide = {
-                x: punti.reduce((s, p) => s + p.x, 0) / punti.length,
-                y: punti.reduce((s, p) => s + p.y, 0) / punti.length,
-              };
-              const etichettaBreve = c.titolo.length > 16 ? c.titolo.slice(0, 16) + '…' : c.titolo;
               return (
                 <g key={c.id} className="transition-opacity duration-300">
                   <polygon
@@ -382,30 +374,6 @@ export default function RadarPage() {
                       </circle>
                     );
                   })}
-                  <g style={{ pointerEvents: 'none', opacity: inEvidenza ? 1 : 0.85 }}>
-                    <rect
-                      x={centroide.x - (etichettaBreve.length * 3.2 + 8)}
-                      y={centroide.y - 8}
-                      width={etichettaBreve.length * 6.4 + 16}
-                      height={16}
-                      rx={8}
-                      fill="white"
-                      fillOpacity={0.82}
-                      stroke={colore}
-                      strokeWidth={1}
-                    />
-                    <circle cx={centroide.x - (etichettaBreve.length * 3.2 - 2)} cy={centroide.y} r={3} fill={colore} />
-                    <text
-                      x={centroide.x + 4}
-                      y={centroide.y}
-                      textAnchor="start"
-                      dominantBaseline="middle"
-                      className="fill-stone-800"
-                      style={{ fontSize: 9, fontWeight: 700 }}
-                    >
-                      {etichettaBreve}
-                    </text>
-                  </g>
                 </g>
               );
             })}
@@ -559,7 +527,7 @@ export default function RadarPage() {
               </p>
 
               <div className="space-y-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
                 <div className="space-y-2.5">
                   {ASSI.map(asse => {
                     const valore = casoEspanso.driver?.[asse.chiave] ?? 0;
@@ -573,7 +541,7 @@ export default function RadarPage() {
                         <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${valore}%`, backgroundColor: coloreDi(casoEspanso.id) }}
+                            style={{ width: `${(valore / MAX_DRIVER) * 100}%`, backgroundColor: coloreDi(casoEspanso.id) }}
                           />
                         </div>
                         {nota && (

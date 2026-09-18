@@ -19,8 +19,10 @@ type Caso = {
 
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Voti = Record<Colore, number>;
+type DettaglioVoti = Record<Colore, number[]>;
 
 const VOTI_VUOTI: Voti = { verde: 0, giallo: 0, rosso: 0 };
+const DETTAGLIO_VUOTO: DettaglioVoti = { verde: [], giallo: [], rosso: [] };
 
 const SFONDO: Record<'nessuno' | Colore, string> = {
   nessuno: '#FBF9F5',
@@ -33,6 +35,7 @@ export default function ReviewPage() {
   const { passcode } = useDocente();
   const [casi, setCasi] = useState<Caso[]>([]);
   const [votiPerCaso, setVotiPerCaso] = useState<Record<number, Voti>>({});
+  const [dettaglioVotiPerCaso, setDettaglioVotiPerCaso] = useState<Record<number, DettaglioVoti>>({});
   const [casoAttivoId, setCasoAttivoId] = useState<number | null>(null);
   const [indice, setIndice] = useState(0);
   const [modalitaStampa, setModalitaStampa] = useState(false);
@@ -59,15 +62,19 @@ export default function ReviewPage() {
     };
 
     const caricaVoti = async () => {
-      const { data, error } = await supabase.from('voti_revisione').select('caso_id, colore');
+      const { data, error } = await supabase.from('voti_revisione').select('caso_id, gruppo_num, colore');
       if (!error && data) {
         const aggregati: Record<number, Voti> = {};
+        const dettagli: Record<number, DettaglioVoti> = {};
         for (const riga of data as any[]) {
           const id = Number(riga.caso_id);
           if (!aggregati[id]) aggregati[id] = { ...VOTI_VUOTI };
+          if (!dettagli[id]) dettagli[id] = { verde: [], giallo: [], rosso: [] };
           aggregati[id][riga.colore as Colore] += 1;
+          dettagli[id][riga.colore as Colore].push(Number(riga.gruppo_num));
         }
         setVotiPerCaso(aggregati);
+        setDettaglioVotiPerCaso(dettagli);
       }
     };
 
@@ -94,9 +101,12 @@ export default function ReviewPage() {
     };
   }, []);
 
+  const mappaGruppi = Object.fromEntries(casi.map(c => [c.gruppoNum, c.gruppoNome])) as Record<number, string>;
+
   const casiInclusi = casi.filter(c => c.inclusoRevisione);
   const casoCorrente = casiInclusi[indice];
   const votiCorrente = (casoCorrente && votiPerCaso[casoCorrente.id]) || VOTI_VUOTI;
+  const dettaglioCorrente = (casoCorrente && dettaglioVotiPerCaso[casoCorrente.id]) || DETTAGLIO_VUOTO;
   const esitoCorrente = casoCorrente?.esitoRevisione || 'nessuno';
   const votazioneAperta = casoCorrente != null && casoAttivoId === casoCorrente.id;
 
@@ -143,6 +153,7 @@ export default function ReviewPage() {
       return;
     }
     setVotiPerCaso(prev => ({ ...prev, [casoCorrente.id]: { ...VOTI_VUOTI } }));
+    setDettaglioVotiPerCaso(prev => ({ ...prev, [casoCorrente.id]: { verde: [], giallo: [], rosso: [] } }));
   };
 
   const impostaEsito = async (colore: 'nessuno' | Colore) => {
@@ -192,6 +203,7 @@ export default function ReviewPage() {
         <div className="space-y-8 max-w-4xl mx-auto">
           {casi.map((c, i) => {
             const voti = votiPerCaso[c.id] || VOTI_VUOTI;
+            const dettaglio = dettaglioVotiPerCaso[c.id] || DETTAGLIO_VUOTO;
             const esito = c.esitoRevisione || 'nessuno';
             return (
               <div key={c.id} className="bg-white p-10 rounded-2xl shadow-sm border border-stone-300 page-break" style={{ backgroundColor: SFONDO[esito] }}>
@@ -221,6 +233,19 @@ export default function ReviewPage() {
                     <span className="text-xs px-3 py-1 rounded-full bg-stone-900 text-white font-medium capitalize">Approvato: {esito}</span>
                   )}
                 </div>
+                {(dettaglio.verde.length + dettaglio.giallo.length + dettaglio.rosso.length) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-100 flex flex-wrap gap-1.5 text-[10px]">
+                    {dettaglio.verde.map((n, i) => (
+                      <span key={`v-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                    {dettaglio.giallo.map((n, i) => (
+                      <span key={`g-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                    {dettaglio.rosso.map((n, i) => (
+                      <span key={`r-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-red-50 border-red-200 text-red-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -291,6 +316,36 @@ export default function ReviewPage() {
               </div>
             </div>
           </div>
+
+          {(dettaglioCorrente.verde.length + dettaglioCorrente.giallo.length + dettaglioCorrente.rosso.length) > 0 && (
+            <div className="flex-shrink-0 px-10 pb-4">
+              <div className="max-w-5xl mx-auto bg-white/70 backdrop-blur border border-stone-200 rounded-2xl p-4 grid grid-cols-3 gap-4">
+                {([
+                  ['verde', 'Verde', 'text-emerald-800', 'bg-emerald-50 border-emerald-200 text-emerald-800'],
+                  ['giallo', 'Giallo', 'text-amber-800', 'bg-amber-50 border-amber-200 text-amber-800'],
+                  ['rosso', 'Rosso', 'text-red-800', 'bg-red-50 border-red-200 text-red-800'],
+                ] as const).map(([colore, etichetta, titoloClasse, chipClasse]) => (
+                  <div key={colore} className="space-y-1.5">
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${titoloClasse}`}>
+                      {etichetta} &middot; chi ha votato ({dettaglioCorrente[colore].length})
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dettaglioCorrente[colore].length === 0 ? (
+                        <span className="text-[10px] text-stone-400">Nessun voto</span>
+                      ) : (
+                        dettaglioCorrente[colore].map((numero, i) => (
+                          <span key={`${numero}-${i}`} className={`text-[10px] font-medium px-2 py-1 rounded-full border ${chipClasse}`}>
+                            G.{numero}{mappaGruppi[numero] ? ` — ${mappaGruppi[numero]}` : ''}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-stone-400 text-center mt-2">Chiedi direttamente a un gruppo perché ha assegnato quel voto, per avviare il confronto in aula.</p>
+            </div>
+          )}
 
           <div className="flex-shrink-0 px-10 pb-8 flex items-center justify-between">
             <button

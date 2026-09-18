@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver, estraiNote } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 
 const TAG_OPTIONS = [
@@ -40,6 +40,8 @@ export default function TeacherPage() {
 
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
+  const [ricercaMatrice, setRicercaMatrice] = useState('');
+  const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
 
   useEffect(() => {
 
@@ -138,13 +140,14 @@ export default function TeacherPage() {
   const generaCriticaAi = async (caso: any, persona: string) => {
     setLoadingAi(true);
     setAiCritica("");
-    const d = caso.driver || { desiderabilita: 50, fattibilita: 50, responsabilita: 50, vitalita: 50 };
+    const meta = Math.round(MAX_DRIVER / 2);
+    const d = caso.driver || { desiderabilita: meta, fattibilita: meta, responsabilita: meta, vitalita: meta };
     
     let promptPersona = "";
     if (persona === 'artigiano') {
-      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
+      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri (scala 0-${MAX_DRIVER}) di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
     } else if (persona === 'ingegnere') {
-      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
+      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver (scala 0-${MAX_DRIVER}) Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
     } else if (persona === 'designer80') {
       promptPersona = `Agisci come un Designer radicale anni '80 (Memphis). Analizza il caso studio (${caso.titolo}) focalizzandoti sul valore provocatorio e formale.`;
     } else if (persona === 'prodotto2000') {
@@ -170,12 +173,7 @@ export default function TeacherPage() {
     const caso = casi.find(c => c.id === id);
     const noteEsistenti = caso?.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' };
 
-    const valoriDriver = {
-      desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
-      fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
-      responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
-      vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
-    };
+    const valoriDriver = driverDaCoordinate(xClamped, yClamped);
 
     // Il driver salvato può contenere anche la motivazione testuale dello
     // studente: la preserviamo, aggiornando solo il valore numerico.
@@ -233,9 +231,18 @@ export default function TeacherPage() {
 
   const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
 
-  const casiFiltrati = filtroTag
-    ? casi.filter(c => (c.tags || []).includes(filtroTag))
-    : casi;
+  const ricercaNormalizzata = ricercaMatrice.trim().toLowerCase();
+
+  const casiFiltrati = casi
+    .filter(c => (filtroTag ? (c.tags || []).includes(filtroTag) : true))
+    .filter(c => {
+      if (!ricercaNormalizzata) return true;
+      return (
+        c.titolo?.toLowerCase().includes(ricercaNormalizzata) ||
+        c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata) ||
+        String(c.gruppoNum).includes(ricercaNormalizzata)
+      );
+    });
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -282,7 +289,7 @@ export default function TeacherPage() {
             <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
             <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            <div className="absolute top-16 left-8 z-20">
+            <div className="absolute top-16 left-8 z-20 flex items-center gap-2">
               <select
                 value={filtroTag}
                 onChange={e => setFiltroTag(e.target.value)}
@@ -293,13 +300,22 @@ export default function TeacherPage() {
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
+              <label htmlFor="ricerca-matrice" className="sr-only">Cerca per titolo o gruppo</label>
+              <input
+                id="ricerca-matrice"
+                type="search"
+                value={ricercaMatrice}
+                onChange={e => setRicercaMatrice(e.target.value)}
+                placeholder="🔍 Cerca titolo o gruppo..."
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44"
+              />
             </div>
 
             {casiFiltrati.length === 0 && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
                 {casi.length === 0
                   ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
-                  : <>Nessun caso studio corrisponde al tag selezionato.</>}
+                  : <>Nessun caso studio corrisponde ai filtri applicati.</>}
               </div>
             )}
 
@@ -307,6 +323,7 @@ export default function TeacherPage() {
               const left = `${((c.x + 100) / 200) * 100}%`;
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
+              const inEvidenza = casoHoverId === c.id;
 
               return (
                 <div
@@ -314,8 +331,16 @@ export default function TeacherPage() {
                   draggable
                   onDragEnd={(e) => aggiornaPosizioneDaDrop(e, c.id)}
                   onClick={() => { setSelezionato(c); setAiCritica(''); }}
+                  onMouseEnter={() => setCasoHoverId(c.id)}
+                  onMouseLeave={() => setCasoHoverId(null)}
                   style={{ left, top }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border ${isSelected ? 'border-stone-900 shadow-2xl scale-105 z-30' : 'border-stone-200 shadow-md hover:border-stone-400 z-10'} flex items-center space-x-2.5 max-w-[200px]`}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
+                    isSelected
+                      ? 'border-stone-900 shadow-2xl scale-105 z-30'
+                      : inEvidenza
+                        ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg scale-105 z-20'
+                        : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
+                  }`}
                 >
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
@@ -371,7 +396,7 @@ export default function TeacherPage() {
                 )}
 
                 <div className="space-y-2 border-t border-stone-200 pt-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
                   <div className="space-y-1.5">
                     {([
                       ['desiderabilita', 'Desiderabilità'],
@@ -384,7 +409,7 @@ export default function TeacherPage() {
                         <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
                           <div className="flex justify-between">
                             <span>{etichetta}</span>
-                            <b>{selezionato.driver?.[chiave] ?? 50}</b>
+                            <b>{selezionato.driver?.[chiave] ?? Math.round(MAX_DRIVER / 2)}</b>
                           </div>
                           {nota && (
                             <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
