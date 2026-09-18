@@ -83,7 +83,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   return (
     <DocenteContext.Provider value={{ passcode, logout }}>
-      <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
+      <div className="app-shell h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
         <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-30 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
@@ -95,13 +95,16 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <Link href="/teacher" className={linkClasse('/teacher')}>Dashboard &amp; Matrice</Link>
             <Link href="/teacher/radar" className={linkClasse('/teacher/radar')}>🕸️ Radar Multicriterio</Link>
             <Link href="/teacher/review" className={linkClasse('/teacher/review')}>🗳️ Peer Review in Aula</Link>
+            <Link href="/teacher/attivita" className={linkClasse('/teacher/attivita')}>⚙️ Attività</Link>
+            <Link href="/teacher/crazy8" className={linkClasse('/teacher/crazy8')}>🎨 Crazy 8</Link>
+            <a href="/manuali" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">📚 Manuali</a>
             <button onClick={logout} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-500 hover:border-red-300 hover:text-red-600">
               Esci
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="app-shell-body flex-1 overflow-hidden flex flex-col">
           {children}
         </div>
       </div>

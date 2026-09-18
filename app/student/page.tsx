@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { normalizzaDriver, estraiNote, costruisciDriver, type NoteDriver } from '../../lib/driver';
+import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
+
+const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
 const TAG_OPTIONS = [
   'Eco-feedback interfaces',
@@ -60,10 +62,10 @@ export default function StudentPage() {
   const [immagine, setImmagine] = useState<string>('');
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
-  const [desiderabilita, setDesiderabilita] = useState(50);
-  const [fattibilita, setFattibilita] = useState(50);
-  const [responsabilita, setResponsabilita] = useState(50);
-  const [vitalita, setVitalita] = useState(50);
+  const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
+  const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
+  const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
+  const [vitalita, setVitalita] = useState(DRIVER_DEFAULT);
   const [note, setNote] = useState<NoteDriver>({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
   const [codiceGruppo, setCodiceGruppo] = useState('');
   const [codiceGiaVerificato, setCodiceGiaVerificato] = useState(false);
@@ -164,7 +166,7 @@ export default function StudentPage() {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setCodiceGiaVerificato(false);
-    setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
+    setDesiderabilita(DRIVER_DEFAULT); setFattibilita(DRIVER_DEFAULT); setResponsabilita(DRIVER_DEFAULT); setVitalita(DRIVER_DEFAULT);
     setNote({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setEditId(null);
     setStep('gruppo');
@@ -175,8 +177,7 @@ export default function StudentPage() {
     setErroreSalvataggio('');
     setSalvataggioInCorso(true);
 
-    const x = fattibilita - desiderabilita;
-    const y = vitalita - responsabilita;
+    const { x, y } = coordinateDaDriver(desiderabilita, fattibilita, responsabilita, vitalita);
 
     const tagPersonalizzatoTrim = tagPersonalizzato.trim();
     const tagsFinali = tagPersonalizzatoTrim
@@ -398,7 +399,10 @@ export default function StudentPage() {
   return (
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
+        <div className="flex items-center space-x-4">
+          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
+          <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
+        </div>
         <div className="space-x-2">
           <button onClick={() => setActiveTab('crea')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {editId !== null ? 'Modifica Scheda' : '+ Nuova Consegna'}
@@ -555,7 +559,7 @@ export default function StudentPage() {
 
             {step === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
+                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione, da 0 a {MAX_DRIVER}. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
                 {([
                   ['desiderabilita', desiderabilita, setDesiderabilita],
                   ['fattibilita', fattibilita, setFattibilita],
@@ -568,15 +572,27 @@ export default function StudentPage() {
                       <span className="text-stone-500">{valore}</span>
                     </div>
                     <p className="text-[11px] text-stone-400 mb-2">{DRIVER_INFO[chiave].domanda}</p>
-                    <input
+                    <div
+                      role="radiogroup"
                       id={`driver-${chiave}`}
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={valore}
-                      onChange={e => (setValore as (n: number) => void)(Number(e.target.value))}
-                      className="w-full accent-stone-900 cursor-pointer"
-                    />
+                      aria-label={`${DRIVER_INFO[chiave].etichetta}, da 0 a ${MAX_DRIVER}`}
+                      className="flex gap-1.5"
+                    >
+                      {Array.from({ length: MAX_DRIVER + 1 }, (_, n) => n).map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          role="radio"
+                          aria-checked={valore === n}
+                          onClick={() => (setValore as (n: number) => void)(n)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${
+                            valore === n ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                     <label htmlFor={`nota-${chiave}`} className="sr-only">Motivazione per {DRIVER_INFO[chiave].etichetta}</label>
                     <textarea
                       id={`nota-${chiave}`}
@@ -760,6 +776,44 @@ export default function StudentPage() {
                     <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">🟢 In votazione ora</span>
                     <h3 className="font-serif font-bold text-base text-stone-900">{casoInVotazione.titolo}</h3>
                     <p className="text-xs text-stone-500">Gruppo {casoInVotazione.gruppoNum} — {casoInVotazione.gruppoNome}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-stone-200 p-4 space-y-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Maggiori dettagli, per votare con consapevolezza</h4>
+
+                  {casoInVotazione.descrizione && (
+                    <p className="text-xs text-stone-600 leading-relaxed">{casoInVotazione.descrizione}</p>
+                  )}
+
+                  {casoInVotazione.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {casoInVotazione.tags.map((tag: string) => (
+                        <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[10px] text-stone-400">Come si sono autovalutati (scala 0-{MAX_DRIVER}) e perché:</p>
+                    {(['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const).map(chiave => {
+                      const valore = casoInVotazione.driver?.[chiave] ?? 0;
+                      const nota = casoInVotazione.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="text-xs">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-medium text-stone-700">{DRIVER_INFO[chiave].etichetta}</span>
+                            <b>{valore}/{MAX_DRIVER}</b>
+                          </div>
+                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-stone-900 rounded-full" style={{ width: `${(valore / MAX_DRIVER) * 100}%` }} />
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
