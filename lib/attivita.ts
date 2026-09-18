@@ -26,6 +26,7 @@ export type AttivitaRow = {
 
 export const MODULI_ATTIVITA: Record<string, { icona: string; hrefStudente?: string; hrefDocente?: string }> = {
   design_case_studies: { icona: '🗂️', hrefStudente: '/student', hrefDocente: '/teacher' },
+  crazy8_ai: { icona: '🎨', hrefStudente: '/crazy8', hrefDocente: '/teacher/crazy8' },
 };
 
 export function moduloDi(tipo: string) {
