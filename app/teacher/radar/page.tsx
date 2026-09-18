@@ -56,7 +56,10 @@ export default function RadarPage() {
   const [filtroTag, setFiltroTag] = useState('');
   const [filtroDriver, setFiltroDriver] = useState<'nessuno' | 'desiderabilita' | 'fattibilita' | 'responsabilita' | 'vitalita'>('nessuno');
   const [hover, setHover] = useState<Hover | null>(null);
+  const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
+  const [ricerca, setRicerca] = useState('');
+  const cardRefs = useRef<Record<number, HTMLElement | null>>({});
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -136,13 +139,21 @@ export default function RadarPage() {
 
   const casiFiltrati = useMemo(() => {
     let lista = filtroTag ? casi.filter(c => (c.tags || []).includes(filtroTag)) : casi;
+    if (ricerca.trim()) {
+      const q = ricerca.trim().toLowerCase();
+      lista = lista.filter(c =>
+        c.titolo.toLowerCase().includes(q) ||
+        c.gruppoNome.toLowerCase().includes(q) ||
+        String(c.gruppoNum).includes(q)
+      );
+    }
     if (filtroDriver !== 'nessuno') {
       lista = [...lista]
         .sort((a, b) => (b.driver?.[filtroDriver] ?? 0) - (a.driver?.[filtroDriver] ?? 0))
         .slice(0, 5);
     }
     return lista;
-  }, [casi, filtroTag, filtroDriver]);
+  }, [casi, filtroTag, filtroDriver, ricerca]);
 
   useEffect(() => {
     setAttivi(casiFiltrati.slice(0, 5).map(c => c.id));
@@ -154,6 +165,19 @@ export default function RadarPage() {
 
   const casiAttivi = casiFiltrati.filter(c => attivi.includes(c.id));
   const coloreDi = (id: number) => PALETTE[casiFiltrati.findIndex(x => x.id === id) % PALETTE.length];
+
+  // Più si zooma, più le linee/punti in unità SVG vanno assottigliati: la
+  // trasformazione CSS le scala comunque, e a zoom alto uno spessore fisso
+  // diventerebbe un blob che nasconde i punti vicini impedendo di
+  // selezionarli con precisione.
+  const spessoreLinea = Math.max(0.6, Math.min(3, 2 / zoom));
+  const raggioBase = Math.max(1.5, Math.min(5, 3.5 / zoom));
+  const raggioHover = Math.max(2.5, Math.min(9, 6 / zoom));
+
+  useEffect(() => {
+    if (casoHoverId === null) return;
+    cardRefs.current[casoHoverId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [casoHoverId]);
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
@@ -189,19 +213,33 @@ export default function RadarPage() {
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-64 border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
+          <label htmlFor="radar-ricerca" className="sr-only">Cerca per titolo o gruppo</label>
+          <input
+            id="radar-ricerca"
+            type="text"
+            value={ricerca}
+            onChange={e => setRicerca(e.target.value)}
+            placeholder="Cerca titolo o gruppo..."
+            className="w-full text-xs border border-stone-200 rounded-full px-3 py-2 bg-white mb-2 focus:outline-none focus:ring-2 focus:ring-stone-900"
+          />
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Progetti ({casiFiltrati.length})</h2>
           {casiFiltrati.length === 0 && (
-            <p className="text-xs text-stone-400 px-1">Nessun caso studio disponibile.</p>
+            <p className="text-xs text-stone-400 px-1">Nessun caso studio corrisponde alla ricerca.</p>
           )}
           {casiFiltrati.map(c => {
             const colore = coloreDi(c.id);
             const attivo = attivi.includes(c.id);
+            const inEvidenza = casoHoverId === c.id;
             return (
               <button
                 key={c.id}
                 onClick={() => toggleAttivo(c.id)}
+                onMouseEnter={() => attivo && setCasoHoverId(c.id)}
+                onMouseLeave={() => setCasoHoverId(null)}
                 aria-pressed={attivo}
-                className={`w-full flex items-center space-x-2.5 p-2.5 rounded-xl border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${attivo ? 'bg-white border-stone-300 shadow-sm' : 'bg-transparent border-transparent opacity-50 hover:opacity-80'}`}
+                className={`w-full flex items-center space-x-2.5 p-2.5 rounded-xl border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${
+                  inEvidenza ? 'bg-amber-50 border-amber-300 shadow-sm' : attivo ? 'bg-white border-stone-300 shadow-sm' : 'bg-transparent border-transparent opacity-50 hover:opacity-80'
+                }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: attivo ? colore : '#d6d3d1' }}></span>
                 <div className="overflow-hidden">
@@ -273,15 +311,18 @@ export default function RadarPage() {
               const colore = coloreDi(c.id);
               const punti = ASSI.map((asse, i) => ({ ...puntoAsse(i, c.driver?.[asse.chiave] ?? 0), asse }));
               const path = punti.map(p => `${p.x},${p.y}`).join(' ');
+              const inEvidenza = casoHoverId === c.id;
               return (
                 <g key={c.id} className="transition-opacity duration-300">
                   <polygon
                     points={path}
                     fill={colore}
-                    fillOpacity={0.12}
+                    fillOpacity={inEvidenza ? 0.28 : 0.12}
                     stroke={colore}
-                    strokeWidth={2}
-                    style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
+                    strokeWidth={inEvidenza ? spessoreLinea * 1.8 : spessoreLinea}
+                    style={{ transition: 'fill-opacity 0.15s ease, stroke-width 0.15s ease', cursor: 'pointer' }}
+                    onMouseEnter={() => setCasoHoverId(c.id)}
+                    onMouseLeave={() => setCasoHoverId(null)}
                     onClick={() => setCasoEspanso(c)}
                   />
                   {punti.map((p, i) => {
@@ -291,13 +332,19 @@ export default function RadarPage() {
                         key={i}
                         cx={p.x}
                         cy={p.y}
-                        r={isHover ? 6 : 3.5}
+                        r={isHover ? raggioHover : raggioBase}
                         fill={colore}
                         stroke="white"
-                        strokeWidth={isHover ? 1.5 : 0}
+                        strokeWidth={isHover ? spessoreLinea * 0.8 : 0}
                         style={{ transition: 'r 0.15s ease', cursor: 'pointer' }}
-                        onMouseEnter={() => setHover({ x: p.x, y: p.y, etichetta: p.asse.etichetta, valore: c.driver?.[p.asse.chiave] ?? 0, titolo: c.titolo, colore })}
-                        onMouseLeave={() => setHover(null)}
+                        onMouseEnter={() => {
+                          setHover({ x: p.x, y: p.y, etichetta: p.asse.etichetta, valore: c.driver?.[p.asse.chiave] ?? 0, titolo: c.titolo, colore });
+                          setCasoHoverId(c.id);
+                        }}
+                        onMouseLeave={() => {
+                          setHover(null);
+                          setCasoHoverId(null);
+                        }}
                         onClick={() => setCasoEspanso(c)}
                       >
                         <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0} (clicca per aprire la scheda)`}</title>
@@ -369,11 +416,15 @@ export default function RadarPage() {
           )}
           {casiAttivi.map(c => {
             const colore = coloreDi(c.id);
+            const inEvidenza = casoHoverId === c.id;
             return (
               <button
                 key={c.id}
+                ref={el => { cardRefs.current[c.id] = el; }}
                 onClick={() => setCasoEspanso(c)}
-                className="w-full text-left bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden hover:border-stone-400 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group"
+                onMouseEnter={() => setCasoHoverId(c.id)}
+                onMouseLeave={() => setCasoHoverId(null)}
+                className={`w-full text-left bg-white rounded-2xl border shadow-sm overflow-hidden transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group ${inEvidenza ? 'border-amber-300 ring-2 ring-amber-200' : 'border-stone-200 hover:border-stone-400'}`}
               >
                 <div className="h-28 bg-stone-100 flex items-center justify-center p-3 relative" style={{ borderBottom: `3px solid ${colore}` }}>
                   {c.immagine ? (
