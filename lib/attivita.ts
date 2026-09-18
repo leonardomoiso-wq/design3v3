@@ -1,33 +1,33 @@
-// Registro delle "attività" del laboratorio mostrate in home page.
-// Per aggiungere una nuova attività in futuro: costruisci le sue pagine
-// sotto app/<nuova-attivita>/ e aggiungi qui una nuova voce — la home
-// page la mostra automaticamente, attiva o "in arrivo" a seconda dello
-// stato.
-export type Attivita = {
+// Le attività del laboratorio sono ora gestite dal/dalla docente a runtime
+// (tabella `attivita` su Supabase, pannello in app/teacher/attivita) invece
+// che da un array statico: titolo, descrizione, stato e obbligatorietà dei
+// campi possono cambiare senza toccare il codice.
+//
+// Questo file resta comunque il punto in cui si registra un nuovo MODULO di
+// pagine: uno "stato" o un "titolo" si possono cambiare dal pannello, ma una
+// pagina sotto app/<...> va comunque scritta e agganciata qui tramite il suo
+// "tipo". Un'attività può esistere ed essere visibile prima che il suo
+// modulo esista (stato 'prossimamente'): diventa avviabile solo da quando
+// compare qui.
+
+export type StatoAttivita = 'bozza' | 'prossimamente' | 'attiva' | 'archiviata';
+
+// Forma della riga così come arriva da Supabase (select * from attivita).
+export type AttivitaRow = {
   id: string;
   titolo: string;
-  descrizione: string;
-  icona: string;
-  hrefStudente?: string;
-  hrefDocente?: string;
-  stato: 'attiva' | 'prossimamente';
+  descrizione: string | null;
+  tipo: string;
+  ordine: number;
+  stato: StatoAttivita;
+  richiedi_log_prompt: boolean;
+  richiedi_riflessione: boolean;
 };
 
-export const ATTIVITA: Attivita[] = [
-  {
-    id: 'case-studies',
-    titolo: 'Design Case Studies',
-    descrizione: 'Sottomissione dei progetti, matrice IDEO, radar multicriterio e peer review con voto di gruppo in tempo reale.',
-    icona: '🗂️',
-    hrefStudente: '/student',
-    hrefDocente: '/teacher',
-    stato: 'attiva',
-  },
-  {
-    id: 'prossima-attivita',
-    titolo: 'Prossima Attività',
-    descrizione: 'Un nuovo modulo del laboratorio arriverà qui, con lo stesso accesso studenti/docente.',
-    icona: '✨',
-    stato: 'prossimamente',
-  },
-];
+export const MODULI_ATTIVITA: Record<string, { icona: string; hrefStudente?: string; hrefDocente?: string }> = {
+  design_case_studies: { icona: '🗂️', hrefStudente: '/student', hrefDocente: '/teacher' },
+};
+
+export function moduloDi(tipo: string) {
+  return MODULI_ATTIVITA[tipo] || { icona: '✨' };
+}

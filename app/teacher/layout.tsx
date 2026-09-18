@@ -95,6 +95,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <Link href="/teacher" className={linkClasse('/teacher')}>Dashboard &amp; Matrice</Link>
             <Link href="/teacher/radar" className={linkClasse('/teacher/radar')}>🕸️ Radar Multicriterio</Link>
             <Link href="/teacher/review" className={linkClasse('/teacher/review')}>🗳️ Peer Review in Aula</Link>
+            <Link href="/teacher/attivita" className={linkClasse('/teacher/attivita')}>⚙️ Attività</Link>
             <a href="/manuali" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">📚 Manuali</a>
             <button onClick={logout} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-500 hover:border-red-300 hover:text-red-600">
               Esci
