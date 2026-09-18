@@ -5,6 +5,9 @@ export default function LandingPage() {
     <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
         <span className="font-serif tracking-tight font-bold text-lg">DESIGN 3</span>
+        <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
+          📚 Manuali &amp; Tutorial
+        </a>
       </nav>
 
       <div className="pt-16 pb-10 text-center space-y-5">

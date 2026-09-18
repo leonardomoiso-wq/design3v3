@@ -399,7 +399,10 @@ export default function StudentPage() {
   return (
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
+        <div className="flex items-center space-x-4">
+          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
+          <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
+        </div>
         <div className="space-x-2">
           <button onClick={() => setActiveTab('crea')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {editId !== null ? 'Modifica Scheda' : '+ Nuova Consegna'}
