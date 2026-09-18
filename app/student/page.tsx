@@ -776,6 +776,44 @@ export default function StudentPage() {
                   </div>
                 </div>
 
+                <div className="bg-white rounded-xl border border-stone-200 p-4 space-y-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Maggiori dettagli, per votare con consapevolezza</h4>
+
+                  {casoInVotazione.descrizione && (
+                    <p className="text-xs text-stone-600 leading-relaxed">{casoInVotazione.descrizione}</p>
+                  )}
+
+                  {casoInVotazione.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {casoInVotazione.tags.map((tag: string) => (
+                        <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[10px] text-stone-400">Come si sono autovalutati (scala 0-{MAX_DRIVER}) e perché:</p>
+                    {(['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const).map(chiave => {
+                      const valore = casoInVotazione.driver?.[chiave] ?? 0;
+                      const nota = casoInVotazione.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="text-xs">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-medium text-stone-700">{DRIVER_INFO[chiave].etichetta}</span>
+                            <b>{valore}/{MAX_DRIVER}</b>
+                          </div>
+                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-stone-900 rounded-full" style={{ width: `${(valore / MAX_DRIVER) * 100}%` }} />
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Il vostro voto">
                   {(['verde', 'giallo', 'rosso'] as Colore[]).map(colore => {
                     const stile = {

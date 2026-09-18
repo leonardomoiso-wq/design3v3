@@ -255,7 +255,7 @@ export default function TeacherPage() {
   const clusters = getClusterAnalitici();
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col select-none">
+    <div className="app-shell-body flex-1 overflow-hidden flex flex-col select-none">
 
       <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
         <div className="flex items-center space-x-2">
@@ -475,7 +475,7 @@ export default function TeacherPage() {
       )}
 
       {activeTab === 'slides' && (
-        <div className="flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
+        <div className="printable-area flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
           <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
@@ -494,23 +494,38 @@ export default function TeacherPage() {
               <div className="bg-white p-12 rounded-2xl text-center text-stone-400 text-sm">Nessun caso studio disponibile per le slide.</div>
             ) : (
               casi.map((c, index) => (
-                <div key={c.id} className="bg-white aspect-[16/9] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
+                <div key={c.id} className="bg-white min-h-[34rem] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
                   <div className="flex justify-between items-center border-b border-stone-200 pb-4">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
                     <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 items-center my-auto">
+                  <div className="grid grid-cols-2 gap-8 items-start my-auto">
                     <div className="space-y-4">
                       <h2 className="text-3xl font-serif font-bold text-stone-900">{c.titolo}</h2>
                       <p className="text-sm text-stone-600 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-stone-50 p-2 rounded-lg border">Desiderabilità: <b>{c.driver?.desiderabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Fattibilità: <b>{c.driver?.fattibilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Responsabilità: <b>{c.driver?.responsabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Vitalità: <b>{c.driver?.vitalita}</b></div>
+                      <div className="space-y-2">
+                        {([
+                          ['desiderabilita', 'Desiderabilità'],
+                          ['fattibilita', 'Fattibilità'],
+                          ['responsabilita', 'Responsabilità'],
+                          ['vitalita', 'Vitalità'],
+                        ] as const).map(([chiave, etichetta]) => {
+                          const nota = c.driverNote?.[chiave];
+                          return (
+                            <div key={chiave} className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-stone-600">{etichetta}</span>
+                                <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
+                              </div>
+                              {nota && (
+                                <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{nota}&rdquo;</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

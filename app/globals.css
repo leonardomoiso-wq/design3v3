@@ -16,15 +16,32 @@ h1, h2, h3, h4 {
 }
 
 @media print {
-  body {
+  html, body {
     background-color: #ffffff !important;
+    height: auto !important;
     overflow: visible !important;
   }
-  
+
   header, button, nav {
     display: none !important;
   }
-  
+
+  /* L'app tiene tutto dentro contenitori h-screen/overflow-hidden per lo
+     scroll a schermo intero: in stampa questo taglia il contenuto alla
+     prima pagina, perché il browser pagina solo ciò che può scorrere
+     fuori da un blocco a overflow visibile. Le riportiamo ad altezza
+     naturale solo in stampa, così tutte le schede/slide scorrono sulle
+     pagine successive. */
+  .app-shell,
+  .app-shell-body,
+  .printable-area {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+    display: block !important;
+  }
+
   .page-break {
     page-break-after: always;
     break-after: page;
@@ -34,5 +51,10 @@ h1, h2, h3, h4 {
     height: 100vh !important;
     margin: 0 !important;
     padding: 2rem !important;
+  }
+
+  .page-break:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 }

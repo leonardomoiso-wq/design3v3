@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 
 type Caso = {
@@ -13,9 +13,17 @@ type Caso = {
   immagine: string;
   tags: string[];
   driver: { desiderabilita: number; fattibilita: number; responsabilita: number; vitalita: number };
+  driverNote: NoteDriver;
   esitoRevisione: 'verde' | 'giallo' | 'rosso' | null;
   inclusoRevisione: boolean;
 };
+
+const ETICHETTE_DRIVER = [
+  ['desiderabilita', 'Desiderabilità'],
+  ['fattibilita', 'Fattibilità'],
+  ['responsabilita', 'Responsabilità'],
+  ['vitalita', 'Vitalità'],
+] as const;
 
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Voti = Record<Colore, number>;
@@ -54,6 +62,7 @@ export default function ReviewPage() {
           immagine: c.immagine,
           tags: c.tags || [],
           driver: normalizzaDriver(c.driver),
+          driverNote: estraiNote(c.driver),
           esitoRevisione: c.esito_revisione || null,
           inclusoRevisione: c.incluso_revisione ?? true,
         }));
@@ -184,7 +193,7 @@ export default function ReviewPage() {
 
   if (modalitaStampa) {
     return (
-      <div className="flex-1 overflow-y-auto p-12 bg-stone-200 space-y-12">
+      <div className="printable-area flex-1 overflow-y-auto p-12 bg-stone-200 space-y-12">
         <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm print:hidden">
           <div>
             <h2 className="text-xl font-serif font-bold">Archivio Peer Review</h2>
@@ -211,7 +220,7 @@ export default function ReviewPage() {
                   <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Peer Review &middot; Scheda {i + 1} di {casi.length}</span>
                   <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-8 items-center">
+                <div className="grid grid-cols-2 gap-8 items-start">
                   <div className="space-y-3">
                     <h2 className="text-2xl font-serif font-bold">{c.titolo}</h2>
                     <p className="text-sm text-stone-600 leading-relaxed">{c.descrizione}</p>
@@ -224,6 +233,27 @@ export default function ReviewPage() {
                     )}
                   </div>
                 </div>
+
+                <div className="mt-5 pt-4 border-t border-stone-200">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ETICHETTE_DRIVER.map(([chiave, etichetta]) => {
+                      const nota = c.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-stone-600">{etichetta}</span>
+                            <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex items-center space-x-6 mt-6 pt-4 border-t border-stone-200 text-sm">
                   <span className="font-medium text-stone-500 text-xs uppercase tracking-widest">Voti dei Gruppi</span>
                   <span className="flex items-center space-x-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span><b>{voti.verde}</b></span>

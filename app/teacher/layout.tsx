@@ -83,7 +83,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   return (
     <DocenteContext.Provider value={{ passcode, logout }}>
-      <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
+      <div className="app-shell h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
         <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-30 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
@@ -101,7 +101,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="app-shell-body flex-1 overflow-hidden flex flex-col">
           {children}
         </div>
       </div>
