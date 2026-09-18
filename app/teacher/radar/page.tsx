@@ -24,8 +24,10 @@ const ASSI = [
 
 const PALETTE = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#1d4ed8', '#15803d', '#a16207', '#9333ea'];
 
-const RAGGIO = 220;
-const CENTRO = 260;
+const RAGGIO = 200;
+const LABEL_OFFSET = 32;
+const MARGINE_ETICHETTA = 90; // spazio per testo come "RESPONSABILITÀ" senza tagli
+const CENTRO = RAGGIO + LABEL_OFFSET + MARGINE_ETICHETTA;
 const TAGLIA_SVG = CENTRO * 2;
 
 function puntoAsse(indice: number, valore: number) {
@@ -39,7 +41,7 @@ function puntoAsse(indice: number, valore: number) {
 
 function puntoEtichetta(indice: number) {
   const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
-  const distanza = RAGGIO + 32;
+  const distanza = RAGGIO + LABEL_OFFSET;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
     y: CENTRO + distanza * Math.sin(angolo),
