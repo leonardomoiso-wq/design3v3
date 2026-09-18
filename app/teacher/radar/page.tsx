@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, type NoteDriver } from '@/lib/driver';
 
@@ -57,6 +57,42 @@ export default function RadarPage() {
   const [filtroDriver, setFiltroDriver] = useState<'nessuno' | 'desiderabilita' | 'fattibilita' | 'responsabilita' | 'vitalita'>('nessuno');
   const [hover, setHover] = useState<Hover | null>(null);
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
+
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [trascinando, setTrascinando] = useState(false);
+  const puntoIniziale = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const ZOOM_MIN = 0.6;
+  const ZOOM_MAX = 3;
+
+  const applicaZoom = (delta: number) => {
+    setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
+  };
+
+  const resetVista = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const onWheelRadar = (e: React.WheelEvent) => {
+    e.preventDefault();
+    applicaZoom(e.deltaY > 0 ? -0.15 : 0.15);
+  };
+
+  const onMouseDownRadar = (e: React.MouseEvent) => {
+    setTrascinando(true);
+    puntoIniziale.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const onMouseMoveRadar = (e: React.MouseEvent) => {
+    if (!trascinando) return;
+    const dx = e.clientX - puntoIniziale.current.x;
+    const dy = e.clientY - puntoIniziale.current.y;
+    setPan({ x: puntoIniziale.current.panX + dx, y: puntoIniziale.current.panY + dy });
+  };
+
+  const onMouseUpRadar = () => setTrascinando(false);
 
   useEffect(() => {
     const carica = async () => {
@@ -177,10 +213,23 @@ export default function RadarPage() {
           })}
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 overflow-hidden relative">
+        <div
+          className="flex-1 flex items-center justify-center p-6 overflow-hidden relative select-none"
+          onWheel={onWheelRadar}
+          onMouseDown={onMouseDownRadar}
+          onMouseMove={onMouseMoveRadar}
+          onMouseUp={onMouseUpRadar}
+          onMouseLeave={onMouseUpRadar}
+          style={{ cursor: trascinando ? 'grabbing' : 'grab' }}
+        >
           <svg
             viewBox={`0 0 ${TAGLIA_SVG} ${TAGLIA_SVG}`}
-            className="w-full h-full max-w-[640px] max-h-[640px]"
+            className="w-full h-full max-w-[860px] max-h-[860px]"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: trascinando ? 'none' : 'transform 0.1s ease-out',
+            }}
             role="img"
             aria-label={`Radar con ${casiAttivi.length} progetti attivi sui quattro driver`}
           >
@@ -226,7 +275,15 @@ export default function RadarPage() {
               const path = punti.map(p => `${p.x},${p.y}`).join(' ');
               return (
                 <g key={c.id} className="transition-opacity duration-300">
-                  <polygon points={path} fill={colore} fillOpacity={0.12} stroke={colore} strokeWidth={2} style={{ transition: 'all 0.3s ease' }} />
+                  <polygon
+                    points={path}
+                    fill={colore}
+                    fillOpacity={0.12}
+                    stroke={colore}
+                    strokeWidth={2}
+                    style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
+                    onClick={() => setCasoEspanso(c)}
+                  />
                   {punti.map((p, i) => {
                     const isHover = hover?.titolo === c.titolo && hover?.etichetta === p.asse.etichetta;
                     return (
@@ -241,8 +298,9 @@ export default function RadarPage() {
                         style={{ transition: 'r 0.15s ease', cursor: 'pointer' }}
                         onMouseEnter={() => setHover({ x: p.x, y: p.y, etichetta: p.asse.etichetta, valore: c.driver?.[p.asse.chiave] ?? 0, titolo: c.titolo, colore })}
                         onMouseLeave={() => setHover(null)}
+                        onClick={() => setCasoEspanso(c)}
                       >
-                        <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0}`}</title>
+                        <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0} (clicca per aprire la scheda)`}</title>
                       </circle>
                     );
                   })}
@@ -270,6 +328,38 @@ export default function RadarPage() {
               </g>
             )}
           </svg>
+
+          <div className="absolute bottom-5 right-5 flex flex-col bg-white border border-stone-200 rounded-2xl shadow-lg overflow-hidden z-10">
+            <button
+              onClick={() => applicaZoom(0.2)}
+              aria-label="Aumenta zoom"
+              className="w-11 h-11 flex items-center justify-center text-lg font-bold text-stone-700 hover:bg-stone-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              +
+            </button>
+            <div className="text-[10px] text-center py-1.5 text-stone-500 border-t border-b border-stone-200 bg-stone-50">
+              {Math.round(zoom * 100)}%
+            </div>
+            <button
+              onClick={() => applicaZoom(-0.2)}
+              aria-label="Riduci zoom"
+              className="w-11 h-11 flex items-center justify-center text-lg font-bold text-stone-700 hover:bg-stone-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              −
+            </button>
+            <button
+              onClick={resetVista}
+              aria-label="Reimposta zoom e posizione"
+              title="Reimposta vista"
+              className="w-11 h-11 flex items-center justify-center text-sm text-stone-500 hover:bg-stone-100 transition border-t border-stone-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              ⟲
+            </button>
+          </div>
+
+          <div className="absolute bottom-5 left-5 text-[10px] text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-stone-200 pointer-events-none">
+            Trascina per spostarti &middot; rotellina per zoomare &middot; clicca un punto per i dettagli
+          </div>
         </div>
 
         <div className="w-80 border-l border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-3 flex-shrink-0">
