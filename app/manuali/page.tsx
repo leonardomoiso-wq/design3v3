@@ -1,6 +1,8 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import type { StatoAttivita } from '@/lib/attivita';
 
 type IdAttivita = 'design_case_studies' | 'crazy8_ai' | 'hmw_role_prompting' | 'teambuilding';
 
@@ -11,10 +13,41 @@ const SCHEDE: { id: IdAttivita; etichetta: string; icona: string }[] = [
   { id: 'hmw_role_prompting', etichetta: 'HMW', icona: '🎭' },
 ];
 
+// "Il Team" non è un'attività della tabella `attivita` (il login di team è
+// una funzionalità sempre presente della piattaforma): il suo manuale resta
+// sempre sbloccato. Gli altri manuali seguono lo stato reale dell'attività,
+// così da non anticipare contenuti su attività che il/la docente non ha
+// ancora aperto — stessa logica di "avviabile" già usata in home.
 function ManualiContenuto() {
   const params = useSearchParams();
   const dallUrl = params.get('attivita') as IdAttivita | null;
   const [scheda, setScheda] = useState<IdAttivita>(dallUrl && SCHEDE.some(s => s.id === dallUrl) ? dallUrl : 'teambuilding');
+  const [statoPerTipo, setStatoPerTipo] = useState<Record<string, StatoAttivita> | null>(null);
+
+  useEffect(() => {
+    const carica = async () => {
+      const { data, error } = await supabase.from('attivita').select('tipo, stato');
+      if (!error && data) {
+        const mappa: Record<string, StatoAttivita> = {};
+        (data as { tipo: string; stato: StatoAttivita }[]).forEach(a => { mappa[a.tipo] = a.stato; });
+        setStatoPerTipo(mappa);
+      }
+    };
+
+    carica();
+
+    const channel = supabase
+      .channel('realtime-attivita-manuali')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attivita' }, carica)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const schedeSbloccate = SCHEDE.filter(s => s.id === 'teambuilding' || statoPerTipo?.[s.id] === 'attiva');
+  const schedaEffettiva = schedeSbloccate.some(s => s.id === scheda) ? scheda : 'teambuilding';
 
   return (
     <main className="min-h-screen px-6 py-10 max-w-4xl mx-auto space-y-8">
@@ -29,18 +62,24 @@ function ManualiContenuto() {
       </div>
 
       <nav aria-label="Scegli il manuale" className="flex flex-wrap gap-2">
-        {SCHEDE.map(s => (
+        {schedeSbloccate.map(s => (
           <button
             key={s.id}
             onClick={() => setScheda(s.id)}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition ${scheda === s.id ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400'}`}
+            className={`px-4 py-2 rounded-full text-xs font-medium transition ${schedaEffettiva === s.id ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400'}`}
           >
             {s.icona} {s.etichetta}
           </button>
         ))}
       </nav>
 
-      {scheda === 'teambuilding' && (
+      {statoPerTipo !== null && schedeSbloccate.length < SCHEDE.length && (
+        <p className="text-xs text-stone-400 -mt-4">
+          I manuali delle altre attività compariranno qui non appena il/la docente le aprirà.
+        </p>
+      )}
+
+      {schedaEffettiva === 'teambuilding' && (
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -77,7 +116,7 @@ function ManualiContenuto() {
         </div>
       )}
 
-      {scheda === 'design_case_studies' && (
+      {schedaEffettiva === 'design_case_studies' && (
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
           <div className="p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-stone-200">
             <div>
@@ -147,7 +186,7 @@ function ManualiContenuto() {
         </div>
       )}
 
-      {scheda === 'crazy8_ai' && (
+      {schedaEffettiva === 'crazy8_ai' && (
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -184,7 +223,7 @@ function ManualiContenuto() {
         </div>
       )}
 
-      {scheda === 'hmw_role_prompting' && (
+      {schedaEffettiva === 'hmw_role_prompting' && (
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
