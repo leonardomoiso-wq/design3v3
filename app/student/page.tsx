@@ -356,10 +356,15 @@ export default function StudentPage() {
 
   const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && (codiceGiaVerificato || codiceGruppo.trim().length >= 4);
   const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '';
+  const tagsValidi = tagsSelezionati.length > 0 || tagPersonalizzato.trim() !== '';
+  const valutazioneValida = (['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const)
+    .every(chiave => note[chiave].trim() !== '');
 
   const stepValido = (s: Step) => {
     if (s === 'gruppo') return gruppoValido;
     if (s === 'contenuti') return contenutiValidi;
+    if (s === 'tag') return tagsValidi;
+    if (s === 'driver') return valutazioneValida;
     return true;
   };
 
@@ -587,7 +592,7 @@ export default function StudentPage() {
 
             {stepEffettivo === 'tag' && (
               <div className="space-y-4">
-                <p className="text-sm text-stone-500">A quali temi si collega il caso studio? Assegnate le tag che ritenete opportune, o aggiungetene di vostre.</p>
+                <p className="text-sm text-stone-500">A quali temi si collega il caso studio? Assegnate almeno una tag tra quelle che ritenete opportune, o aggiungetene una vostra.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {tagOptions.map(tag => (
                     <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
@@ -655,9 +660,10 @@ export default function StudentPage() {
                     <textarea
                       id={`nota-${chiave}`}
                       rows={2}
+                      required
                       value={note[chiave]}
                       onChange={e => setNote(prev => ({ ...prev, [chiave]: e.target.value }))}
-                      placeholder="Perché questo punteggio? Motivate brevemente la scelta (facoltativo)..."
+                      placeholder="Perché questo punteggio? Motivate brevemente la scelta..."
                       className="w-full mt-2 border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
                     />
                   </div>
