@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
 import { comprimiImmagine } from '../../lib/immagine';
-import { BarraCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
+import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -404,7 +404,7 @@ export default function StudentPage() {
 
   return (
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
-      {comprimendoImmagine && <BarraCaricamento />}
+      {comprimendoImmagine && <SfondoCaricamento />}
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <div className="flex items-center space-x-4">
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>

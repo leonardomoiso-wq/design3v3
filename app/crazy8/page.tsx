@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { comprimiImmagine } from '../../lib/immagine';
-import { BarraCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
+import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 
 const TUTORIAL_VISTO_KEY = 'crazy8_tutorial_visto';
 
@@ -385,7 +385,7 @@ export default function Crazy8Page() {
 
   return (
     <main className="min-h-screen bg-[#FBF9F5]">
-      {caricamentiAttivi > 0 && <BarraCaricamento />}
+      {caricamentiAttivi > 0 && <SfondoCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
 
       <div className="flex justify-between items-center px-6 py-4 border-b border-stone-200">

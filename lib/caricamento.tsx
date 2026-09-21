@@ -2,15 +2,20 @@
 
 // Feedback visivo condiviso per la fase di compressione/upload di
 // un'immagine: un indicatore "a impulsi" da mettere accanto al singolo
-// controllo occupato, e una barra che percorre la cima della pagina, così
-// che l'upload si senta "propagarsi" nell'interfaccia intera senza
-// introdurre un sistema di notifica invasivo o uno stile fuori tono.
-
-export function BarraCaricamento() {
+// controllo occupato, e un bagliore che pulsa su tutto lo sfondo della
+// pagina, così che l'upload si senta chiaramente "propagarsi"
+// nell'interfaccia intera, senza però coprire i contenuti (è solo un
+// bordo/aura, il centro resta trasparente) né introdurre colori o forme
+// estranei alla palette esistente (riusa l'ambra già usata per gli
+// stati "in evidenza" nel radar e nella matrice).
+export function SfondoCaricamento() {
   return (
-    <div className="fixed top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-stone-200/60" role="status" aria-label="Caricamento immagine in corso">
-      <div className="h-full w-1/3 bg-gradient-to-r from-transparent via-stone-900 to-transparent animate-barra-caricamento" />
-    </div>
+    <div
+      className="fixed inset-0 z-40 pointer-events-none animate-sfondo-pulsa"
+      style={{ boxShadow: 'inset 0 0 0 6px rgba(217,119,6,0.45), inset 0 0 140px 40px rgba(217,119,6,0.22)' }}
+      role="status"
+      aria-label="Caricamento immagine in corso"
+    />
   );
 }
 
