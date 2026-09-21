@@ -150,12 +150,12 @@ function ManualiContenuto() {
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                  <img src="/manuali/img/passo-gruppo.png" alt="Primo passaggio del wizard: nome gruppo, numero e codice" loading="lazy" decoding="async" className="w-full" />
-                  <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 1 — Il Gruppo</figcaption>
+                  <img src="/manuali/img/passo-gruppo.png" alt="Passo Il Gruppo: nome, numero e codice, solo per l'accesso diretto senza team" loading="lazy" decoding="async" className="w-full" />
+                  <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 1 — Il Gruppo (solo accesso diretto)</figcaption>
                 </figure>
                 <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                  <img src="/manuali/img/passo-valutazione.png" alt="Passaggio di valutazione dei 4 driver con motivazione" loading="lazy" decoding="async" className="w-full" />
-                  <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 4 — Valutazione (0-5, con motivazione)</figcaption>
+                  <img src="/manuali/img/passo-valutazione.png" alt="Passaggio di valutazione dei 4 driver con un commento" loading="lazy" decoding="async" className="w-full" />
+                  <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 4 — Valutazione (0-5, con un commento)</figcaption>
                 </figure>
               </div>
             </section>
@@ -166,10 +166,11 @@ function ManualiContenuto() {
                 <h3 className="text-lg font-serif font-bold">Votare in aula</h3>
               </div>
               <p className="text-sm text-stone-600">
-                Quando il/la docente apre la votazione su un caso studio, inserite il numero del vostro gruppo nella scheda &quot;Vota in Aula&quot;.
-                Prima di votare, leggete il pannello <b>&quot;Maggiori dettagli&quot;</b>: descrizione, tag e — per ciascun driver — il valore assegnato
-                e la motivazione scritta dal gruppo che ha presentato il caso studio. Poi assegnate il vostro cartellino: <b>Verde</b>, <b>Giallo</b> o <b>Rosso</b>.
-                Potete cambiarlo finché la votazione resta aperta.
+                Quando il/la docente apre la votazione su un caso studio, aprite la scheda &quot;Vota in Aula&quot;: con il team già loggato vedrete
+                subito &quot;Votate come Gruppo N — Nome&quot;, senza inserire nulla; con l&apos;accesso diretto (nessun team), inserite invece il numero
+                del vostro gruppo a mano. Prima di votare, leggete il pannello <b>&quot;Maggiori dettagli&quot;</b>: descrizione, tag e — per ciascun driver
+                — il valore assegnato e la motivazione scritta dal gruppo che ha presentato il caso studio. Poi assegnate il vostro cartellino:
+                <b> Verde</b>, <b>Giallo</b> o <b>Rosso</b>. Potete cambiarlo finché la votazione resta aperta.
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
