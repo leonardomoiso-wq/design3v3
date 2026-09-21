@@ -24,6 +24,19 @@ function scaricaCsv(righe: RigaTeam[]) {
   URL.revokeObjectURL(url);
 }
 
+// Mostra il messaggio reale del database invece di un generico "errore":
+// il codice 'passcode_errato' arriva dalla funzione RPC quando il
+// passcode docente non corrisponde più a quello salvato in
+// docente_config (es. cambiato da un altro pannello); qualsiasi altro
+// messaggio viene mostrato così com'è, per poter capire subito la causa
+// reale invece di dover indovinarla.
+const messaggioErroreTeam = (msg: string | undefined, azione: string) => {
+  if (msg === 'passcode_errato') {
+    return 'Password docente non riconosciuta: esci e rientra nell\'area docente, poi riprova.';
+  }
+  return `Errore durante ${azione}${msg ? `: ${msg}` : '.'}`;
+};
+
 export default function TeamPannelloPage() {
   const { passcode } = useDocente();
   const [righe, setRighe] = useState<RigaTeam[] | null>(null);
@@ -35,17 +48,18 @@ export default function TeamPannelloPage() {
   const carica = async () => {
     setErrore('');
     const { data, error } = await supabase.rpc('docente_lista_team', { p_passcode: passcode });
-    if (error) { setErrore('Errore nel caricamento dei team.'); return; }
+    if (error) { setErrore(messaggioErroreTeam(error.message, 'il caricamento dei team')); return; }
     setRighe((data as RigaTeam[]) || []);
   };
 
   useEffect(() => { carica(); }, []);
 
   const eliminaTutti = async () => {
+    setErrore('');
     setEliminazioneInCorso(true);
     const { error } = await supabase.rpc('docente_elimina_tutti_team', { p_passcode: passcode });
     setEliminazioneInCorso(false);
-    if (error) { setErrore('Errore durante la cancellazione.'); return; }
+    if (error) { setErrore(messaggioErroreTeam(error.message, 'la cancellazione')); return; }
     setMostraConferma(false);
     setConfermaTesto('');
     await carica();
@@ -71,7 +85,7 @@ export default function TeamPannelloPage() {
               ⬇️ Scarica CSV
             </button>
             <button
-              onClick={() => setMostraConferma(true)}
+              onClick={() => { setErrore(''); setMostraConferma(true); }}
               disabled={!righe || righe.length === 0}
               className="text-xs bg-white border border-red-200 text-red-600 px-4 py-2.5 rounded-full font-medium hover:bg-red-50 transition disabled:opacity-40"
             >
@@ -120,6 +134,7 @@ export default function TeamPannelloPage() {
               Azione irreversibile: tutti i {righe?.length ?? 0} team perderanno l&apos;accesso e dovranno formarsi di nuovo.
               Le consegne già fatte nelle attività non vengono toccate. Scrivi <b>CANCELLA</b> per confermare.
             </p>
+            {errore && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-2.5">{errore}</p>}
             <input
               type="text"
               value={confermaTesto}
