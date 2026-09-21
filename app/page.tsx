@@ -18,10 +18,25 @@ const messaggioErroreTeam = (codice: string) => {
   }
 };
 
-function Incipit({ onAvanti }: { onAvanti: () => void }) {
+function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => void }) {
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
+        <div className="flex items-center justify-center gap-2">
+          <a
+            href="/teacher"
+            className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
+          >
+            🔐 Accesso Docente
+          </a>
+          <button
+            onClick={onSalta}
+            className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
+          >
+            Accesso Studente diretto
+          </button>
+        </div>
+
         <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
           Laboratorio di Design 3
         </div>
@@ -37,6 +52,10 @@ function Incipit({ onAvanti }: { onAvanti: () => void }) {
         >
           Formiamo il team →
         </button>
+        <p className="text-[11px] text-stone-400">
+          O saltate il login con &quot;Accesso Studente diretto&quot; qui sopra: potrete comunque partecipare alle attività,
+          inserendo nome e codice di gruppo a mano quando richiesto.
+        </p>
       </div>
     </main>
   );
@@ -278,7 +297,7 @@ function PannelloMembri({ team, onChiudi, onAggiornati }: { team: TeamInfo; onCh
   );
 }
 
-function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo; onLogout: () => void; onTeamAggiornato: (team: TeamInfo) => void }) {
+function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo | null; onLogout: () => void; onTeamAggiornato: (team: TeamInfo) => void }) {
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
   const [mostraMembri, setMostraMembri] = useState(false);
 
@@ -309,22 +328,30 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo; 
       <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
         <span className="font-serif tracking-tight font-bold text-lg">DESIGN 3</span>
         <div className="flex items-center gap-3">
-          <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-            Gruppo {team.numero} — {team.nome}
-          </span>
-          <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
-            👥 Membri
-          </button>
+          {team ? (
+            <>
+              <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+                Gruppo {team.numero} — {team.nome}
+              </span>
+              <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
+                👥 Membri
+              </button>
+            </>
+          ) : (
+            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-500 font-medium">
+              Accesso diretto (nessun team)
+            </span>
+          )}
           <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
             📚 Manuali &amp; Tutorial
           </a>
           <button onClick={onLogout} className="text-xs uppercase tracking-widest text-stone-400 hover:text-red-600 font-medium transition">
-            Esci
+            {team ? 'Esci' : '← Torna al login'}
           </button>
         </div>
       </nav>
 
-      {mostraMembri && (
+      {mostraMembri && team && (
         <PannelloMembri
           team={team}
           onChiudi={() => setMostraMembri(false)}
@@ -411,16 +438,23 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo; 
 export default function LandingPage() {
   const { team, pronto, accedi, logout } = useTeam();
   const [fase, setFase] = useState<'incipit' | 'accesso'>('incipit');
+  const [saltato, setSaltato] = useState(false);
 
   if (!pronto) {
     return <main className="min-h-screen bg-[#FBF9F5]" />;
   }
 
-  if (!team) {
+  if (!team && !saltato) {
     return fase === 'incipit'
-      ? <Incipit onAvanti={() => setFase('accesso')} />
+      ? <Incipit onAvanti={() => setFase('accesso')} onSalta={() => setSaltato(true)} />
       : <SchermataAccesso onAccesso={accedi} />;
   }
 
-  return <ElencoAttivita team={team} onLogout={logout} onTeamAggiornato={accedi} />;
+  return (
+    <ElencoAttivita
+      team={team}
+      onLogout={() => { if (team) logout(); else setSaltato(false); }}
+      onTeamAggiornato={accedi}
+    />
+  );
 }
