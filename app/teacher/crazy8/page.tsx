@@ -12,27 +12,24 @@ function FotoConCommenti({
   onInvia: () => void; onElimina: (commentoId: string, immagineId: string) => void; invioInCorso: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-      <img src={img.url_file} alt="" className="w-full h-48 object-contain bg-stone-50" />
-      <div className="p-3 space-y-2 border-t border-stone-100">
-        {commenti.map(c => (
-          <div key={c.id} className="text-[11px] bg-stone-50 rounded-lg p-2 flex justify-between items-start gap-2">
-            <span>{c.testo}</span>
-            <button onClick={() => onElimina(c.id, img.id)} aria-label="Elimina commento" className="text-stone-300 hover:text-red-600 flex-shrink-0">✕</button>
-          </div>
-        ))}
-        <div className="flex gap-1.5">
-          <input
-            value={bozza}
-            onChange={e => setBozza(e.target.value)}
-            placeholder="Aggiungi un commento..."
-            className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-stone-900"
-            onKeyDown={e => { if (e.key === 'Enter') onInvia(); }}
-          />
-          <button onClick={onInvia} disabled={invioInCorso || !bozza.trim()} className="text-[11px] bg-stone-900 text-white px-3 rounded-lg disabled:opacity-40">
-            Invia
-          </button>
+    <div className="p-3 space-y-2 border-t border-stone-100">
+      {commenti.map(c => (
+        <div key={c.id} className="text-[11px] bg-stone-50 rounded-lg p-2 flex justify-between items-start gap-2">
+          <span>{c.testo}</span>
+          <button onClick={() => onElimina(c.id, img.id)} aria-label="Elimina commento" className="text-stone-300 hover:text-red-600 flex-shrink-0">✕</button>
         </div>
+      ))}
+      <div className="flex gap-1.5">
+        <input
+          value={bozza}
+          onChange={e => setBozza(e.target.value)}
+          placeholder="Commenta questo sketch e il suo percorso..."
+          className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-stone-900"
+          onKeyDown={e => { if (e.key === 'Enter') onInvia(); }}
+        />
+        <button onClick={onInvia} disabled={invioInCorso || !bozza.trim()} className="text-[11px] bg-stone-900 text-white px-3 rounded-lg disabled:opacity-40">
+          Invia
+        </button>
       </div>
     </div>
   );
@@ -49,11 +46,14 @@ export default function Crazy8DocentePage() {
   const [indicePresentazione, setIndicePresentazione] = useState(0);
 
   const caricaSubmissions = async () => {
-    const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*)').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').order('created_at', { ascending: false });
     if (!error && data) {
       const formattate = (data as any[]).map(s => ({
         ...s,
-        immagini: (s.immagini || []).slice().sort((a: any, b: any) => a.ordine - b.ordine),
+        immagini: (s.immagini || [])
+          .slice()
+          .sort((a: any, b: any) => a.ordine - b.ordine)
+          .map((img: any) => ({ ...img, generazioni_crazy8: (img.generazioni_crazy8 || []).slice().sort((a: any, b: any) => a.ordine - b.ordine) })),
       }));
       setSubmissions(formattate);
       setSelezionataId(prev => (prev && formattate.some(f => f.id === prev)) ? prev : (formattate[0]?.id ?? null));
@@ -80,6 +80,7 @@ export default function Crazy8DocentePage() {
       .channel('realtime-crazy8-docente')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commenti' }, caricaCommenti)
       .subscribe();
 
@@ -121,68 +122,75 @@ export default function Crazy8DocentePage() {
     if (error) caricaSubmissions();
   };
 
+  // Sequenza narrativa per la modalità presentazione: sketch di partenza,
+  // poi ogni round della sua catena in ordine, poi lo sketch successivo.
+  const diapositive = submissions.flatMap(s =>
+    (s.immagini || []).flatMap((sketch: any) => [
+      { submission: s, sketch, round: null as any },
+      ...sketch.generazioni_crazy8.map((r: any) => ({ submission: s, sketch, round: r })),
+    ])
+  );
+
   useEffect(() => {
     if (!modalitaPresentazione) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') setIndicePresentazione(i => Math.min(submissions.length - 1, i + 1));
+      if (e.key === 'ArrowRight') setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1));
       if (e.key === 'ArrowLeft') setIndicePresentazione(i => Math.max(0, i - 1));
       if (e.key === 'Escape') setModalitaPresentazione(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalitaPresentazione, submissions.length]);
+  }, [modalitaPresentazione, diapositive.length]);
 
   if (modalitaPresentazione) {
-    const corrente = submissions[indicePresentazione];
+    const corrente = diapositive[indicePresentazione];
     return (
       <div className="flex-1 bg-stone-950 flex flex-col overflow-hidden">
         <div className="flex justify-between items-center px-8 py-4 text-stone-400">
-          <span className="text-xs uppercase tracking-widest">Scheda {submissions.length === 0 ? 0 : indicePresentazione + 1} di {submissions.length}</span>
+          <span className="text-xs uppercase tracking-widest">Scheda {diapositive.length === 0 ? 0 : indicePresentazione + 1} di {diapositive.length}</span>
           <button onClick={() => setModalitaPresentazione(false)} className="text-xs uppercase tracking-widest hover:text-white transition">✕ Esci (Esc)</button>
         </div>
 
         {!corrente ? (
-          <div className="flex-1 flex items-center justify-center text-stone-500 text-sm">Nessuna consegna da presentare.</div>
+          <div className="flex-1 flex items-center justify-center text-stone-500 text-sm">Nessuno sketch da presentare ancora.</div>
         ) : (
-          <div key={corrente.id} className="flex-1 flex flex-col items-center justify-center px-12 pb-10 animate-fade-in-up">
-            <span className="text-xs uppercase tracking-widest text-stone-500 mb-2">Gruppo {corrente.gruppo_num} — {corrente.gruppo_nome}</span>
-            <h1 className="text-4xl font-serif font-bold text-white text-center max-w-3xl mb-8">{corrente.hmw_o_tema || 'Senza tema'}</h1>
+          <div key={`${corrente.sketch.id}-${corrente.round?.id ?? 'sketch'}`} className="flex-1 flex flex-col items-center justify-center px-12 pb-10 animate-fade-in-up">
+            <span className="text-xs uppercase tracking-widest text-stone-500 mb-2">Gruppo {corrente.submission.gruppo_num} — {corrente.submission.gruppo_nome}</span>
+            <h1 className="text-3xl font-serif font-bold text-white text-center max-w-3xl mb-2">{corrente.submission.hmw_o_tema || 'Senza sotto-ambito'}</h1>
+            <p className="text-stone-500 text-xs uppercase tracking-widest mb-8">{corrente.round ? `Round ${corrente.round.ordine}` : 'Sketch di partenza'}</p>
 
-            <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch Originale</p>
-                <div className="h-72 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
-                  {corrente.immagini.find((i: any) => i.tipo === 'sketch_originale') ? (
-                    <img src={corrente.immagini.find((i: any) => i.tipo === 'sketch_originale').url_file} alt="" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <span className="text-stone-600 text-xs">Nessuno sketch</span>
-                  )}
+            {!corrente.round ? (
+              <div className="h-80 w-80 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
+                <img src={corrente.sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch di partenza</p>
+                    <div className="h-64 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
+                      <img src={corrente.sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata (round {corrente.round.ordine})</p>
+                    <div className="h-64 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
+                      <img src={corrente.round.url_immagine} alt="" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata</p>
-                <div className="h-72 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
-                  {corrente.immagini.find((i: any) => i.tipo === 'generata') ? (
-                    <img src={corrente.immagini.find((i: any) => i.tipo === 'generata').url_file} alt="" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <span className="text-stone-600 text-xs">Nessuna generata</span>
-                  )}
+                <div className="grid grid-cols-2 gap-8 w-full max-w-5xl mt-6 text-stone-400 text-xs">
+                  <p><b className="text-stone-300">Prompt:</b> {corrente.round.prompt_usato}</p>
+                  {corrente.round.deduzione && <p><b className="text-stone-300">Deduzione:</b> {corrente.round.deduzione}</p>}
                 </div>
-              </div>
-            </div>
-
-            {(corrente.note_prompt || corrente.riflessione) && (
-              <div className="grid grid-cols-2 gap-8 w-full max-w-5xl mt-6 text-stone-400 text-xs">
-                {corrente.note_prompt && <p><b className="text-stone-300">Log prompt:</b> {corrente.note_prompt}</p>}
-                {corrente.riflessione && <p><b className="text-stone-300">Riflessione:</b> {corrente.riflessione}</p>}
-              </div>
+              </>
             )}
           </div>
         )}
 
         <div className="flex justify-center gap-4 pb-8">
           <button onClick={() => setIndicePresentazione(i => Math.max(0, i - 1))} disabled={indicePresentazione === 0} className="bg-stone-800 text-white px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-700 transition">← Precedente</button>
-          <button onClick={() => setIndicePresentazione(i => Math.min(submissions.length - 1, i + 1))} disabled={indicePresentazione >= submissions.length - 1} className="bg-white text-stone-900 px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-200 transition">Successiva →</button>
+          <button onClick={() => setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1))} disabled={indicePresentazione >= diapositive.length - 1} className="bg-white text-stone-900 px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-200 transition">Successiva →</button>
         </div>
       </div>
     );
@@ -195,7 +203,7 @@ export default function Crazy8DocentePage() {
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Consegne ({submissions.length})</h2>
           <button
             onClick={() => { setIndicePresentazione(0); setModalitaPresentazione(true); }}
-            disabled={submissions.length === 0}
+            disabled={diapositive.length === 0}
             title="Modalità Presentazione"
             className="text-[10px] bg-stone-900 text-white px-2.5 py-1 rounded-full font-medium hover:bg-stone-800 transition disabled:opacity-30"
           >
@@ -209,9 +217,9 @@ export default function Crazy8DocentePage() {
             onClick={() => setSelezionataId(s.id)}
             className={`w-full text-left p-3 rounded-xl border transition ${selezionataId === s.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-400'}`}
           >
-            <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Senza tema'}</div>
+            <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</div>
             <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} · {s.gruppo_nome}</div>
-            <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')}</div>
+            <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')} · {s.immagini.length} sketch</div>
           </button>
         ))}
       </div>
@@ -224,7 +232,7 @@ export default function Crazy8DocentePage() {
             <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
                 <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
-                <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza tema'}</h1>
+                <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza sotto-ambito'}</h1>
                 {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
               </div>
               <div className="flex gap-1.5">
@@ -244,50 +252,60 @@ export default function Crazy8DocentePage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {selezionata.note_prompt && (
                   <div className="bg-white p-4 rounded-2xl border border-stone-200">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Log Prompt</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Log Prompt (riassuntivo)</h3>
                     <p className="text-xs text-stone-700 leading-relaxed">{selezionata.note_prompt}</p>
                   </div>
                 )}
                 {selezionata.riflessione && (
                   <div className="bg-white p-4 rounded-2xl border border-stone-200">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Riflessione</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Riflessione Finale</h3>
                     <p className="text-xs text-stone-700 leading-relaxed">{selezionata.riflessione}</p>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400">Sketch Originali</h3>
-                {selezionata.immagini.filter((i: any) => i.tipo === 'sketch_originale').map((img: any) => (
+            <div className="space-y-4">
+              {selezionata.immagini.length === 0 && (
+                <div className="bg-white p-8 rounded-2xl border border-stone-200 text-center text-stone-400 text-sm">Nessuno sketch caricato ancora.</div>
+              )}
+              {selezionata.immagini.map((sketch: any) => (
+                <div key={sketch.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                  <div className="flex items-center gap-4 p-4 bg-stone-50 border-b border-stone-100">
+                    <div className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      <img src={sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <p className="text-xs font-bold text-stone-600">Sketch — {sketch.generazioni_crazy8.length} round di generazione</p>
+                  </div>
+
+                  {sketch.generazioni_crazy8.length > 0 && (
+                    <div className="p-4 space-y-3">
+                      {sketch.generazioni_crazy8.map((g: any) => (
+                        <div key={g.id} className="grid sm:grid-cols-[80px_1fr] gap-3 text-xs">
+                          <div className="w-20 h-20 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center">
+                            <img src={g.url_immagine} alt={`Round ${g.ordine}`} className="max-w-full max-h-full object-contain" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-stone-700">Round {g.ordine}</p>
+                            <p className="text-stone-600"><b>Prompt:</b> {g.prompt_usato}</p>
+                            {g.deduzione && <p className="text-stone-500 italic">Deduzione: &ldquo;{g.deduzione}&rdquo;</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <FotoConCommenti
-                    key={img.id}
-                    img={img}
-                    commenti={commenti[img.id] || []}
-                    bozza={nuovoCommento[img.id] || ''}
-                    setBozza={v => setNuovoCommento(prev => ({ ...prev, [img.id]: v }))}
-                    onInvia={() => inviaCommento(img.id)}
+                    img={sketch}
+                    commenti={commenti[sketch.id] || []}
+                    bozza={nuovoCommento[sketch.id] || ''}
+                    setBozza={v => setNuovoCommento(prev => ({ ...prev, [sketch.id]: v }))}
+                    onInvia={() => inviaCommento(sketch.id)}
                     onElimina={eliminaCommento}
-                    invioInCorso={invioInCorso === img.id}
+                    invioInCorso={invioInCorso === sketch.id}
                   />
-                ))}
-              </div>
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400">Immagini Generate</h3>
-                {selezionata.immagini.filter((i: any) => i.tipo === 'generata').map((img: any) => (
-                  <FotoConCommenti
-                    key={img.id}
-                    img={img}
-                    commenti={commenti[img.id] || []}
-                    bozza={nuovoCommento[img.id] || ''}
-                    setBozza={v => setNuovoCommento(prev => ({ ...prev, [img.id]: v }))}
-                    onInvia={() => inviaCommento(img.id)}
-                    onElimina={eliminaCommento}
-                    invioInCorso={invioInCorso === img.id}
-                  />
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
