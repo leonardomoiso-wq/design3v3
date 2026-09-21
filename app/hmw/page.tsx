@@ -37,6 +37,7 @@ export default function HmwPage() {
     setGruppoNome(prev => prev || team.nome);
     setGruppoNum(prev => prev || String(team.numero));
     setCodiceGruppo(prev => prev || team.password);
+    setCodiceStressTest(prev => prev || team.password);
   }, [team]);
 
   const [ruoliSelezionati, setRuoliSelezionati] = useState<string[]>([]);

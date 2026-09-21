@@ -269,7 +269,16 @@ export default function StudentPage() {
     setActiveTab('crea');
   };
 
-  const chiediSblocco = (c: any) => {
+  const chiediSblocco = async (c: any) => {
+    // Con un team già loggato proviamo prima la sua password: se è quella
+    // usata alla creazione, si continua subito senza reinserire nulla.
+    if (team) {
+      const { data, error } = await supabase.rpc('verifica_codice_caso_studio', { p_id: c.id, p_codice: team.password });
+      if (!error && data) {
+        avviaModifica(c, team.password);
+        return;
+      }
+    }
     setCasoDaSbloccare(c);
     setCodiceSblocco('');
     setErroreSblocco('');
@@ -303,7 +312,7 @@ export default function StudentPage() {
 
   const chiediEliminazione = (c: any) => {
     setCasoDaEliminare(c);
-    setCodiceEliminazione('');
+    setCodiceEliminazione(team?.password || '');
     setErroreEliminazione('');
   };
 

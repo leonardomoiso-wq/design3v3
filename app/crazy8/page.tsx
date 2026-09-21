@@ -348,7 +348,18 @@ export default function Crazy8Page() {
     await caricaSubmissions();
   };
 
-  const chiediSblocco = (s: any) => { setSubmissionDaSbloccare(s); setCodiceSblocco(''); setErroreSblocco(''); };
+  const chiediSblocco = async (s: any) => {
+    // Con un team già loggato proviamo prima la sua password: se è quella
+    // usata alla creazione, si riapre subito il canvas senza altro.
+    if (team) {
+      const { data, error } = await supabase.rpc('verifica_codice_submission_crazy8', { p_id: s.id, p_codice: team.password });
+      if (!error && data) {
+        apriCanvas(s.id, team.password);
+        return;
+      }
+    }
+    setSubmissionDaSbloccare(s); setCodiceSblocco(''); setErroreSblocco('');
+  };
 
   const confermaSblocco = async () => {
     if (!submissionDaSbloccare) return;
@@ -362,7 +373,7 @@ export default function Crazy8Page() {
     apriCanvas(s.id, codiceSblocco);
   };
 
-  const chiediEliminazione = (s: any) => { setSubmissionDaEliminare(s); setCodiceEliminazione(''); setErroreEliminazione(''); };
+  const chiediEliminazione = (s: any) => { setSubmissionDaEliminare(s); setCodiceEliminazione(team?.password || ''); setErroreEliminazione(''); };
 
   const confermaEliminazione = async () => {
     if (!submissionDaEliminare) return;

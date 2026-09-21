@@ -54,8 +54,13 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
   const [password, setPassword] = useState('');
   const [domandaSegreta, setDomandaSegreta] = useState('');
   const [rispostaSegreta, setRispostaSegreta] = useState('');
+  const [membri, setMembri] = useState<string[]>(['', '']);
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
+
+  const modificaMembro = (i: number, valore: string) => setMembri(prev => prev.map((m, idx) => (idx === i ? valore : m)));
+  const aggiungiCampoMembro = () => setMembri(prev => [...prev, '']);
+  const rimuoviCampoMembro = (i: number) => setMembri(prev => prev.filter((_, idx) => idx !== i));
 
   const [mostraRecupero, setMostraRecupero] = useState(false);
   const [nomeRecupero, setNomeRecupero] = useState('');
@@ -78,7 +83,7 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || 'credenziali_errate')); return; }
       const riga = data[0];
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [] });
     } else {
       if (!domandaSegreta.trim() || !rispostaSegreta.trim()) {
         setInCorso(false);
@@ -87,11 +92,12 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
       }
       const { data, error } = await supabase.rpc('crea_team', {
         p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
+        p_membri: membri.map(m => m.trim()).filter(Boolean),
       });
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || '')); return; }
       const riga = data[0];
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [] });
     }
   };
 
@@ -156,6 +162,19 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
               </select>
               <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
               <p className="text-[11px] text-stone-400">Vi servirà solo se dimenticate la password.</p>
+
+              <div className="border-t border-stone-100 pt-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Chi c&apos;è nel team?</p>
+                {membri.map((m, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <input type="text" value={m} onChange={e => modificaMembro(i, e.target.value)} placeholder={`Studente ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                    {membri.length > 1 && (
+                      <button type="button" onClick={() => rimuoviCampoMembro(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={aggiungiCampoMembro} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi studente</button>
+              </div>
             </>
           )}
 
@@ -211,8 +230,57 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
   );
 }
 
-function ElencoAttivita({ team, onLogout }: { team: TeamInfo; onLogout: () => void }) {
+function PannelloMembri({ team, onChiudi, onAggiornati }: { team: TeamInfo; onChiudi: () => void; onAggiornati: (membri: string[]) => void }) {
+  const [membri, setMembri] = useState<string[]>(team.membri.length > 0 ? team.membri : ['']);
+  const [errore, setErrore] = useState('');
+  const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
+
+  const modifica = (i: number, valore: string) => setMembri(prev => prev.map((m, idx) => (idx === i ? valore : m)));
+  const aggiungi = () => setMembri(prev => [...prev, '']);
+  const rimuovi = (i: number) => setMembri(prev => prev.filter((_, idx) => idx !== i));
+
+  const salva = async () => {
+    setErrore('');
+    setSalvataggioInCorso(true);
+    const puliti = membri.map(m => m.trim()).filter(Boolean);
+    const { data, error } = await supabase.rpc('aggiorna_membri_team', { p_id: team.id, p_password: team.password, p_membri: puliti });
+    setSalvataggioInCorso(false);
+    if (error) { setErrore('Errore durante il salvataggio. Riprova.'); return; }
+    onAggiornati((data as string[]) || puliti);
+    onChiudi();
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-3" onClick={e => e.stopPropagation()}>
+        <h2 className="font-serif font-bold text-lg">Chi c&apos;è nel team?</h2>
+        <p className="text-xs text-stone-500">Gruppo {team.numero} — {team.nome}</p>
+        <div className="space-y-2">
+          {membri.map((m, i) => (
+            <div key={i} className="flex gap-1.5">
+              <input type="text" value={m} onChange={e => modifica(i, e.target.value)} placeholder={`Studente ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              {membri.length > 1 && (
+                <button type="button" onClick={() => rimuovi(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
+              )}
+            </div>
+          ))}
+          <button type="button" onClick={aggiungi} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi studente</button>
+        </div>
+        {errore && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-2.5">{errore}</p>}
+        <div className="flex gap-2 pt-2">
+          <button onClick={onChiudi} className="flex-1 bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl">Annulla</button>
+          <button onClick={salva} disabled={salvataggioInCorso} className="flex-1 bg-stone-900 text-white hover:bg-stone-800 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50">
+            {salvataggioInCorso ? 'Salvataggio...' : 'Salva'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo; onLogout: () => void; onTeamAggiornato: (team: TeamInfo) => void }) {
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
+  const [mostraMembri, setMostraMembri] = useState(false);
 
   useEffect(() => {
     const carica = async () => {
@@ -244,6 +312,9 @@ function ElencoAttivita({ team, onLogout }: { team: TeamInfo; onLogout: () => vo
           <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
             Gruppo {team.numero} — {team.nome}
           </span>
+          <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
+            👥 Membri
+          </button>
           <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
             📚 Manuali &amp; Tutorial
           </a>
@@ -252,6 +323,14 @@ function ElencoAttivita({ team, onLogout }: { team: TeamInfo; onLogout: () => vo
           </button>
         </div>
       </nav>
+
+      {mostraMembri && (
+        <PannelloMembri
+          team={team}
+          onChiudi={() => setMostraMembri(false)}
+          onAggiornati={nuoviMembri => onTeamAggiornato({ ...team, membri: nuoviMembri })}
+        />
+      )}
 
       <div className="pt-16 pb-10 text-center space-y-5">
         <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
@@ -343,5 +422,5 @@ export default function LandingPage() {
       : <SchermataAccesso onAccesso={accedi} />;
   }
 
-  return <ElencoAttivita team={team} onLogout={logout} />;
+  return <ElencoAttivita team={team} onLogout={logout} onTeamAggiornato={accedi} />;
 }

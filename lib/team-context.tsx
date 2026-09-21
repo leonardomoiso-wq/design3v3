@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const CHIAVE_SESSIONE = 'design3_team_sessione';
 
-export type TeamInfo = { id: string; numero: number; nome: string; password: string };
+export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[] };
 
 type TeamContextValue = {
   team: TeamInfo | null;
