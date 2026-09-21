@@ -15,6 +15,31 @@ h1, h2, h3, h4 {
   letter-spacing: -0.025em;
 }
 
+/* Micro-animazioni per le attività "creative" (Crazy 8, HMW): niente
+   libreria esterna, solo transizioni CSS leggere. Rispettano
+   prefers-reduced-motion per chi lo richiede. */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in-up { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { animation: fade-in 0.5s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up, .animate-scale-in, .animate-fade-in {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 @media print {
   html, body {
     background-color: #ffffff !important;

@@ -45,6 +45,8 @@ export default function Crazy8DocentePage() {
   const [commenti, setCommenti] = useState<Record<string, any[]>>({});
   const [nuovoCommento, setNuovoCommento] = useState<Record<string, string>>({});
   const [invioInCorso, setInvioInCorso] = useState<string | null>(null);
+  const [modalitaPresentazione, setModalitaPresentazione] = useState(false);
+  const [indicePresentazione, setIndicePresentazione] = useState(0);
 
   const caricaSubmissions = async () => {
     const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*)').order('created_at', { ascending: false });
@@ -119,10 +121,87 @@ export default function Crazy8DocentePage() {
     if (error) caricaSubmissions();
   };
 
+  useEffect(() => {
+    if (!modalitaPresentazione) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setIndicePresentazione(i => Math.min(submissions.length - 1, i + 1));
+      if (e.key === 'ArrowLeft') setIndicePresentazione(i => Math.max(0, i - 1));
+      if (e.key === 'Escape') setModalitaPresentazione(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modalitaPresentazione, submissions.length]);
+
+  if (modalitaPresentazione) {
+    const corrente = submissions[indicePresentazione];
+    return (
+      <div className="flex-1 bg-stone-950 flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center px-8 py-4 text-stone-400">
+          <span className="text-xs uppercase tracking-widest">Scheda {submissions.length === 0 ? 0 : indicePresentazione + 1} di {submissions.length}</span>
+          <button onClick={() => setModalitaPresentazione(false)} className="text-xs uppercase tracking-widest hover:text-white transition">✕ Esci (Esc)</button>
+        </div>
+
+        {!corrente ? (
+          <div className="flex-1 flex items-center justify-center text-stone-500 text-sm">Nessuna consegna da presentare.</div>
+        ) : (
+          <div key={corrente.id} className="flex-1 flex flex-col items-center justify-center px-12 pb-10 animate-fade-in-up">
+            <span className="text-xs uppercase tracking-widest text-stone-500 mb-2">Gruppo {corrente.gruppo_num} — {corrente.gruppo_nome}</span>
+            <h1 className="text-4xl font-serif font-bold text-white text-center max-w-3xl mb-8">{corrente.hmw_o_tema || 'Senza tema'}</h1>
+
+            <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch Originale</p>
+                <div className="h-72 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
+                  {corrente.immagini.find((i: any) => i.tipo === 'sketch_originale') ? (
+                    <img src={corrente.immagini.find((i: any) => i.tipo === 'sketch_originale').url_file} alt="" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <span className="text-stone-600 text-xs">Nessuno sketch</span>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata</p>
+                <div className="h-72 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden">
+                  {corrente.immagini.find((i: any) => i.tipo === 'generata') ? (
+                    <img src={corrente.immagini.find((i: any) => i.tipo === 'generata').url_file} alt="" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <span className="text-stone-600 text-xs">Nessuna generata</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {(corrente.note_prompt || corrente.riflessione) && (
+              <div className="grid grid-cols-2 gap-8 w-full max-w-5xl mt-6 text-stone-400 text-xs">
+                {corrente.note_prompt && <p><b className="text-stone-300">Log prompt:</b> {corrente.note_prompt}</p>}
+                {corrente.riflessione && <p><b className="text-stone-300">Riflessione:</b> {corrente.riflessione}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-center gap-4 pb-8">
+          <button onClick={() => setIndicePresentazione(i => Math.max(0, i - 1))} disabled={indicePresentazione === 0} className="bg-stone-800 text-white px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-700 transition">← Precedente</button>
+          <button onClick={() => setIndicePresentazione(i => Math.min(submissions.length - 1, i + 1))} disabled={indicePresentazione >= submissions.length - 1} className="bg-white text-stone-900 px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-200 transition">Successiva →</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="w-72 border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
-        <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Consegne ({submissions.length})</h2>
+        <div className="flex items-center justify-between px-1 pb-1">
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Consegne ({submissions.length})</h2>
+          <button
+            onClick={() => { setIndicePresentazione(0); setModalitaPresentazione(true); }}
+            disabled={submissions.length === 0}
+            title="Modalità Presentazione"
+            className="text-[10px] bg-stone-900 text-white px-2.5 py-1 rounded-full font-medium hover:bg-stone-800 transition disabled:opacity-30"
+          >
+            🎬
+          </button>
+        </div>
         {submissions.length === 0 && <p className="text-xs text-stone-400 px-1">Nessuna consegna ancora.</p>}
         {submissions.map(s => (
           <button
