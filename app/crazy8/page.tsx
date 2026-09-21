@@ -57,12 +57,16 @@ function TutorialOverlay({ onChiudi }: { onChiudi: () => void }) {
   );
 }
 
-function BloccoNuovaGenerazione({ sketchId, onAggiungi }: { sketchId: string; onAggiungi: (sketchId: string, prompt: string, urlFile: string, deduzione: string) => Promise<boolean> }) {
+function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti }: { sketchId: string; onAggiungi: (sketchId: string, prompt: string, urlFile: string, deduzione: string) => Promise<boolean>; suggerimenti: any[] }) {
   const [prompt, setPrompt] = useState('');
   const [file, setFile] = useState<{ url: string; nome: string } | null>(null);
   const [deduzione, setDeduzione] = useState('');
   const [inCorso, setInCorso] = useState(false);
   const [errore, setErrore] = useState('');
+
+  const applicaSuggerimento = (testo: string) => {
+    setPrompt(prev => (prev.trim() ? `${prev.trim()} ${testo}` : testo));
+  };
 
   const carica = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -90,6 +94,21 @@ function BloccoNuovaGenerazione({ sketchId, onAggiungi }: { sketchId: string; on
   return (
     <div className="bg-stone-50 rounded-2xl border border-dashed border-stone-300 p-4 space-y-2">
       <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">+ Nuovo round</p>
+      {suggerimenti.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {suggerimenti.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => applicaSuggerimento(s.testo_prompt)}
+              title={s.testo_prompt}
+              className="text-[10px] bg-white border border-stone-300 text-stone-600 px-2.5 py-1 rounded-full hover:border-stone-900 hover:text-stone-900 transition"
+            >
+              💡 {s.etichetta}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea rows={2} value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Prompt usato (es. 'ambientazione in un salotto minimale')..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
       <div className="flex items-center gap-2">
         <label className="text-xs bg-white border border-stone-200 rounded-lg px-3 py-2 cursor-pointer hover:border-stone-400 transition flex-shrink-0">
@@ -113,6 +132,7 @@ export default function Crazy8Page() {
   const [mostraTutorial, setMostraTutorial] = useState(false);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [filtroGruppo, setFiltroGruppo] = useState('');
+  const [suggerimentiPrompt, setSuggerimentiPrompt] = useState<any[]>([]);
 
   // La consegna aperta al momento nel "canvas" (creata ora o sbloccata dall'elenco)
   const [attivaId, setAttivaId] = useState<string | null>(null);
@@ -169,8 +189,14 @@ export default function Crazy8Page() {
       }
     };
 
+    const caricaSuggerimenti = async () => {
+      const { data } = await supabase.from('prompt_suggeriti_crazy8').select('*').order('ordine', { ascending: true });
+      if (data) setSuggerimentiPrompt(data as any[]);
+    };
+
     caricaAttivita();
     caricaSubmissions();
+    caricaSuggerimenti();
 
     try {
       if (!localStorage.getItem(TUTORIAL_VISTO_KEY)) setMostraTutorial(true);
@@ -183,6 +209,7 @@ export default function Crazy8Page() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'prompt_suggeriti_crazy8' }, caricaSuggerimenti)
       .subscribe();
 
     return () => {
@@ -411,7 +438,7 @@ export default function Crazy8Page() {
                     </div>
                   ))}
 
-                  <BloccoNuovaGenerazione sketchId={sketch.id} onAggiungi={aggiungiGenerazione} />
+                  <BloccoNuovaGenerazione sketchId={sketch.id} onAggiungi={aggiungiGenerazione} suggerimenti={suggerimentiPrompt} />
                 </div>
               ))}
 
