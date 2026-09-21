@@ -1,9 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { normalizzaDriver, estraiNote, costruisciDriver, type NoteDriver } from '../../lib/driver';
+import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
+import { comprimiImmagine } from '../../lib/immagine';
+import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
+import { useTeam } from '../../lib/team-context';
 
-const TAG_OPTIONS = [
+const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
+
+// Fallback usato solo se la tabella tag_default_caso_studio non è
+// ancora raggiungibile (migrazione non eseguita): il/la docente cura
+// la lista vera da /teacher.
+const TAG_OPTIONS_FALLBACK = [
   'Eco-feedback interfaces',
   'Bio-digital architecture',
   'Non-human interaction design (NHID)',
@@ -38,15 +46,16 @@ const DRIVER_INFO: Record<string, { etichetta: string; domanda: string }> = {
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Step = 'gruppo' | 'contenuti' | 'tag' | 'driver' | 'riepilogo';
 
-const STEPS: { id: Step; label: string; numero: number }[] = [
-  { id: 'gruppo', label: 'Il Gruppo', numero: 1 },
-  { id: 'contenuti', label: 'Il Progetto', numero: 2 },
-  { id: 'tag', label: 'Temi', numero: 3 },
-  { id: 'driver', label: 'Valutazione', numero: 4 },
-  { id: 'riepilogo', label: 'Riepilogo', numero: 5 },
+const STEPS_BASE: { id: Step; label: string }[] = [
+  { id: 'gruppo', label: 'Il Gruppo' },
+  { id: 'contenuti', label: 'Il Caso Studio' },
+  { id: 'tag', label: 'Temi' },
+  { id: 'driver', label: 'Valutazione' },
+  { id: 'riepilogo', label: 'Riepilogo' },
 ];
 
 export default function StudentPage() {
+  const { team } = useTeam();
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci' | 'vota'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
   const [step, setStep] = useState<Step>('gruppo');
@@ -58,17 +67,37 @@ export default function StudentPage() {
   const [titolo, setTitolo] = useState('');
   const [descrizione, setDescrizione] = useState('');
   const [immagine, setImmagine] = useState<string>('');
+  const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
-  const [desiderabilita, setDesiderabilita] = useState(50);
-  const [fattibilita, setFattibilita] = useState(50);
-  const [responsabilita, setResponsabilita] = useState(50);
-  const [vitalita, setVitalita] = useState(50);
+  const [tagOptions, setTagOptions] = useState<string[]>(TAG_OPTIONS_FALLBACK);
+  const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
+  const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
+  const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
+  const [vitalita, setVitalita] = useState(DRIVER_DEFAULT);
   const [note, setNote] = useState<NoteDriver>({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
   const [codiceGruppo, setCodiceGruppo] = useState('');
   const [codiceGiaVerificato, setCodiceGiaVerificato] = useState(false);
   const [erroreSalvataggio, setErroreSalvataggio] = useState('');
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
+
+  // Con un team già loggato, la nuova consegna parte già con nome/numero
+  // gruppo e codice compilati: solo per una consegna nuova, non quando si
+  // sta modificando una scheda esistente (già sbloccata col suo codice).
+  useEffect(() => {
+    if (!team || editId !== null) return;
+    setGruppoNome(prev => prev || team.nome);
+    setGruppoNum(prev => prev || String(team.numero));
+    setCodiceGruppo(prev => prev || team.password);
+  }, [team, editId]);
+
+  useEffect(() => {
+    const caricaTag = async () => {
+      const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+      if (data && data.length > 0) setTagOptions((data as any[]).map(t => t.testo));
+    };
+    caricaTag();
+  }, []);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 
@@ -136,14 +165,17 @@ export default function StudentPage() {
     );
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImmagine(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    // Compattata prima di finire nello stato/DB: le foto di copertina
+    // arrivano spesso a piena risoluzione dalla fotocamera.
+    setComprimendoImmagine(true);
+    try {
+      const dataUrl = await comprimiImmagine(file);
+      setImmagine(dataUrl);
+    } finally {
+      setComprimendoImmagine(false);
     }
   };
 
@@ -164,7 +196,7 @@ export default function StudentPage() {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setCodiceGiaVerificato(false);
-    setDesiderabilita(50); setFattibilita(50); setResponsabilita(50); setVitalita(50);
+    setDesiderabilita(DRIVER_DEFAULT); setFattibilita(DRIVER_DEFAULT); setResponsabilita(DRIVER_DEFAULT); setVitalita(DRIVER_DEFAULT);
     setNote({ desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' });
     setEditId(null);
     setStep('gruppo');
@@ -175,8 +207,7 @@ export default function StudentPage() {
     setErroreSalvataggio('');
     setSalvataggioInCorso(true);
 
-    const x = fattibilita - desiderabilita;
-    const y = vitalita - responsabilita;
+    const { x, y } = coordinateDaDriver(desiderabilita, fattibilita, responsabilita, vitalita);
 
     const tagPersonalizzatoTrim = tagPersonalizzato.trim();
     const tagsFinali = tagPersonalizzatoTrim
@@ -236,8 +267,8 @@ export default function StudentPage() {
     setCodiceGiaVerificato(true);
     setErroreSalvataggio('');
     const tagsEsistenti: string[] = c.tags || [];
-    setTagsSelezionati(tagsEsistenti.filter(t => TAG_OPTIONS.includes(t)));
-    setTagPersonalizzato(tagsEsistenti.find(t => !TAG_OPTIONS.includes(t)) || '');
+    setTagsSelezionati(tagsEsistenti.filter(t => tagOptions.includes(t)));
+    setTagPersonalizzato(tagsEsistenti.find(t => !tagOptions.includes(t)) || '');
     if (c.driver) {
       setDesiderabilita(c.driver.desiderabilita);
       setFattibilita(c.driver.fattibilita);
@@ -250,7 +281,16 @@ export default function StudentPage() {
     setActiveTab('crea');
   };
 
-  const chiediSblocco = (c: any) => {
+  const chiediSblocco = async (c: any) => {
+    // Con un team già loggato proviamo prima la sua password: se è quella
+    // usata alla creazione, si continua subito senza reinserire nulla.
+    if (team) {
+      const { data, error } = await supabase.rpc('verifica_codice_caso_studio', { p_id: c.id, p_codice: team.password });
+      if (!error && data) {
+        avviaModifica(c, team.password);
+        return;
+      }
+    }
     setCasoDaSbloccare(c);
     setCodiceSblocco('');
     setErroreSblocco('');
@@ -284,7 +324,7 @@ export default function StudentPage() {
 
   const chiediEliminazione = (c: any) => {
     setCasoDaEliminare(c);
-    setCodiceEliminazione('');
+    setCodiceEliminazione(team?.password || '');
     setErroreEliminazione('');
   };
 
@@ -316,14 +356,25 @@ export default function StudentPage() {
 
   const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && (codiceGiaVerificato || codiceGruppo.trim().length >= 4);
   const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '';
+  const tagsValidi = tagsSelezionati.length > 0 || tagPersonalizzato.trim() !== '';
+  const valutazioneValida = (['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const)
+    .every(chiave => note[chiave].trim() !== '');
 
   const stepValido = (s: Step) => {
     if (s === 'gruppo') return gruppoValido;
     if (s === 'contenuti') return contenutiValidi;
+    if (s === 'tag') return tagsValidi;
+    if (s === 'driver') return valutazioneValida;
     return true;
   };
 
-  const indiceCorrente = STEPS.findIndex(s => s.id === step);
+  // Con un team già loggato l'identità è già nota: il passo "Il Gruppo"
+  // (che altrimenti chiederebbe di nuovo nome/numero/codice) non serve
+  // più e sparisce dal percorso, che riparte da "Il Progetto".
+  const STEPS = (team ? STEPS_BASE.filter(s => s.id !== 'gruppo') : STEPS_BASE).map((s, i) => ({ ...s, numero: i + 1 }));
+  const stepEffettivo: Step = team && step === 'gruppo' ? 'contenuti' : step;
+
+  const indiceCorrente = STEPS.findIndex(s => s.id === stepEffettivo);
 
   const vaiAStep = (nuovo: Step) => {
     const indiceNuovo = STEPS.findIndex(s => s.id === nuovo);
@@ -331,7 +382,7 @@ export default function StudentPage() {
   };
 
   const avanti = () => {
-    if (!stepValido(step)) return;
+    if (!stepValido(stepEffettivo)) return;
     const prossimo = STEPS[indiceCorrente + 1];
     if (prossimo) {
       setStep(prossimo.id);
@@ -344,32 +395,36 @@ export default function StudentPage() {
     if (precedente) setStep(precedente.id);
   };
 
-  const casiFiltrati = filtroGruppo.trim()
-    ? casi.filter(c => String(c.gruppoNum) === String(filtroGruppo.trim()))
-    : casi;
+  const casiFiltrati = team
+    ? casi.filter(c => String(c.gruppoNum) === String(team.numero))
+    : filtroGruppo.trim()
+      ? casi.filter(c => String(c.gruppoNum) === String(filtroGruppo.trim()))
+      : casi;
 
   const casoInVotazione = casoAttivoId !== null ? casi.find(c => c.id === casoAttivoId) || null : null;
+
+  const numeroGruppoVotoEffettivo = team ? String(team.numero) : numeroGruppoVoto.trim();
 
   useEffect(() => {
     setMioVoto(null);
     setErroreVoto('');
-    if (casoAttivoId === null || !numeroGruppoVoto.trim()) return;
+    if (casoAttivoId === null || !numeroGruppoVotoEffettivo) return;
 
     const caricaMioVoto = async () => {
       const { data } = await supabase
         .from('voti_revisione')
         .select('colore')
         .eq('caso_id', casoAttivoId)
-        .eq('gruppo_num', Number(numeroGruppoVoto.trim()))
+        .eq('gruppo_num', Number(numeroGruppoVotoEffettivo))
         .maybeSingle();
       if (data) setMioVoto(data.colore as Colore);
     };
     caricaMioVoto();
-  }, [casoAttivoId, numeroGruppoVoto]);
+  }, [casoAttivoId, numeroGruppoVotoEffettivo]);
 
   const votaCartellino = async (colore: Colore) => {
     if (casoAttivoId === null) return;
-    const numero = numeroGruppoVoto.trim();
+    const numero = numeroGruppoVotoEffettivo;
     if (!numero) {
       setErroreVoto('Inserisci il numero del tuo gruppo prima di votare.');
       return;
@@ -396,17 +451,26 @@ export default function StudentPage() {
   };
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
-        <div className="space-x-2">
-          <button onClick={() => setActiveTab('crea')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+    <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
+      {comprimendoImmagine && <SfondoCaricamento />}
+      <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
+          {team && (
+            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+              Gruppo {team.numero} — {team.nome}
+            </span>
+          )}
+          <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setActiveTab('crea')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {editId !== null ? 'Modifica Scheda' : '+ Nuova Consegna'}
           </button>
-          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             Elenco & Modifiche ({casi.length})
           </button>
-          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2 rounded-full text-xs font-medium transition relative focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition relative focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             🗳️ Vota in Aula
             {casoInVotazione && activeTab !== 'vota' && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" aria-hidden="true"></span>
@@ -419,14 +483,16 @@ export default function StudentPage() {
       {activeTab === 'crea' ? (
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontaci il vostro progetto'}</h1>
-            <p className="text-stone-600 text-sm mt-1">Cinque passaggi brevi: gruppo, progetto, temi, valutazione e un riepilogo finale prima di inviare.</p>
+            <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontate il caso studio'}</h1>
+            <p className="text-stone-600 text-sm mt-1">
+              {team ? 'Caso studio, temi, valutazione e un riepilogo finale prima di inviare.' : 'Cinque passaggi brevi: gruppo, caso studio, temi, valutazione e un riepilogo finale prima di inviare.'}
+            </p>
           </div>
 
           <nav aria-label="Passaggi della consegna" className="flex items-center justify-between bg-white p-3 rounded-2xl border border-stone-200 shadow-sm">
             {STEPS.map((s, i) => {
               const raggiungibile = i <= maxStepRaggiunto;
-              const attivo = s.id === step;
+              const attivo = s.id === stepEffettivo;
               const completato = i < maxStepRaggiunto || (i === maxStepRaggiunto && stepValido(s.id) && i < indiceCorrente);
               return (
                 <button
@@ -451,7 +517,7 @@ export default function StudentPage() {
           </nav>
 
           <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
-            {step === 'gruppo' && (
+            {stepEffettivo === 'gruppo' && (
               <div className="space-y-5">
                 <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -491,27 +557,28 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'contenuti' && (
+            {stepEffettivo === 'contenuti' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Il cuore della consegna: cosa avete progettato e perché.</p>
+                <p className="text-sm text-stone-500">Il cuore della consegna: quale caso studio avete scelto e perché.</p>
                 <div>
-                  <label htmlFor="titolo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Titolo del Progetto</label>
+                  <label htmlFor="titolo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Titolo del Caso Studio</label>
                   <input id="titolo" type="text" required value={titolo} onChange={e => setTitolo(e.target.value)} placeholder="Es. Superleggera" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
                 </div>
 
                 <div>
-                  <span className="block text-xs font-medium uppercase text-stone-500 mb-1">Immagine di Copertina / Progetto</span>
+                  <span className="block text-xs font-medium uppercase text-stone-500 mb-1">Immagine di Riferimento</span>
                   <div className="flex items-center space-x-4 border border-dashed border-stone-300 p-4 rounded-xl bg-stone-50/50">
                     <div className="w-20 h-20 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                       {immagine ? (
-                        <img src={immagine} alt="Anteprima dell'immagine caricata" className="max-w-full max-h-full object-contain p-1" />
+                        <img src={immagine} alt="Anteprima dell'immagine caricata" className="max-w-full max-h-full object-contain p-1 animate-scale-in" />
                       ) : (
                         <span className="text-[10px] text-stone-400 font-medium tracking-wide">NO IMG</span>
                       )}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-1.5">
                       <label htmlFor="immagine-upload" className="sr-only">Carica un'immagine di copertina</label>
-                      <input id="immagine-upload" type="file" accept="image/*" onChange={handleImageChange} className="w-full text-xs text-stone-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-900 file:text-white cursor-pointer" />
+                      <input id="immagine-upload" type="file" accept="image/*" onChange={handleImageChange} disabled={comprimendoImmagine} className="w-full text-xs text-stone-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-900 file:text-white cursor-pointer disabled:opacity-60" />
+                      {comprimendoImmagine && <ImpulsoCaricamento etichetta="Comprimo l'immagine..." />}
                     </div>
                   </div>
                 </div>
@@ -523,11 +590,11 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'tag' && (
+            {stepEffettivo === 'tag' && (
               <div className="space-y-4">
-                <p className="text-sm text-stone-500">A quali temi si collega il vostro progetto? Sceglietene quanti ne servono, o aggiungetene uno vostro.</p>
+                <p className="text-sm text-stone-500">A quali temi si collega il caso studio? Assegnate almeno una tag tra quelle che ritenete opportune, o aggiungetene una vostra.</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {TAG_OPTIONS.map(tag => (
+                  {tagOptions.map(tag => (
                     <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
                       <input
                         type="checkbox"
@@ -553,9 +620,9 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'driver' && (
+            {stepEffettivo === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
+                <p className="text-sm text-stone-500">Ponderate il caso studio sui 4 driver di innovazione, da 0 a {MAX_DRIVER}, e aggiungete un commento per ciascuno. Non esiste una combinazione "giusta": riflettete onestamente su ogni domanda.</p>
                 {([
                   ['desiderabilita', desiderabilita, setDesiderabilita],
                   ['fattibilita', fattibilita, setFattibilita],
@@ -568,22 +635,35 @@ export default function StudentPage() {
                       <span className="text-stone-500">{valore}</span>
                     </div>
                     <p className="text-[11px] text-stone-400 mb-2">{DRIVER_INFO[chiave].domanda}</p>
-                    <input
+                    <div
+                      role="radiogroup"
                       id={`driver-${chiave}`}
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={valore}
-                      onChange={e => (setValore as (n: number) => void)(Number(e.target.value))}
-                      className="w-full accent-stone-900 cursor-pointer"
-                    />
+                      aria-label={`${DRIVER_INFO[chiave].etichetta}, da 0 a ${MAX_DRIVER}`}
+                      className="flex gap-1.5"
+                    >
+                      {Array.from({ length: MAX_DRIVER + 1 }, (_, n) => n).map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          role="radio"
+                          aria-checked={valore === n}
+                          onClick={() => (setValore as (n: number) => void)(n)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${
+                            valore === n ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                     <label htmlFor={`nota-${chiave}`} className="sr-only">Motivazione per {DRIVER_INFO[chiave].etichetta}</label>
                     <textarea
                       id={`nota-${chiave}`}
                       rows={2}
+                      required
                       value={note[chiave]}
                       onChange={e => setNote(prev => ({ ...prev, [chiave]: e.target.value }))}
-                      placeholder="Perché questo punteggio? Motivate brevemente la scelta (facoltativo)..."
+                      placeholder="Perché questo punteggio? Motivate brevemente la scelta..."
                       className="w-full mt-2 border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
                     />
                   </div>
@@ -591,7 +671,7 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'riepilogo' && (
+            {stepEffettivo === 'riepilogo' && (
               <div className="space-y-5">
                 <p className="text-sm text-stone-500">Ultimo sguardo prima di inviare. Potete tornare indietro a qualsiasi passaggio per correggere.</p>
 
@@ -657,7 +737,7 @@ export default function StudentPage() {
                 <button
                   type="button"
                   onClick={avanti}
-                  disabled={!stepValido(step)}
+                  disabled={!stepValido(stepEffettivo)}
                   className="px-6 py-2.5 rounded-xl text-xs font-medium bg-stone-900 text-white hover:bg-stone-800 transition disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
                 >
                   Avanti &rarr;
@@ -679,13 +759,17 @@ export default function StudentPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
             <div>
-              <h1 className="text-2xl font-serif">Elenco Casi Studio</h1>
-              <p className="text-stone-500 text-xs mt-0.5">Filtra per numero di gruppo per verificare o modificare la tua scheda.</p>
+              <h1 className="text-2xl font-serif">{team ? 'Le tue Schede' : 'Elenco Casi Studio'}</h1>
+              <p className="text-stone-500 text-xs mt-0.5">
+                {team ? 'Le schede inviate dal tuo gruppo: apri per verificare o modificare.' : 'Filtra per numero di gruppo per verificare o modificare la tua scheda.'}
+              </p>
             </div>
-            <div className="w-40">
-              <label htmlFor="filtro-gruppo" className="sr-only">Filtra per numero di gruppo</label>
-              <input id="filtro-gruppo" type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-            </div>
+            {!team && (
+              <div className="w-40">
+                <label htmlFor="filtro-gruppo" className="sr-only">Filtra per numero di gruppo</label>
+                <input id="filtro-gruppo" type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -699,7 +783,7 @@ export default function StudentPage() {
                   <div className="flex items-center space-x-4">
                     {c.immagine ? (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
-                        <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                        <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </div>
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] text-stone-400 font-bold flex-shrink-0">IMG</div>
@@ -730,17 +814,23 @@ export default function StudentPage() {
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <div>
-              <label htmlFor="numero-gruppo-voto" className="block text-xs font-medium uppercase text-stone-500 mb-1">Il vostro Numero Gruppo</label>
-              <input
-                id="numero-gruppo-voto"
-                type="number"
-                value={numeroGruppoVoto}
-                onChange={e => setNumeroGruppoVoto(e.target.value)}
-                placeholder="Es. 4"
-                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
-              />
-            </div>
+            {team ? (
+              <p className="text-xs text-stone-500">
+                Voti come <span className="font-medium text-stone-700">Gruppo {team.numero} — {team.nome}</span>.
+              </p>
+            ) : (
+              <div>
+                <label htmlFor="numero-gruppo-voto" className="block text-xs font-medium uppercase text-stone-500 mb-1">Il vostro Numero Gruppo</label>
+                <input
+                  id="numero-gruppo-voto"
+                  type="number"
+                  value={numeroGruppoVoto}
+                  onChange={e => setNumeroGruppoVoto(e.target.value)}
+                  placeholder="Es. 4"
+                  className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                />
+              </div>
+            )}
 
             {!casoInVotazione ? (
               <div className="text-center text-stone-400 text-sm py-8">
@@ -760,6 +850,44 @@ export default function StudentPage() {
                     <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">🟢 In votazione ora</span>
                     <h3 className="font-serif font-bold text-base text-stone-900">{casoInVotazione.titolo}</h3>
                     <p className="text-xs text-stone-500">Gruppo {casoInVotazione.gruppoNum} — {casoInVotazione.gruppoNome}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-stone-200 p-4 space-y-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Maggiori dettagli, per votare con consapevolezza</h4>
+
+                  {casoInVotazione.descrizione && (
+                    <p className="text-xs text-stone-600 leading-relaxed">{casoInVotazione.descrizione}</p>
+                  )}
+
+                  {casoInVotazione.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {casoInVotazione.tags.map((tag: string) => (
+                        <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[10px] text-stone-400">Come si sono autovalutati (scala 0-{MAX_DRIVER}) e perché:</p>
+                    {(['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const).map(chiave => {
+                      const valore = casoInVotazione.driver?.[chiave] ?? 0;
+                      const nota = casoInVotazione.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="text-xs">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-medium text-stone-700">{DRIVER_INFO[chiave].etichetta}</span>
+                            <b>{valore}/{MAX_DRIVER}</b>
+                          </div>
+                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-stone-900 rounded-full" style={{ width: `${(valore / MAX_DRIVER) * 100}%` }} />
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

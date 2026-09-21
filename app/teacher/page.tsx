@@ -1,21 +1,69 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver, estraiNote } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 
-const TAG_OPTIONS = [
-  'Eco-feedback interfaces',
-  'Bio-digital architecture',
-  'Non-human interaction design (NHID)',
-  'Algorithmic conservation',
-  'Multispecies product design',
-  'Regenerative urban prototyping',
-  'Foraged and bio-based materials',
-  'More-than-human service design',
-  'Speculative multispecies products',
-  'Microbial design',
-];
+function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [nuovoTag, setNuovoTag] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+
+  const carica = async () => {
+    const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+    if (data) setLista(data as any[]);
+  };
+
+  useEffect(() => { carica(); }, []);
+
+  const aggiungi = async () => {
+    setErrore('');
+    if (!nuovoTag.trim()) { setErrore('Scrivi il testo del tag.'); return; }
+    setInCorso(true);
+    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_testo: nuovoTag, p_passcode: passcode });
+    setInCorso(false);
+    if (error) { setErrore('Errore durante il salvataggio.'); return; }
+    setNuovoTag('');
+    carica();
+  };
+
+  const elimina = async (id: string) => {
+    setLista(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.rpc('docente_elimina_tag_default', { p_id: id, p_passcode: passcode });
+    if (error) carica();
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center">
+          <h2 className="font-serif font-bold text-lg">Tag di default per i Casi Studio</h2>
+          <button onClick={onChiudi} className="text-stone-400 hover:text-stone-900 text-xl leading-none">✕</button>
+        </div>
+        <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {lista.map(t => (
+            <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
+              {t.testo}
+              <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
+            </span>
+          ))}
+          {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
+        </div>
+
+        <div className="border-t border-stone-100 pt-3 flex gap-2">
+          <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
+          <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
+            {inCorso ? '...' : 'Aggiungi'}
+          </button>
+        </div>
+        {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function TeacherPage() {
   const { passcode: passcodeAttivo } = useDocente();
@@ -23,6 +71,7 @@ export default function TeacherPage() {
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
+  const [mostraTagDefault, setMostraTagDefault] = useState(false);
 
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
@@ -40,6 +89,8 @@ export default function TeacherPage() {
 
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
+  const [ricercaMatrice, setRicercaMatrice] = useState('');
+  const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
 
   useEffect(() => {
 
@@ -138,13 +189,14 @@ export default function TeacherPage() {
   const generaCriticaAi = async (caso: any, persona: string) => {
     setLoadingAi(true);
     setAiCritica("");
-    const d = caso.driver || { desiderabilita: 50, fattibilita: 50, responsabilita: 50, vitalita: 50 };
+    const meta = Math.round(MAX_DRIVER / 2);
+    const d = caso.driver || { desiderabilita: meta, fattibilita: meta, responsabilita: meta, vitalita: meta };
     
     let promptPersona = "";
     if (persona === 'artigiano') {
-      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
+      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri (scala 0-${MAX_DRIVER}) di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
     } else if (persona === 'ingegnere') {
-      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
+      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver (scala 0-${MAX_DRIVER}) Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
     } else if (persona === 'designer80') {
       promptPersona = `Agisci come un Designer radicale anni '80 (Memphis). Analizza il caso studio (${caso.titolo}) focalizzandoti sul valore provocatorio e formale.`;
     } else if (persona === 'prodotto2000') {
@@ -170,12 +222,7 @@ export default function TeacherPage() {
     const caso = casi.find(c => c.id === id);
     const noteEsistenti = caso?.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' };
 
-    const valoriDriver = {
-      desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
-      fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
-      responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
-      vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
-    };
+    const valoriDriver = driverDaCoordinate(xClamped, yClamped);
 
     // Il driver salvato può contenere anche la motivazione testuale dello
     // studente: la preserviamo, aggiornando solo il valore numerico.
@@ -233,9 +280,18 @@ export default function TeacherPage() {
 
   const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
 
-  const casiFiltrati = filtroTag
-    ? casi.filter(c => (c.tags || []).includes(filtroTag))
-    : casi;
+  const ricercaNormalizzata = ricercaMatrice.trim().toLowerCase();
+
+  const casiFiltrati = casi
+    .filter(c => (filtroTag ? (c.tags || []).includes(filtroTag) : true))
+    .filter(c => {
+      if (!ricercaNormalizzata) return true;
+      return (
+        c.titolo?.toLowerCase().includes(ricercaNormalizzata) ||
+        c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata) ||
+        String(c.gruppoNum).includes(ricercaNormalizzata)
+      );
+    });
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -248,7 +304,7 @@ export default function TeacherPage() {
   const clusters = getClusterAnalitici();
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col select-none">
+    <div className="app-shell-body flex-1 overflow-hidden flex flex-col select-none">
 
       <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
         <div className="flex items-center space-x-2">
@@ -264,8 +320,13 @@ export default function TeacherPage() {
           <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             ⚙️ Controllo &amp; Reset
           </button>
+          <button onClick={() => setMostraTagDefault(true)} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
+            🏷️ Tag
+          </button>
         </div>
       </div>
+
+      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
@@ -282,7 +343,7 @@ export default function TeacherPage() {
             <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
             <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            <div className="absolute top-16 left-8 z-20">
+            <div className="absolute top-16 left-8 z-20 flex items-center gap-2">
               <select
                 value={filtroTag}
                 onChange={e => setFiltroTag(e.target.value)}
@@ -293,13 +354,22 @@ export default function TeacherPage() {
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
+              <label htmlFor="ricerca-matrice" className="sr-only">Cerca per titolo o gruppo</label>
+              <input
+                id="ricerca-matrice"
+                type="search"
+                value={ricercaMatrice}
+                onChange={e => setRicercaMatrice(e.target.value)}
+                placeholder="🔍 Cerca titolo o gruppo..."
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44"
+              />
             </div>
 
             {casiFiltrati.length === 0 && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
                 {casi.length === 0
                   ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
-                  : <>Nessun caso studio corrisponde al tag selezionato.</>}
+                  : <>Nessun caso studio corrisponde ai filtri applicati.</>}
               </div>
             )}
 
@@ -307,6 +377,7 @@ export default function TeacherPage() {
               const left = `${((c.x + 100) / 200) * 100}%`;
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
+              const inEvidenza = casoHoverId === c.id;
 
               return (
                 <div
@@ -314,12 +385,20 @@ export default function TeacherPage() {
                   draggable
                   onDragEnd={(e) => aggiornaPosizioneDaDrop(e, c.id)}
                   onClick={() => { setSelezionato(c); setAiCritica(''); }}
+                  onMouseEnter={() => setCasoHoverId(c.id)}
+                  onMouseLeave={() => setCasoHoverId(null)}
                   style={{ left, top }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border ${isSelected ? 'border-stone-900 shadow-2xl scale-105 z-30' : 'border-stone-200 shadow-md hover:border-stone-400 z-10'} flex items-center space-x-2.5 max-w-[200px]`}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
+                    isSelected
+                      ? 'border-stone-900 shadow-2xl scale-105 z-30'
+                      : inEvidenza
+                        ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg scale-105 z-20'
+                        : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
+                  }`}
                 >
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -371,7 +450,7 @@ export default function TeacherPage() {
                 )}
 
                 <div className="space-y-2 border-t border-stone-200 pt-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
                   <div className="space-y-1.5">
                     {([
                       ['desiderabilita', 'Desiderabilità'],
@@ -384,7 +463,7 @@ export default function TeacherPage() {
                         <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
                           <div className="flex justify-between">
                             <span>{etichetta}</span>
-                            <b>{selezionato.driver?.[chiave] ?? 50}</b>
+                            <b>{selezionato.driver?.[chiave] ?? Math.round(MAX_DRIVER / 2)}</b>
                           </div>
                           {nota && (
                             <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
@@ -450,7 +529,7 @@ export default function TeacherPage() {
       )}
 
       {activeTab === 'slides' && (
-        <div className="flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
+        <div className="printable-area flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
           <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
@@ -469,29 +548,44 @@ export default function TeacherPage() {
               <div className="bg-white p-12 rounded-2xl text-center text-stone-400 text-sm">Nessun caso studio disponibile per le slide.</div>
             ) : (
               casi.map((c, index) => (
-                <div key={c.id} className="bg-white aspect-[16/9] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
+                <div key={c.id} className="bg-white min-h-[34rem] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
                   <div className="flex justify-between items-center border-b border-stone-200 pb-4">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
                     <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 items-center my-auto">
+                  <div className="grid grid-cols-2 gap-8 items-start my-auto">
                     <div className="space-y-4">
                       <h2 className="text-3xl font-serif font-bold text-stone-900">{c.titolo}</h2>
                       <p className="text-sm text-stone-600 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-stone-50 p-2 rounded-lg border">Desiderabilità: <b>{c.driver?.desiderabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Fattibilità: <b>{c.driver?.fattibilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Responsabilità: <b>{c.driver?.responsabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Vitalità: <b>{c.driver?.vitalita}</b></div>
+                      <div className="space-y-2">
+                        {([
+                          ['desiderabilita', 'Desiderabilità'],
+                          ['fattibilita', 'Fattibilità'],
+                          ['responsabilita', 'Responsabilità'],
+                          ['vitalita', 'Vitalità'],
+                        ] as const).map(([chiave, etichetta]) => {
+                          const nota = c.driverNote?.[chiave];
+                          return (
+                            <div key={chiave} className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-stone-600">{etichetta}</span>
+                                <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
+                              </div>
+                              {nota && (
+                                <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{nota}&rdquo;</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
                     <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
-                        <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain rounded-lg" />
+                        <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
                         <span className="text-xs text-stone-400">Nessuna immagine</span>
                       )}

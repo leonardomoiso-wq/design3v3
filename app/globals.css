@@ -11,20 +11,77 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: -0.025em;
 }
 
+/* Micro-animazioni per le attività "creative" (Crazy 8, HMW): niente
+   libreria esterna, solo transizioni CSS leggere. Rispettano
+   prefers-reduced-motion per chi lo richiede. */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in-up { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { animation: fade-in 0.5s ease-out both; }
+
+/* Feedback "a impulsi" durante la compressione/upload di un'immagine:
+   un piccolo radar-ping sul controllo interessato (pulse-anello) e un
+   bagliore pulsante su tutto lo sfondo della pagina (sfondo-pulsa), ben
+   visibile ma senza mai coprire i contenuti al centro. */
+@keyframes pulse-anello {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  70%, 100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes sfondo-pulsa {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.animate-pulse-anello { animation: pulse-anello 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.animate-sfondo-pulsa { animation: sfondo-pulsa 1.5s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up, .animate-scale-in, .animate-fade-in, .animate-pulse-anello, .animate-sfondo-pulsa {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 @media print {
-  body {
+  html, body {
     background-color: #ffffff !important;
+    height: auto !important;
     overflow: visible !important;
   }
-  
+
   header, button, nav {
     display: none !important;
   }
-  
+
+  /* L'app tiene tutto dentro contenitori h-screen/overflow-hidden per lo
+     scroll a schermo intero: in stampa questo taglia il contenuto alla
+     prima pagina, perché il browser pagina solo ciò che può scorrere
+     fuori da un blocco a overflow visibile. Le riportiamo ad altezza
+     naturale solo in stampa, così tutte le schede/slide scorrono sulle
+     pagine successive. */
+  .app-shell,
+  .app-shell-body,
+  .printable-area {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+    display: block !important;
+  }
+
   .page-break {
     page-break-after: always;
     break-after: page;
@@ -34,5 +91,10 @@ h1, h2, h3, h4 {
     height: 100vh !important;
     margin: 0 !important;
     padding: 2rem !important;
+  }
+
+  .page-break:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 }

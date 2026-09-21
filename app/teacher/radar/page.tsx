@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver, estraiNote, type NoteDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 
 type Caso = {
   id: number;
@@ -22,15 +22,22 @@ const ASSI = [
   { chiave: 'vitalita', etichetta: 'Vitalità' },
 ] as const;
 
-const PALETTE = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#1d4ed8', '#15803d', '#a16207', '#9333ea'];
+// Palette categorica validata (8 tonalità, ordine fisso, CVD-safe): vedi
+// il capitolo colore della skill dataviz. La precedente era scelta a
+// occhio e falliva la verifica (due viola quasi indistinguibili anche a
+// vista normale) — questa passa lightness/chroma/CVD/contrasto.
+const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+const LIMITE_ATTIVI = 6;
 
-const RAGGIO = 220;
-const CENTRO = 260;
+const RAGGIO = 200;
+const LABEL_OFFSET = 32;
+const MARGINE_ETICHETTA = 90; // spazio per testo come "RESPONSABILITÀ" senza tagli
+const CENTRO = RAGGIO + LABEL_OFFSET + MARGINE_ETICHETTA;
 const TAGLIA_SVG = CENTRO * 2;
 
 function puntoAsse(indice: number, valore: number) {
   const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
-  const distanza = (valore / 100) * RAGGIO;
+  const distanza = (valore / MAX_DRIVER) * RAGGIO;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
     y: CENTRO + distanza * Math.sin(angolo),
@@ -39,7 +46,7 @@ function puntoAsse(indice: number, valore: number) {
 
 function puntoEtichetta(indice: number) {
   const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
-  const distanza = RAGGIO + 32;
+  const distanza = RAGGIO + LABEL_OFFSET;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
     y: CENTRO + distanza * Math.sin(angolo),
@@ -54,7 +61,47 @@ export default function RadarPage() {
   const [filtroTag, setFiltroTag] = useState('');
   const [filtroDriver, setFiltroDriver] = useState<'nessuno' | 'desiderabilita' | 'fattibilita' | 'responsabilita' | 'vitalita'>('nessuno');
   const [hover, setHover] = useState<Hover | null>(null);
+  const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
+  const [ricerca, setRicerca] = useState('');
+  const [limiteRaggiunto, setLimiteRaggiunto] = useState(false);
+  const cardRefs = useRef<Record<number, HTMLElement | null>>({});
+
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [trascinando, setTrascinando] = useState(false);
+  const puntoIniziale = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const ZOOM_MIN = 0.6;
+  const ZOOM_MAX = 3;
+
+  const applicaZoom = (delta: number) => {
+    setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
+  };
+
+  const resetVista = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const onWheelRadar = (e: React.WheelEvent) => {
+    e.preventDefault();
+    applicaZoom(e.deltaY > 0 ? -0.15 : 0.15);
+  };
+
+  const onMouseDownRadar = (e: React.MouseEvent) => {
+    setTrascinando(true);
+    puntoIniziale.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const onMouseMoveRadar = (e: React.MouseEvent) => {
+    if (!trascinando) return;
+    const dx = e.clientX - puntoIniziale.current.x;
+    const dy = e.clientY - puntoIniziale.current.y;
+    setPan({ x: puntoIniziale.current.panX + dx, y: puntoIniziale.current.panY + dy });
+  };
+
+  const onMouseUpRadar = () => setTrascinando(false);
 
   useEffect(() => {
     const carica = async () => {
@@ -98,24 +145,56 @@ export default function RadarPage() {
 
   const casiFiltrati = useMemo(() => {
     let lista = filtroTag ? casi.filter(c => (c.tags || []).includes(filtroTag)) : casi;
+    if (ricerca.trim()) {
+      const q = ricerca.trim().toLowerCase();
+      lista = lista.filter(c =>
+        c.titolo.toLowerCase().includes(q) ||
+        c.gruppoNome.toLowerCase().includes(q) ||
+        String(c.gruppoNum).includes(q)
+      );
+    }
     if (filtroDriver !== 'nessuno') {
       lista = [...lista]
         .sort((a, b) => (b.driver?.[filtroDriver] ?? 0) - (a.driver?.[filtroDriver] ?? 0))
         .slice(0, 5);
     }
     return lista;
-  }, [casi, filtroTag, filtroDriver]);
+  }, [casi, filtroTag, filtroDriver, ricerca]);
 
   useEffect(() => {
     setAttivi(casiFiltrati.slice(0, 5).map(c => c.id));
   }, [casiFiltrati]);
 
   const toggleAttivo = (id: number) => {
-    setAttivi(prev => (prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]));
+    setAttivi(prev => {
+      if (prev.includes(id)) return prev.filter(a => a !== id);
+      if (prev.length >= LIMITE_ATTIVI) {
+        setLimiteRaggiunto(true);
+        setTimeout(() => setLimiteRaggiunto(false), 2500);
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const casiAttivi = casiFiltrati.filter(c => attivi.includes(c.id));
-  const coloreDi = (id: number) => PALETTE[casiFiltrati.findIndex(x => x.id === id) % PALETTE.length];
+  // Il colore segue l'id del caso studio, mai la sua posizione nell'elenco
+  // filtrato: altrimenti cambiare ricerca/filtro "ridipingerebbe" i
+  // progetti già selezionati, confondendo chi li sta confrontando.
+  const coloreDi = (id: number) => PALETTE[id % PALETTE.length];
+
+  // Più si zooma, più le linee/punti in unità SVG vanno assottigliati: la
+  // trasformazione CSS le scala comunque, e a zoom alto uno spessore fisso
+  // diventerebbe un blob che nasconde i punti vicini impedendo di
+  // selezionarli con precisione.
+  const spessoreLinea = Math.max(0.6, Math.min(3, 2 / zoom));
+  const raggioBase = Math.max(1.5, Math.min(5, 3.5 / zoom));
+  const raggioHover = Math.max(2.5, Math.min(9, 6 / zoom));
+
+  useEffect(() => {
+    if (casoHoverId === null) return;
+    cardRefs.current[casoHoverId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [casoHoverId]);
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
@@ -151,19 +230,39 @@ export default function RadarPage() {
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-64 border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
+          <label htmlFor="radar-ricerca" className="sr-only">Cerca per titolo o gruppo</label>
+          <input
+            id="radar-ricerca"
+            type="text"
+            value={ricerca}
+            onChange={e => setRicerca(e.target.value)}
+            placeholder="Cerca titolo o gruppo..."
+            className="w-full text-xs border border-stone-200 rounded-full px-3 py-2 bg-white mb-2 focus:outline-none focus:ring-2 focus:ring-stone-900"
+          />
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Progetti ({casiFiltrati.length})</h2>
+          <p className="text-[10px] text-stone-400 px-1 pb-1">{attivi.length}/{LIMITE_ATTIVI} attivi sul radar</p>
+          {limiteRaggiunto && (
+            <p role="alert" className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-1">
+              Massimo {LIMITE_ATTIVI} progetti insieme, oltre diventa illeggibile. Deselezionane uno per aggiungerne un altro.
+            </p>
+          )}
           {casiFiltrati.length === 0 && (
-            <p className="text-xs text-stone-400 px-1">Nessun caso studio disponibile.</p>
+            <p className="text-xs text-stone-400 px-1">Nessun caso studio corrisponde alla ricerca.</p>
           )}
           {casiFiltrati.map(c => {
             const colore = coloreDi(c.id);
             const attivo = attivi.includes(c.id);
+            const inEvidenza = casoHoverId === c.id;
             return (
               <button
                 key={c.id}
                 onClick={() => toggleAttivo(c.id)}
+                onMouseEnter={() => attivo && setCasoHoverId(c.id)}
+                onMouseLeave={() => setCasoHoverId(null)}
                 aria-pressed={attivo}
-                className={`w-full flex items-center space-x-2.5 p-2.5 rounded-xl border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${attivo ? 'bg-white border-stone-300 shadow-sm' : 'bg-transparent border-transparent opacity-50 hover:opacity-80'}`}
+                className={`w-full flex items-center space-x-2.5 p-2.5 rounded-xl border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${
+                  inEvidenza ? 'bg-amber-50 border-amber-300 shadow-sm' : attivo ? 'bg-white border-stone-300 shadow-sm' : 'bg-transparent border-transparent opacity-50 hover:opacity-80'
+                }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: attivo ? colore : '#d6d3d1' }}></span>
                 <div className="overflow-hidden">
@@ -175,10 +274,23 @@ export default function RadarPage() {
           })}
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 overflow-hidden relative">
+        <div
+          className="flex-1 flex items-center justify-center p-6 overflow-hidden relative select-none"
+          onWheel={onWheelRadar}
+          onMouseDown={onMouseDownRadar}
+          onMouseMove={onMouseMoveRadar}
+          onMouseUp={onMouseUpRadar}
+          onMouseLeave={onMouseUpRadar}
+          style={{ cursor: trascinando ? 'grabbing' : 'grab' }}
+        >
           <svg
             viewBox={`0 0 ${TAGLIA_SVG} ${TAGLIA_SVG}`}
-            className="w-full h-full max-w-[640px] max-h-[640px]"
+            className="w-full h-full max-w-[860px] max-h-[860px]"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: trascinando ? 'none' : 'transform 0.1s ease-out',
+            }}
             role="img"
             aria-label={`Radar con ${casiAttivi.length} progetti attivi sui quattro driver`}
           >
@@ -222,9 +334,20 @@ export default function RadarPage() {
               const colore = coloreDi(c.id);
               const punti = ASSI.map((asse, i) => ({ ...puntoAsse(i, c.driver?.[asse.chiave] ?? 0), asse }));
               const path = punti.map(p => `${p.x},${p.y}`).join(' ');
+              const inEvidenza = casoHoverId === c.id;
               return (
                 <g key={c.id} className="transition-opacity duration-300">
-                  <polygon points={path} fill={colore} fillOpacity={0.12} stroke={colore} strokeWidth={2} style={{ transition: 'all 0.3s ease' }} />
+                  <polygon
+                    points={path}
+                    fill={colore}
+                    fillOpacity={inEvidenza ? 0.28 : 0.12}
+                    stroke={colore}
+                    strokeWidth={inEvidenza ? spessoreLinea * 1.8 : spessoreLinea}
+                    style={{ transition: 'fill-opacity 0.15s ease, stroke-width 0.15s ease', cursor: 'pointer' }}
+                    onMouseEnter={() => setCasoHoverId(c.id)}
+                    onMouseLeave={() => setCasoHoverId(null)}
+                    onClick={() => setCasoEspanso(c)}
+                  />
                   {punti.map((p, i) => {
                     const isHover = hover?.titolo === c.titolo && hover?.etichetta === p.asse.etichetta;
                     return (
@@ -232,15 +355,22 @@ export default function RadarPage() {
                         key={i}
                         cx={p.x}
                         cy={p.y}
-                        r={isHover ? 6 : 3.5}
+                        r={isHover ? raggioHover : raggioBase}
                         fill={colore}
                         stroke="white"
-                        strokeWidth={isHover ? 1.5 : 0}
+                        strokeWidth={isHover ? spessoreLinea * 0.8 : 0}
                         style={{ transition: 'r 0.15s ease', cursor: 'pointer' }}
-                        onMouseEnter={() => setHover({ x: p.x, y: p.y, etichetta: p.asse.etichetta, valore: c.driver?.[p.asse.chiave] ?? 0, titolo: c.titolo, colore })}
-                        onMouseLeave={() => setHover(null)}
+                        onMouseEnter={() => {
+                          setHover({ x: p.x, y: p.y, etichetta: p.asse.etichetta, valore: c.driver?.[p.asse.chiave] ?? 0, titolo: c.titolo, colore });
+                          setCasoHoverId(c.id);
+                        }}
+                        onMouseLeave={() => {
+                          setHover(null);
+                          setCasoHoverId(null);
+                        }}
+                        onClick={() => setCasoEspanso(c)}
                       >
-                        <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0}`}</title>
+                        <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0} (clicca per aprire la scheda)`}</title>
                       </circle>
                     );
                   })}
@@ -268,6 +398,38 @@ export default function RadarPage() {
               </g>
             )}
           </svg>
+
+          <div className="absolute bottom-5 right-5 flex flex-col bg-white border border-stone-200 rounded-2xl shadow-lg overflow-hidden z-10">
+            <button
+              onClick={() => applicaZoom(0.2)}
+              aria-label="Aumenta zoom"
+              className="w-11 h-11 flex items-center justify-center text-lg font-bold text-stone-700 hover:bg-stone-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              +
+            </button>
+            <div className="text-[10px] text-center py-1.5 text-stone-500 border-t border-b border-stone-200 bg-stone-50">
+              {Math.round(zoom * 100)}%
+            </div>
+            <button
+              onClick={() => applicaZoom(-0.2)}
+              aria-label="Riduci zoom"
+              className="w-11 h-11 flex items-center justify-center text-lg font-bold text-stone-700 hover:bg-stone-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              −
+            </button>
+            <button
+              onClick={resetVista}
+              aria-label="Reimposta zoom e posizione"
+              title="Reimposta vista"
+              className="w-11 h-11 flex items-center justify-center text-sm text-stone-500 hover:bg-stone-100 transition border-t border-stone-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              ⟲
+            </button>
+          </div>
+
+          <div className="absolute bottom-5 left-5 text-[10px] text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-stone-200 pointer-events-none">
+            Trascina per spostarti &middot; rotellina per zoomare &middot; clicca un punto per i dettagli
+          </div>
         </div>
 
         <div className="w-80 border-l border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-3 flex-shrink-0">
@@ -277,15 +439,19 @@ export default function RadarPage() {
           )}
           {casiAttivi.map(c => {
             const colore = coloreDi(c.id);
+            const inEvidenza = casoHoverId === c.id;
             return (
               <button
                 key={c.id}
+                ref={el => { cardRefs.current[c.id] = el; }}
                 onClick={() => setCasoEspanso(c)}
-                className="w-full text-left bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden hover:border-stone-400 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group"
+                onMouseEnter={() => setCasoHoverId(c.id)}
+                onMouseLeave={() => setCasoHoverId(null)}
+                className={`w-full text-left bg-white rounded-2xl border shadow-sm overflow-hidden transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group ${inEvidenza ? 'border-amber-300 ring-2 ring-amber-200' : 'border-stone-200 hover:border-stone-400'}`}
               >
                 <div className="h-28 bg-stone-100 flex items-center justify-center p-3 relative" style={{ borderBottom: `3px solid ${colore}` }}>
                   {c.immagine ? (
-                    <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                    <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                   ) : (
                     <span className="text-[10px] text-stone-400">Nessuna immagine</span>
                   )}
@@ -361,7 +527,7 @@ export default function RadarPage() {
               </p>
 
               <div className="space-y-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
                 <div className="space-y-2.5">
                   {ASSI.map(asse => {
                     const valore = casoEspanso.driver?.[asse.chiave] ?? 0;
@@ -375,7 +541,7 @@ export default function RadarPage() {
                         <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${valore}%`, backgroundColor: coloreDi(casoEspanso.id) }}
+                            style={{ width: `${(valore / MAX_DRIVER) * 100}%`, backgroundColor: coloreDi(casoEspanso.id) }}
                           />
                         </div>
                         {nota && (
