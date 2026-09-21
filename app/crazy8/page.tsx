@@ -419,9 +419,9 @@ export default function Crazy8Page() {
       {caricamentiAttivi > 0 && <SfondoCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
 
-      <div className="flex justify-between items-center px-6 py-4 border-b border-stone-200">
+      <div className="flex flex-wrap justify-between items-center gap-y-2 px-6 py-4 border-b border-stone-200">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           {team && (
             <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
               Gruppo {team.numero} — {team.nome}
@@ -429,10 +429,10 @@ export default function Crazy8Page() {
           )}
           <a href="/manuali?attivita=crazy8_ai" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium px-2">📚 Manuale</a>
           <button onClick={() => setMostraTutorial(true)} className="text-xs text-stone-400 hover:text-stone-900 transition px-2">? Tutorial</button>
-          <button onClick={() => { chiudiCanvas(); setActiveTab('crea'); }} className={`px-4 py-2 rounded-full text-xs font-medium transition ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => { chiudiCanvas(); setActiveTab('crea'); }} className={`px-4 py-2.5 rounded-full text-xs font-medium transition ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {attiva ? attiva.hmw_o_tema || 'Consegna aperta' : '+ Nuova Consegna'}
           </button>
-          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2 rounded-full text-xs font-medium transition ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             Elenco ({submissions.length})
           </button>
         </div>

@@ -46,12 +46,12 @@ const DRIVER_INFO: Record<string, { etichetta: string; domanda: string }> = {
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Step = 'gruppo' | 'contenuti' | 'tag' | 'driver' | 'riepilogo';
 
-const STEPS: { id: Step; label: string; numero: number }[] = [
-  { id: 'gruppo', label: 'Il Gruppo', numero: 1 },
-  { id: 'contenuti', label: 'Il Progetto', numero: 2 },
-  { id: 'tag', label: 'Temi', numero: 3 },
-  { id: 'driver', label: 'Valutazione', numero: 4 },
-  { id: 'riepilogo', label: 'Riepilogo', numero: 5 },
+const STEPS_BASE: { id: Step; label: string }[] = [
+  { id: 'gruppo', label: 'Il Gruppo' },
+  { id: 'contenuti', label: 'Il Progetto' },
+  { id: 'tag', label: 'Temi' },
+  { id: 'driver', label: 'Valutazione' },
+  { id: 'riepilogo', label: 'Riepilogo' },
 ];
 
 export default function StudentPage() {
@@ -363,7 +363,13 @@ export default function StudentPage() {
     return true;
   };
 
-  const indiceCorrente = STEPS.findIndex(s => s.id === step);
+  // Con un team già loggato l'identità è già nota: il passo "Il Gruppo"
+  // (che altrimenti chiederebbe di nuovo nome/numero/codice) non serve
+  // più e sparisce dal percorso, che riparte da "Il Progetto".
+  const STEPS = (team ? STEPS_BASE.filter(s => s.id !== 'gruppo') : STEPS_BASE).map((s, i) => ({ ...s, numero: i + 1 }));
+  const stepEffettivo: Step = team && step === 'gruppo' ? 'contenuti' : step;
+
+  const indiceCorrente = STEPS.findIndex(s => s.id === stepEffettivo);
 
   const vaiAStep = (nuovo: Step) => {
     const indiceNuovo = STEPS.findIndex(s => s.id === nuovo);
@@ -436,10 +442,10 @@ export default function StudentPage() {
   };
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
+    <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
       {comprimendoImmagine && <SfondoCaricamento />}
-      <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
           {team && (
             <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
@@ -448,14 +454,14 @@ export default function StudentPage() {
           )}
           <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
         </div>
-        <div className="space-x-2">
-          <button onClick={() => setActiveTab('crea')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setActiveTab('crea')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {editId !== null ? 'Modifica Scheda' : '+ Nuova Consegna'}
           </button>
-          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             Elenco & Modifiche ({casi.length})
           </button>
-          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2 rounded-full text-xs font-medium transition relative focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition relative focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             🗳️ Vota in Aula
             {casoInVotazione && activeTab !== 'vota' && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" aria-hidden="true"></span>
@@ -469,13 +475,15 @@ export default function StudentPage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontaci il vostro progetto'}</h1>
-            <p className="text-stone-600 text-sm mt-1">Cinque passaggi brevi: gruppo, progetto, temi, valutazione e un riepilogo finale prima di inviare.</p>
+            <p className="text-stone-600 text-sm mt-1">
+              {team ? 'Progetto, temi, valutazione e un riepilogo finale prima di inviare.' : 'Cinque passaggi brevi: gruppo, progetto, temi, valutazione e un riepilogo finale prima di inviare.'}
+            </p>
           </div>
 
           <nav aria-label="Passaggi della consegna" className="flex items-center justify-between bg-white p-3 rounded-2xl border border-stone-200 shadow-sm">
             {STEPS.map((s, i) => {
               const raggiungibile = i <= maxStepRaggiunto;
-              const attivo = s.id === step;
+              const attivo = s.id === stepEffettivo;
               const completato = i < maxStepRaggiunto || (i === maxStepRaggiunto && stepValido(s.id) && i < indiceCorrente);
               return (
                 <button
@@ -500,56 +508,47 @@ export default function StudentPage() {
           </nav>
 
           <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
-            {step === 'gruppo' && (
+            {stepEffettivo === 'gruppo' && (
               <div className="space-y-5">
-                {team && editId === null ? (
+                <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="gruppo-nome" className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
+                    <input id="gruppo-nome" type="text" required value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  </div>
+                  <div>
+                    <label htmlFor="gruppo-num" className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
+                    <input id="gruppo-num" type="number" required value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  </div>
+                </div>
+
+                {codiceGiaVerificato ? (
                   <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-3 text-xs font-medium">
                     <span aria-hidden="true">✓</span>
-                    <span>Gruppo {team.numero} — {team.nome}. Userete il codice del vostro team per modificare questa scheda in futuro.</span>
+                    <span>Codice di gruppo verificato — potete modificare questa scheda.</span>
                   </div>
                 ) : (
-                  <>
-                    <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="gruppo-nome" className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
-                        <input id="gruppo-nome" type="text" required value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                      </div>
-                      <div>
-                        <label htmlFor="gruppo-num" className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
-                        <input id="gruppo-num" type="number" required value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                      </div>
-                    </div>
-
-                    {codiceGiaVerificato ? (
-                      <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-3 text-xs font-medium">
-                        <span aria-hidden="true">✓</span>
-                        <span>Codice di gruppo verificato — potete modificare questa scheda.</span>
-                      </div>
-                    ) : (
-                      <div>
-                        <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
-                        <input
-                          id="codice-gruppo"
-                          type="password"
-                          required
-                          minLength={4}
-                          value={codiceGruppo}
-                          onChange={e => setCodiceGruppo(e.target.value)}
-                          placeholder="Scegli un codice (min. 4 caratteri)..."
-                          className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
-                        />
-                        <p className="text-[11px] text-stone-400 mt-1">
-                          Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
-                        </p>
-                      </div>
-                    )}
-                  </>
+                  <div>
+                    <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+                    <input
+                      id="codice-gruppo"
+                      type="password"
+                      required
+                      minLength={4}
+                      value={codiceGruppo}
+                      onChange={e => setCodiceGruppo(e.target.value)}
+                      placeholder="Scegli un codice (min. 4 caratteri)..."
+                      className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    />
+                    <p className="text-[11px] text-stone-400 mt-1">
+                      Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
 
-            {step === 'contenuti' && (
+            {stepEffettivo === 'contenuti' && (
               <div className="space-y-5">
                 <p className="text-sm text-stone-500">Il cuore della consegna: cosa avete progettato e perché.</p>
                 <div>
@@ -582,7 +581,7 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'tag' && (
+            {stepEffettivo === 'tag' && (
               <div className="space-y-4">
                 <p className="text-sm text-stone-500">A quali temi si collega il vostro progetto? Sceglietene quanti ne servono, o aggiungetene uno vostro.</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -612,7 +611,7 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'driver' && (
+            {stepEffettivo === 'driver' && (
               <div className="space-y-6">
                 <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione, da 0 a {MAX_DRIVER}. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
                 {([
@@ -662,7 +661,7 @@ export default function StudentPage() {
               </div>
             )}
 
-            {step === 'riepilogo' && (
+            {stepEffettivo === 'riepilogo' && (
               <div className="space-y-5">
                 <p className="text-sm text-stone-500">Ultimo sguardo prima di inviare. Potete tornare indietro a qualsiasi passaggio per correggere.</p>
 

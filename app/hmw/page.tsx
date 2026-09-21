@@ -216,10 +216,10 @@ export default function HmwPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
+    <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
+      <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {team && (
             <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
               Gruppo {team.numero} — {team.nome}
