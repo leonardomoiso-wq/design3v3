@@ -377,7 +377,7 @@ export default function StudentPage() {
   };
 
   const avanti = () => {
-    if (!stepValido(step)) return;
+    if (!stepValido(stepEffettivo)) return;
     const prossimo = STEPS[indiceCorrente + 1];
     if (prossimo) {
       setStep(prossimo.id);
@@ -731,7 +731,7 @@ export default function StudentPage() {
                 <button
                   type="button"
                   onClick={avanti}
-                  disabled={!stepValido(step)}
+                  disabled={!stepValido(stepEffettivo)}
                   className="px-6 py-2.5 rounded-xl text-xs font-medium bg-stone-900 text-white hover:bg-stone-800 transition disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
                 >
                   Avanti &rarr;

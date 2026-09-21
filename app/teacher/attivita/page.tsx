@@ -46,6 +46,14 @@ export default function AttivitaPannelloPage() {
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
 
   const [attivitaDaEliminare, setAttivitaDaEliminare] = useState<AttivitaRow | null>(null);
+  const [erroreLista, setErroreLista] = useState('');
+
+  const messaggioErroreAttivita = (msg: string | undefined, azione: string) => {
+    if (msg === 'passcode_errato') {
+      return 'Password docente non riconosciuta: esci e rientra nell\'area docente, poi riprova.';
+    }
+    return `Errore durante ${azione}${msg ? `: ${msg}` : '.'}`;
+  };
 
   const caricaAttivita = async () => {
     const { data, error } = await supabase.from('attivita').select('*').order('ordine', { ascending: true });
@@ -107,7 +115,7 @@ export default function AttivitaPannelloPage() {
     });
     setSalvataggioInCorso(false);
     if (error) {
-      setErrore('Errore durante il salvataggio. Riprova.');
+      setErrore(messaggioErroreAttivita(error.message, 'il salvataggio'));
       return;
     }
     setNuovoAperto(false);
@@ -134,7 +142,7 @@ export default function AttivitaPannelloPage() {
     });
     setSalvataggioInCorso(false);
     if (error) {
-      setErrore('Errore durante il salvataggio. Riprova.');
+      setErrore(messaggioErroreAttivita(error.message, 'il salvataggio'));
       return;
     }
     setModificaId(null);
@@ -142,15 +150,17 @@ export default function AttivitaPannelloPage() {
   };
 
   const impostaStato = async (a: AttivitaRow, stato: StatoAttivita) => {
+    setErroreLista('');
     setAttivita(prev => prev.map(x => (x.id === a.id ? { ...x, stato } : x)));
     const { error } = await supabase.rpc('docente_imposta_stato_attivita', { p_id: a.id, p_stato: stato, p_passcode: passcode });
     if (error) {
-      console.error('Errore nel cambio di stato:', error);
+      setErroreLista(messaggioErroreAttivita(error.message, 'il cambio di stato'));
       caricaAttivita();
     }
   };
 
   const impostaFlag = async (a: AttivitaRow, campo: 'richiedi_log_prompt' | 'richiedi_riflessione', valore: boolean) => {
+    setErroreLista('');
     const aggiornata = { ...a, [campo]: valore };
     setAttivita(prev => prev.map(x => (x.id === a.id ? aggiornata : x)));
     const { error } = await supabase.rpc('docente_imposta_flag_attivita', {
@@ -160,16 +170,18 @@ export default function AttivitaPannelloPage() {
       p_passcode: passcode,
     });
     if (error) {
-      console.error('Errore nel salvataggio del flag:', error);
+      setErroreLista(messaggioErroreAttivita(error.message, 'il salvataggio'));
       caricaAttivita();
     }
   };
 
   const confermaElimina = async () => {
     if (!attivitaDaEliminare) return;
+    setErroreLista('');
     const { error } = await supabase.rpc('docente_elimina_attivita', { p_id: attivitaDaEliminare.id, p_passcode: passcode });
     if (error) {
-      console.error('Errore nell\'eliminazione:', error);
+      setErroreLista(messaggioErroreAttivita(error.message, "l'eliminazione"));
+      caricaAttivita();
     }
     setAttivitaDaEliminare(null);
   };
@@ -188,6 +200,10 @@ export default function AttivitaPannelloPage() {
           + Nuova Attività
         </button>
       </div>
+
+      {erroreLista && (
+        <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreLista}</p>
+      )}
 
       {attivita.length === 0 && (
         <div className="bg-white p-12 rounded-2xl border border-stone-200 text-center text-stone-400 text-sm">
