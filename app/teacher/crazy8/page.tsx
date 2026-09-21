@@ -5,15 +5,63 @@ import { useDocente } from '@/lib/docente-context';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
-function Lightbox({ url, onChiudi }: { url: string; onChiudi: () => void }) {
+type ImmagineLightbox = { url: string; label: string };
+
+// Tutte le immagini di una consegna, in ordine di percorso (sketch, poi i
+// suoi round; sketch successivo, poi i suoi round...): usata per popolare
+// la lightbox navigabile a schermo intero, qualunque miniatura l'abbia aperta.
+function immaginiFlat(submission: any): ImmagineLightbox[] {
+  return (submission.immagini || []).flatMap((sketch: any) => [
+    { url: sketch.url_file, label: 'Sketch' },
+    ...(sketch.generazioni_crazy8 || []).map((g: any) => ({ url: g.url_immagine, label: `Round ${g.ordine}` })),
+  ]);
+}
+
+function Lightbox({ immagini, indice, onCambiaIndice, onChiudi }: { immagini: ImmagineLightbox[]; indice: number; onCambiaIndice: (i: number) => void; onChiudi: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onChiudi();
+      if (e.key === 'ArrowRight') onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1);
+      if (e.key === 'ArrowLeft') onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [indice, immagini.length, onCambiaIndice, onChiudi]);
+
+  const corrente = immagini[indice];
+  if (!corrente) return null;
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-sm flex items-center justify-center p-8 animate-fade-in"
+      className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8 animate-fade-in"
       role="dialog" aria-modal="true" aria-label="Immagine a grandezza intera"
       onClick={onChiudi}
     >
-      <button onClick={onChiudi} className="absolute top-5 right-6 text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
-      <img src={url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+      <div className="flex items-center justify-between w-full max-w-5xl mb-3 text-stone-400 text-xs uppercase tracking-widest flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <span>{corrente.label} · {indice + 1} / {immagini.length}</span>
+        <button onClick={onChiudi} className="text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
+      </div>
+      <div className="relative flex-1 w-full min-h-0 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+        {immagini.length > 1 && (
+          <button
+            onClick={() => onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1)}
+            className="absolute left-1 sm:-left-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
+            aria-label="Immagine precedente"
+          >
+            ‹
+          </button>
+        )}
+        <img key={corrente.url} src={corrente.url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scale-in" />
+        {immagini.length > 1 && (
+          <button
+            onClick={() => onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1)}
+            className="absolute right-1 sm:-right-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
+            aria-label="Immagine successiva"
+          >
+            ›
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -22,10 +70,10 @@ function Lightbox({ url, onChiudi }: { url: string; onChiudi: () => void }) {
 // (sketch di partenza -> round 1 -> round 2 -> ...), tutte visibili insieme
 // in una sola pagina. Usata sia nella vista galleria sia come riepilogo
 // finale in modalità presentazione.
-function TimelineSottoambito({ submission, onImageClick, dark }: { submission: any; onImageClick: (url: string) => void; dark?: boolean }) {
+function TimelineSottoambito({ submission, onImageClick, dark }: { submission: any; onImageClick: (immagini: ImmagineLightbox[], indice: number) => void; dark?: boolean }) {
   const cardBg = dark ? 'bg-stone-900 border-stone-800' : 'bg-white border-stone-200';
   const labelColor = dark ? 'text-stone-500' : 'text-stone-400';
-  const textColor = dark ? 'text-stone-300' : 'text-stone-600';
+  const flat = immaginiFlat(submission);
   return (
     <div className="space-y-6">
       {(submission.immagini || []).length === 0 && (
@@ -34,9 +82,9 @@ function TimelineSottoambito({ submission, onImageClick, dark }: { submission: a
       {(submission.immagini || []).map((sketch: any, idx: number) => (
         <div key={sketch.id} className={`rounded-2xl border ${cardBg} p-4`}>
           <p className={`text-[10px] font-bold uppercase tracking-widest ${labelColor} mb-3`}>Traccia {idx + 1}</p>
-          <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
-            <button onClick={() => onImageClick(sketch.url_file)} className="flex-shrink-0 text-center group">
-              <div className={`w-24 h-24 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
+          <div className="flex items-stretch gap-3 overflow-x-auto pb-1">
+            <button onClick={() => onImageClick(flat, flat.findIndex(f => f.url === sketch.url_file))} className="flex-shrink-0 text-center group">
+              <div className={`w-40 h-40 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
                 <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
               </div>
               <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Sketch</p>
@@ -44,8 +92,8 @@ function TimelineSottoambito({ submission, onImageClick, dark }: { submission: a
             {sketch.generazioni_crazy8.map((g: any) => (
               <div key={g.id} className="flex items-center gap-2 flex-shrink-0">
                 <span className={`text-lg ${labelColor}`}>→</span>
-                <button onClick={() => onImageClick(g.url_immagine)} className="text-center group">
-                  <div className={`w-24 h-24 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
+                <button onClick={() => onImageClick(flat, flat.findIndex(f => f.url === g.url_immagine))} className="text-center group">
+                  <div className={`w-40 h-40 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
                     <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                   </div>
                   <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Round {g.ordine}</p>
@@ -178,7 +226,11 @@ export default function Crazy8DocentePage() {
   const [invioInCorso, setInvioInCorso] = useState<string | null>(null);
   const [modalitaPresentazione, setModalitaPresentazione] = useState(false);
   const [indicePresentazione, setIndicePresentazione] = useState(0);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ immagini: ImmagineLightbox[]; indice: number } | null>(null);
+  const apriLightbox = (immagini: ImmagineLightbox[], indice: number) => {
+    if (indice < 0) return;
+    setLightbox({ immagini, indice });
+  };
   const [vistaDettaglio, setVistaDettaglio] = useState<'galleria' | 'timeline'>('galleria');
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
 
@@ -275,7 +327,9 @@ export default function Crazy8DocentePage() {
   });
 
   useEffect(() => {
-    if (!modalitaPresentazione) return;
+    // Con la lightbox aperta sopra la presentazione, le frecce devono
+    // scorrere le immagini della lightbox, non le diapositive sotto.
+    if (!modalitaPresentazione || lightbox) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1));
       if (e.key === 'ArrowLeft') setIndicePresentazione(i => Math.max(0, i - 1));
@@ -283,7 +337,7 @@ export default function Crazy8DocentePage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalitaPresentazione, diapositive.length]);
+  }, [modalitaPresentazione, diapositive.length, lightbox]);
 
   if (modalitaPresentazione) {
     const corrente = diapositive[indicePresentazione];
@@ -304,7 +358,7 @@ export default function Crazy8DocentePage() {
               <p className="text-stone-500 text-xs uppercase tracking-widest mt-1">Da schizzo a immagine, tutte le tracce</p>
             </div>
             <div className="max-w-5xl mx-auto">
-              <TimelineSottoambito submission={corrente.submission} onImageClick={setLightboxUrl} dark />
+              <TimelineSottoambito submission={corrente.submission} onImageClick={apriLightbox} dark />
             </div>
           </div>
         ) : (
@@ -314,7 +368,7 @@ export default function Crazy8DocentePage() {
             <p className="text-stone-500 text-xs uppercase tracking-widest mb-8">{corrente.round ? `Round ${corrente.round.ordine}` : 'Sketch di partenza'}</p>
 
             {!corrente.round ? (
-              <button onClick={() => setLightboxUrl(corrente.sketch.url_file)} className="h-80 w-80 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
+              <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.sketch.url_file)); }} className="h-80 w-80 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
                 <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
               </button>
             ) : (
@@ -322,13 +376,13 @@ export default function Crazy8DocentePage() {
                 <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch di partenza</p>
-                    <button onClick={() => setLightboxUrl(corrente.sketch.url_file)} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
+                    <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.sketch.url_file)); }} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
                       <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
                     </button>
                   </div>
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata (round {corrente.round.ordine})</p>
-                    <button onClick={() => setLightboxUrl(corrente.round.url_immagine)} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
+                    <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.round.url_immagine)); }} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
                       <img src={corrente.round.url_immagine} alt="" decoding="async" className="max-w-full max-h-full object-contain" />
                     </button>
                   </div>
@@ -346,7 +400,14 @@ export default function Crazy8DocentePage() {
           <button onClick={() => setIndicePresentazione(i => Math.max(0, i - 1))} disabled={indicePresentazione === 0} className="bg-stone-800 text-white px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-700 transition">← Precedente</button>
           <button onClick={() => setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1))} disabled={indicePresentazione >= diapositive.length - 1} className="bg-white text-stone-900 px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-200 transition">Successiva →</button>
         </div>
-        {lightboxUrl && <Lightbox url={lightboxUrl} onChiudi={() => setLightboxUrl(null)} />}
+        {lightbox && (
+          <Lightbox
+            immagini={lightbox.immagini}
+            indice={lightbox.indice}
+            onCambiaIndice={i => setLightbox(l => (l ? { ...l, indice: i } : l))}
+            onChiudi={() => setLightbox(null)}
+          />
+        )}
       </div>
     );
   }
@@ -445,7 +506,7 @@ export default function Crazy8DocentePage() {
             )}
 
             {vistaDettaglio === 'timeline' ? (
-              <TimelineSottoambito submission={selezionata} onImageClick={setLightboxUrl} />
+              <TimelineSottoambito submission={selezionata} onImageClick={apriLightbox} />
             ) : (
               <div className="space-y-4">
                 {selezionata.immagini.length === 0 && (
@@ -454,7 +515,7 @@ export default function Crazy8DocentePage() {
                 {selezionata.immagini.map((sketch: any) => (
                   <div key={sketch.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                     <div className="flex items-center gap-4 p-4 bg-stone-50 border-b border-stone-100">
-                      <button onClick={() => setLightboxUrl(sketch.url_file)} className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 hover:opacity-80 transition">
+                      <button onClick={() => { const flat = immaginiFlat(selezionata); apriLightbox(flat, flat.findIndex(f => f.url === sketch.url_file)); }} className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 hover:opacity-80 transition">
                         <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </button>
                       <p className="text-xs font-bold text-stone-600">Sketch — {sketch.generazioni_crazy8.length} round di generazione</p>
@@ -464,7 +525,7 @@ export default function Crazy8DocentePage() {
                       <div className="p-4 space-y-3">
                         {sketch.generazioni_crazy8.map((g: any) => (
                           <div key={g.id} className="grid sm:grid-cols-[80px_1fr] gap-3 text-xs">
-                            <button onClick={() => setLightboxUrl(g.url_immagine)} className="w-20 h-20 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center hover:opacity-80 transition">
+                            <button onClick={() => { const flat = immaginiFlat(selezionata); apriLightbox(flat, flat.findIndex(f => f.url === g.url_immagine)); }} className="w-20 h-20 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center hover:opacity-80 transition">
                               <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                             </button>
                             <div>
@@ -493,7 +554,14 @@ export default function Crazy8DocentePage() {
           </div>
         )}
       </div>
-      {lightboxUrl && <Lightbox url={lightboxUrl} onChiudi={() => setLightboxUrl(null)} />}
+      {lightbox && (
+        <Lightbox
+          immagini={lightbox.immagini}
+          indice={lightbox.indice}
+          onCambiaIndice={i => setLightbox(l => (l ? { ...l, indice: i } : l))}
+          onChiudi={() => setLightbox(null)}
+        />
+      )}
       {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} onChiudi={() => setMostraPromptSuggeriti(false)} />}
     </div>
   );

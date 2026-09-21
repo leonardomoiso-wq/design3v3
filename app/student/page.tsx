@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
 import { comprimiImmagine } from '../../lib/immagine';
+import { BarraCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -61,6 +62,7 @@ export default function StudentPage() {
   const [titolo, setTitolo] = useState('');
   const [descrizione, setDescrizione] = useState('');
   const [immagine, setImmagine] = useState<string>('');
+  const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
   const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
@@ -144,8 +146,13 @@ export default function StudentPage() {
     if (!file) return;
     // Compattata prima di finire nello stato/DB: le foto di copertina
     // arrivano spesso a piena risoluzione dalla fotocamera.
-    const dataUrl = await comprimiImmagine(file);
-    setImmagine(dataUrl);
+    setComprimendoImmagine(true);
+    try {
+      const dataUrl = await comprimiImmagine(file);
+      setImmagine(dataUrl);
+    } finally {
+      setComprimendoImmagine(false);
+    }
   };
 
   const messaggioErrore = (codice: string) => {
@@ -397,6 +404,7 @@ export default function StudentPage() {
 
   return (
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
+      {comprimendoImmagine && <BarraCaricamento />}
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <div className="flex items-center space-x-4">
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
@@ -507,14 +515,15 @@ export default function StudentPage() {
                   <div className="flex items-center space-x-4 border border-dashed border-stone-300 p-4 rounded-xl bg-stone-50/50">
                     <div className="w-20 h-20 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                       {immagine ? (
-                        <img src={immagine} alt="Anteprima dell'immagine caricata" className="max-w-full max-h-full object-contain p-1" />
+                        <img src={immagine} alt="Anteprima dell'immagine caricata" className="max-w-full max-h-full object-contain p-1 animate-scale-in" />
                       ) : (
                         <span className="text-[10px] text-stone-400 font-medium tracking-wide">NO IMG</span>
                       )}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-1.5">
                       <label htmlFor="immagine-upload" className="sr-only">Carica un'immagine di copertina</label>
-                      <input id="immagine-upload" type="file" accept="image/*" onChange={handleImageChange} className="w-full text-xs text-stone-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-900 file:text-white cursor-pointer" />
+                      <input id="immagine-upload" type="file" accept="image/*" onChange={handleImageChange} disabled={comprimendoImmagine} className="w-full text-xs text-stone-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-900 file:text-white cursor-pointer disabled:opacity-60" />
+                      {comprimendoImmagine && <ImpulsoCaricamento etichetta="Comprimo l'immagine..." />}
                     </div>
                   </div>
                 </div>

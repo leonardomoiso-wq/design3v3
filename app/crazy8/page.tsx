@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { comprimiImmagine } from '../../lib/immagine';
+import { BarraCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 
 const TUTORIAL_VISTO_KEY = 'crazy8_tutorial_visto';
 
@@ -54,11 +55,12 @@ function TutorialOverlay({ onChiudi }: { onChiudi: () => void }) {
   );
 }
 
-function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti }: { sketchId: string; onAggiungi: (sketchId: string, prompt: string, urlFile: string, deduzione: string) => Promise<boolean>; suggerimenti: any[] }) {
+function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti, onCaricamentoChange }: { sketchId: string; onAggiungi: (sketchId: string, prompt: string, urlFile: string, deduzione: string) => Promise<boolean>; suggerimenti: any[]; onCaricamentoChange: (attivo: boolean) => void }) {
   const [prompt, setPrompt] = useState('');
   const [file, setFile] = useState<{ url: string; nome: string } | null>(null);
   const [deduzione, setDeduzione] = useState('');
   const [inCorso, setInCorso] = useState(false);
+  const [comprimendo, setComprimendo] = useState(false);
   const [errore, setErrore] = useState('');
 
   const applicaSuggerimento = (testo: string) => {
@@ -68,8 +70,15 @@ function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti }: { sketch
   const carica = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = await leggiFileComeDataUrl(f);
-    setFile({ url, nome: f.name });
+    setComprimendo(true);
+    onCaricamentoChange(true);
+    try {
+      const url = await leggiFileComeDataUrl(f);
+      setFile({ url, nome: f.name });
+    } finally {
+      setComprimendo(false);
+      onCaricamentoChange(false);
+    }
   };
 
   const invia = async () => {
@@ -109,10 +118,10 @@ function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti }: { sketch
       <textarea rows={2} value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Prompt usato (es. 'ambientazione in un salotto minimale')..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
       <div className="flex items-center gap-2">
         <label className="text-xs bg-white border border-stone-200 rounded-lg px-3 py-2 cursor-pointer hover:border-stone-400 transition flex-shrink-0">
-          {file ? '✓ Immagine caricata' : 'Carica immagine generata'}
-          <input type="file" accept="image/*" className="sr-only" onChange={carica} />
+          {comprimendo ? <ImpulsoCaricamento etichetta="Comprimo..." /> : file ? '✓ Immagine caricata' : 'Carica immagine generata'}
+          <input type="file" accept="image/*" className="sr-only" onChange={carica} disabled={comprimendo} />
         </label>
-        {file && <img src={file.url} alt="" className="w-10 h-10 object-contain rounded-lg border border-stone-200 bg-white" />}
+        {file && <img src={file.url} alt="" className="w-10 h-10 object-contain rounded-lg border border-stone-200 bg-white animate-scale-in" />}
       </div>
       <textarea rows={2} value={deduzione} onChange={e => setDeduzione(e.target.value)} placeholder="Cosa deducete da questa immagine? (informerà il prossimo prompt)" className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
       {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
@@ -130,6 +139,12 @@ export default function Crazy8Page() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [filtroGruppo, setFiltroGruppo] = useState('');
   const [suggerimentiPrompt, setSuggerimentiPrompt] = useState<any[]>([]);
+  // Contatore di compressioni/upload in corso in un punto qualsiasi della
+  // pagina: quando > 0 la barra di caricamento in cima si anima, a far
+  // sentire che l'attività si "propaga" oltre il singolo controllo.
+  const [caricamentiAttivi, setCaricamentiAttivi] = useState(0);
+  const [caricamentoSketch, setCaricamentoSketch] = useState(false);
+  const segnalaCaricamento = (attivo: boolean) => setCaricamentiAttivi(n => Math.max(0, n + (attivo ? 1 : -1)));
 
   // La consegna aperta al momento nel "canvas" (creata ora o sbloccata dall'elenco)
   const [attivaId, setAttivaId] = useState<string | null>(null);
@@ -267,11 +282,19 @@ export default function Crazy8Page() {
     if (!attivaId) return;
     const files = Array.from(e.target.files || []);
     e.target.value = '';
-    for (const file of files) {
-      const urlFile = await leggiFileComeDataUrl(file);
-      await supabase.rpc('aggiungi_sketch_crazy8', { p_submission_id: attivaId, p_codice: attivaCodice, p_url_file: urlFile });
+    if (files.length === 0) return;
+    setCaricamentoSketch(true);
+    segnalaCaricamento(true);
+    try {
+      for (const file of files) {
+        const urlFile = await leggiFileComeDataUrl(file);
+        await supabase.rpc('aggiungi_sketch_crazy8', { p_submission_id: attivaId, p_codice: attivaCodice, p_url_file: urlFile });
+      }
+      await caricaSubmissions();
+    } finally {
+      setCaricamentoSketch(false);
+      segnalaCaricamento(false);
     }
-    await caricaSubmissions();
   };
 
   const rimuoviSketch = async (immagineId: string) => {
@@ -362,6 +385,7 @@ export default function Crazy8Page() {
 
   return (
     <main className="min-h-screen bg-[#FBF9F5]">
+      {caricamentiAttivi > 0 && <BarraCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
 
       <div className="flex justify-between items-center px-6 py-4 border-b border-stone-200">
@@ -435,14 +459,20 @@ export default function Crazy8Page() {
                     </div>
                   ))}
 
-                  <BloccoNuovaGenerazione sketchId={sketch.id} onAggiungi={aggiungiGenerazione} suggerimenti={suggerimentiPrompt} />
+                  <BloccoNuovaGenerazione sketchId={sketch.id} onAggiungi={aggiungiGenerazione} suggerimenti={suggerimentiPrompt} onCaricamentoChange={segnalaCaricamento} />
                 </div>
               ))}
 
-              <label className="flex items-center justify-center gap-2 h-20 rounded-2xl border-2 border-dashed border-stone-300 bg-white hover:border-stone-500 hover:bg-stone-50 transition cursor-pointer animate-fade-in-up">
-                <span className="text-xl" aria-hidden="true">✏️</span>
-                <span className="text-sm font-medium text-stone-700">Aggiungi un altro sketch</span>
-                <input type="file" accept="image/*" multiple className="sr-only" onChange={aggiungiSketch} />
+              <label className={`flex items-center justify-center gap-2 h-20 rounded-2xl border-2 border-dashed transition cursor-pointer animate-fade-in-up ${caricamentoSketch ? 'border-stone-400 bg-stone-50' : 'border-stone-300 bg-white hover:border-stone-500 hover:bg-stone-50'}`}>
+                {caricamentoSketch ? (
+                  <ImpulsoCaricamento etichetta="Comprimo lo sketch..." />
+                ) : (
+                  <>
+                    <span className="text-xl" aria-hidden="true">✏️</span>
+                    <span className="text-sm font-medium text-stone-700">Aggiungi un altro sketch</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" multiple className="sr-only" onChange={aggiungiSketch} disabled={caricamentoSketch} />
               </label>
             </div>
 
