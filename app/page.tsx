@@ -3,6 +3,19 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
 import { useTeam, type TeamInfo } from '../lib/team-context';
+import { TESTI_DEFAULT, unisciTestiPiattaforma } from '../lib/testi-piattaforma';
+
+function useTestiPiattaforma() {
+  const [testi, setTesti] = useState(TESTI_DEFAULT);
+  useEffect(() => {
+    const carica = async () => {
+      const { data } = await supabase.from('contenuto_piattaforma').select('chiave, valore');
+      if (data) setTesti(unisciTestiPiattaforma(data as { chiave: string; valore: string }[]));
+    };
+    carica();
+  }, []);
+  return testi;
+}
 
 const messaggioErroreTeam = (codice: string) => {
   switch (codice) {
@@ -18,44 +31,53 @@ const messaggioErroreTeam = (codice: string) => {
   }
 };
 
-function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => void }) {
+function ScorciatoieAccesso({ onSalta }: { onSalta: () => void }) {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
-      <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
-        <div className="flex items-center justify-center gap-2">
-          <a
-            href="/teacher"
-            className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
-          >
-            🔐 Accesso Docente
-          </a>
-          <button
-            onClick={onSalta}
-            className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
-          >
-            Accesso Studente diretto
-          </button>
-        </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <a
+        href="/teacher"
+        className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
+      >
+        🔐 Accesso Docente
+      </a>
+      <button
+        onClick={onSalta}
+        className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
+      >
+        Accesso Studente diretto
+      </button>
+    </div>
+  );
+}
 
-        <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
-          Laboratorio di Design 3
+function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => void }) {
+  const testi = useTestiPiattaforma();
+  return (
+    <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
+      <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
+        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
+        <ScorciatoieAccesso onSalta={onSalta} />
+      </nav>
+
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
+          <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
+            {testi.incipit_badge}
+          </div>
+          <h1 className="text-4xl font-serif leading-tight">{testi.incipit_titolo}</h1>
+          <p className="text-stone-600 text-base leading-relaxed whitespace-pre-line">
+            {testi.incipit_testo}
+          </p>
+          <button
+            onClick={onAvanti}
+            className="bg-stone-900 text-white px-8 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+          >
+            Formiamo il team →
+          </button>
+          <p className="text-[11px] text-stone-400 whitespace-pre-line">
+            {testi.incipit_nota}
+          </p>
         </div>
-        <h1 className="text-4xl font-serif leading-tight">Prima di entrare, formate il vostro team.</h1>
-        <p className="text-stone-600 text-base leading-relaxed">
-          Ogni attività del laboratorio — casi studio, Crazy 8, HMW — si costruisce insieme, come team.
-          Bastano un nome e una password scelti da voi: da qui in poi l&apos;app vi riconoscerà, senza
-          doverli reinserire ogni volta.
-        </p>
-        <button
-          onClick={onAvanti}
-          className="bg-stone-900 text-white px-8 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-        >
-          Formiamo il team →
-        </button>
-        <p className="text-[11px] text-stone-400">
-          O saltate il login con &quot;Accesso Studente diretto&quot; qui sopra: potrete comunque partecipare alle attività,
-          inserendo nome e codice di gruppo a mano quando richiesto.
-        </p>
       </div>
     </main>
   );
@@ -67,7 +89,7 @@ const DOMANDE_SUGGERITE = [
   'Il soprannome del gruppo alle superiori?',
 ];
 
-function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }) {
+function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team: TeamInfo) => void; onSalta: () => void; onIndietro: () => void }) {
   const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
   const [nome, setNome] = useState('');
   const [password, setPassword] = useState('');
@@ -153,7 +175,16 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
+      <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onIndietro} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Indietro</button>
+          <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
+        </div>
+        <ScorciatoieAccesso onSalta={onSalta} />
+      </nav>
+
+      <div className="flex-1 flex items-center justify-center py-12">
       <div className="max-w-md w-full space-y-5 animate-fade-in-up">
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-serif">Il vostro team</h1>
@@ -209,6 +240,7 @@ function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }
             </button>
           )}
         </div>
+      </div>
       </div>
 
       {mostraRecupero && (
@@ -300,6 +332,7 @@ function PannelloMembri({ team, onChiudi, onAggiornati }: { team: TeamInfo; onCh
 function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo | null; onLogout: () => void; onTeamAggiornato: (team: TeamInfo) => void }) {
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
   const [mostraMembri, setMostraMembri] = useState(false);
+  const testi = useTestiPiattaforma();
 
   useEffect(() => {
     const carica = async () => {
@@ -326,7 +359,7 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
   return (
     <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
-        <span className="font-serif tracking-tight font-bold text-lg">DESIGN 3</span>
+        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
         <div className="flex items-center gap-3">
           {team ? (
             <>
@@ -361,13 +394,13 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
 
       <div className="pt-16 pb-10 text-center space-y-5">
         <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
-          Laboratorio di Design 3
+          {testi.home_badge}
         </div>
         <h1 className="text-5xl md:text-6xl font-serif max-w-3xl mx-auto leading-tight">
-          Esplorare per progettare il cambiamento.
+          {testi.home_titolo}
         </h1>
         <p className="text-stone-600 max-w-xl mx-auto text-base leading-relaxed">
-          Le attività del laboratorio, tutte da qui. Scegli quella a cui vuoi partecipare.
+          {testi.home_sottotitolo}
         </p>
       </div>
 
@@ -447,7 +480,7 @@ export default function LandingPage() {
   if (!team && !saltato) {
     return fase === 'incipit'
       ? <Incipit onAvanti={() => setFase('accesso')} onSalta={() => setSaltato(true)} />
-      : <SchermataAccesso onAccesso={accedi} />;
+      : <SchermataAccesso onAccesso={accedi} onSalta={() => setSaltato(true)} onIndietro={() => setFase('incipit')} />;
   }
 
   return (

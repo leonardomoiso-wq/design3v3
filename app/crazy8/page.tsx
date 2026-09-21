@@ -395,9 +395,11 @@ export default function Crazy8Page() {
     await caricaSubmissions();
   };
 
-  const submissionFiltrate = filtroGruppo.trim()
-    ? submissions.filter(s => String(s.gruppo_num) === String(filtroGruppo.trim()))
-    : submissions;
+  const submissionFiltrate = team
+    ? submissions.filter(s => String(s.gruppo_num) === String(team.numero))
+    : filtroGruppo.trim()
+      ? submissions.filter(s => String(s.gruppo_num) === String(filtroGruppo.trim()))
+      : submissions;
 
   if (attivitaInfo === undefined) {
     return <main className="min-h-screen flex items-center justify-center text-sm text-stone-400">Caricamento...</main>;
@@ -547,10 +549,14 @@ export default function Crazy8Page() {
       ) : (
         <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
-            <p className="text-stone-500 text-xs">Filtra per numero di gruppo per ritrovare la tua consegna.</p>
-            <div className="w-40">
-              <input type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-            </div>
+            <p className="text-stone-500 text-xs">
+              {team ? 'Le consegne inviate dal tuo gruppo.' : 'Filtra per numero di gruppo per ritrovare la tua consegna.'}
+            </p>
+            {!team && (
+              <div className="w-40">
+                <input type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">

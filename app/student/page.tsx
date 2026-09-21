@@ -390,32 +390,36 @@ export default function StudentPage() {
     if (precedente) setStep(precedente.id);
   };
 
-  const casiFiltrati = filtroGruppo.trim()
-    ? casi.filter(c => String(c.gruppoNum) === String(filtroGruppo.trim()))
-    : casi;
+  const casiFiltrati = team
+    ? casi.filter(c => String(c.gruppoNum) === String(team.numero))
+    : filtroGruppo.trim()
+      ? casi.filter(c => String(c.gruppoNum) === String(filtroGruppo.trim()))
+      : casi;
 
   const casoInVotazione = casoAttivoId !== null ? casi.find(c => c.id === casoAttivoId) || null : null;
+
+  const numeroGruppoVotoEffettivo = team ? String(team.numero) : numeroGruppoVoto.trim();
 
   useEffect(() => {
     setMioVoto(null);
     setErroreVoto('');
-    if (casoAttivoId === null || !numeroGruppoVoto.trim()) return;
+    if (casoAttivoId === null || !numeroGruppoVotoEffettivo) return;
 
     const caricaMioVoto = async () => {
       const { data } = await supabase
         .from('voti_revisione')
         .select('colore')
         .eq('caso_id', casoAttivoId)
-        .eq('gruppo_num', Number(numeroGruppoVoto.trim()))
+        .eq('gruppo_num', Number(numeroGruppoVotoEffettivo))
         .maybeSingle();
       if (data) setMioVoto(data.colore as Colore);
     };
     caricaMioVoto();
-  }, [casoAttivoId, numeroGruppoVoto]);
+  }, [casoAttivoId, numeroGruppoVotoEffettivo]);
 
   const votaCartellino = async (colore: Colore) => {
     if (casoAttivoId === null) return;
-    const numero = numeroGruppoVoto.trim();
+    const numero = numeroGruppoVotoEffettivo;
     if (!numero) {
       setErroreVoto('Inserisci il numero del tuo gruppo prima di votare.');
       return;
@@ -749,13 +753,17 @@ export default function StudentPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
             <div>
-              <h1 className="text-2xl font-serif">Elenco Casi Studio</h1>
-              <p className="text-stone-500 text-xs mt-0.5">Filtra per numero di gruppo per verificare o modificare la tua scheda.</p>
+              <h1 className="text-2xl font-serif">{team ? 'Le tue Schede' : 'Elenco Casi Studio'}</h1>
+              <p className="text-stone-500 text-xs mt-0.5">
+                {team ? 'Le schede inviate dal tuo gruppo: apri per verificare o modificare.' : 'Filtra per numero di gruppo per verificare o modificare la tua scheda.'}
+              </p>
             </div>
-            <div className="w-40">
-              <label htmlFor="filtro-gruppo" className="sr-only">Filtra per numero di gruppo</label>
-              <input id="filtro-gruppo" type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-            </div>
+            {!team && (
+              <div className="w-40">
+                <label htmlFor="filtro-gruppo" className="sr-only">Filtra per numero di gruppo</label>
+                <input id="filtro-gruppo" type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -800,17 +808,23 @@ export default function StudentPage() {
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <div>
-              <label htmlFor="numero-gruppo-voto" className="block text-xs font-medium uppercase text-stone-500 mb-1">Il vostro Numero Gruppo</label>
-              <input
-                id="numero-gruppo-voto"
-                type="number"
-                value={numeroGruppoVoto}
-                onChange={e => setNumeroGruppoVoto(e.target.value)}
-                placeholder="Es. 4"
-                className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
-              />
-            </div>
+            {team ? (
+              <p className="text-xs text-stone-500">
+                Voti come <span className="font-medium text-stone-700">Gruppo {team.numero} — {team.nome}</span>.
+              </p>
+            ) : (
+              <div>
+                <label htmlFor="numero-gruppo-voto" className="block text-xs font-medium uppercase text-stone-500 mb-1">Il vostro Numero Gruppo</label>
+                <input
+                  id="numero-gruppo-voto"
+                  type="number"
+                  value={numeroGruppoVoto}
+                  onChange={e => setNumeroGruppoVoto(e.target.value)}
+                  placeholder="Es. 4"
+                  className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                />
+              </div>
+            )}
 
             {!casoInVotazione ? (
               <div className="text-center text-stone-400 text-sm py-8">

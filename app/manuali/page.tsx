@@ -20,7 +20,7 @@ function ManualiContenuto() {
     <main className="min-h-screen px-6 py-10 max-w-4xl mx-auto space-y-8">
       <div className="flex justify-between items-center border-b border-stone-200 pb-4">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
-        <span className="font-serif tracking-tight font-bold text-lg">DESIGN 3</span>
+        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
       </div>
 
       <div className="space-y-2">
