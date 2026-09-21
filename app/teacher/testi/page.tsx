@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
-import { CAMPI_TESTI, unisciTestiPiattaforma, type ChiaveTestoPiattaforma } from '@/lib/testi-piattaforma';
+import { CAMPI_TESTI, unisciTestiPiattaforma, accessoDirettoAbilitato, CHIAVE_ACCESSO_DIRETTO, type ChiaveTestoPiattaforma } from '@/lib/testi-piattaforma';
 
 export default function TestiPiattaformaPage() {
   const { passcode } = useDocente();
   const [testi, setTesti] = useState<Record<ChiaveTestoPiattaforma, string> | null>(null);
   const [salvandoChiave, setSalvandoChiave] = useState<ChiaveTestoPiattaforma | null>(null);
   const [salvatoChiave, setSalvatoChiave] = useState<ChiaveTestoPiattaforma | null>(null);
+  const [salvandoToggle, setSalvandoToggle] = useState(false);
   const [errore, setErrore] = useState('');
 
   const carica = async () => {
@@ -35,6 +36,23 @@ export default function TestiPiattaformaPage() {
     setSalvandoChiave(null);
     if (error) { setErrore('Errore durante il salvataggio. Riprova.'); return; }
     setSalvatoChiave(chiave);
+  };
+
+  const toggleAccessoDiretto = async () => {
+    if (!testi) return;
+    const valorePrecedente = testi[CHIAVE_ACCESSO_DIRETTO];
+    const nuovoValore = accessoDirettoAbilitato(testi) ? 'false' : 'true';
+    setErrore('');
+    setSalvandoToggle(true);
+    setTesti(prev => prev && { ...prev, [CHIAVE_ACCESSO_DIRETTO]: nuovoValore });
+    const { error } = await supabase.rpc('docente_aggiorna_testo_piattaforma', {
+      p_chiave: CHIAVE_ACCESSO_DIRETTO, p_valore: nuovoValore, p_passcode: passcode,
+    });
+    setSalvandoToggle(false);
+    if (error) {
+      setErrore('Errore durante il salvataggio. Riprova.');
+      setTesti(prev => prev && { ...prev, [CHIAVE_ACCESSO_DIRETTO]: valorePrecedente });
+    }
   };
 
   return (
@@ -78,6 +96,28 @@ export default function TestiPiattaformaPage() {
                     <span className="text-xs text-emerald-700 font-medium">Salvato ✓</span>
                   )}
                 </div>
+
+                {campo.chiave === 'incipit_nota' && (
+                  <div className="border-t border-stone-100 pt-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Accesso Studente diretto</p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        Se disattivato, la scorciatoia e questa nota non vengono mostrate: le persone dovranno sempre accedere con un team.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={accessoDirettoAbilitato(testi)}
+                      aria-label="Abilita o disabilita l'Accesso Studente diretto"
+                      onClick={toggleAccessoDiretto}
+                      disabled={salvandoToggle}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${accessoDirettoAbilitato(testi) ? 'bg-stone-900' : 'bg-stone-200'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${accessoDirettoAbilitato(testi) ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

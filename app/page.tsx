@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
 import { useTeam, type TeamInfo } from '../lib/team-context';
-import { TESTI_DEFAULT, unisciTestiPiattaforma } from '../lib/testi-piattaforma';
+import { TESTI_DEFAULT, unisciTestiPiattaforma, accessoDirettoAbilitato } from '../lib/testi-piattaforma';
 
 function useTestiPiattaforma() {
   const [testi, setTesti] = useState(TESTI_DEFAULT);
@@ -31,7 +31,7 @@ const messaggioErroreTeam = (codice: string) => {
   }
 };
 
-function ScorciatoieAccesso({ onSalta }: { onSalta: () => void }) {
+function ScorciatoieAccesso({ onSalta, mostraAccessoDiretto }: { onSalta: () => void; mostraAccessoDiretto: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <a
@@ -40,23 +40,26 @@ function ScorciatoieAccesso({ onSalta }: { onSalta: () => void }) {
       >
         🔐 Accesso Docente
       </a>
-      <button
-        onClick={onSalta}
-        className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
-      >
-        Accesso Studente diretto
-      </button>
+      {mostraAccessoDiretto && (
+        <button
+          onClick={onSalta}
+          className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
+        >
+          Accesso Studente diretto
+        </button>
+      )}
     </div>
   );
 }
 
 function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => void }) {
   const testi = useTestiPiattaforma();
+  const accessoDirettoOn = accessoDirettoAbilitato(testi);
   return (
     <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
         <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
-        <ScorciatoieAccesso onSalta={onSalta} />
+        <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
       </nav>
 
       <div className="flex-1 flex items-center justify-center py-12">
@@ -74,9 +77,11 @@ function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => v
           >
             Formiamo il team →
           </button>
-          <p className="text-[11px] text-stone-400 whitespace-pre-line">
-            {testi.incipit_nota}
-          </p>
+          {accessoDirettoOn && (
+            <p className="text-[11px] text-stone-400 whitespace-pre-line">
+              {testi.incipit_nota}
+            </p>
+          )}
         </div>
       </div>
     </main>
@@ -90,6 +95,8 @@ const DOMANDE_SUGGERITE = [
 ];
 
 function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team: TeamInfo) => void; onSalta: () => void; onIndietro: () => void }) {
+  const testi = useTestiPiattaforma();
+  const accessoDirettoOn = accessoDirettoAbilitato(testi);
   const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
   const [nome, setNome] = useState('');
   const [password, setPassword] = useState('');
@@ -181,7 +188,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
           <button onClick={onIndietro} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Indietro</button>
           <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
         </div>
-        <ScorciatoieAccesso onSalta={onSalta} />
+        <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
       </nav>
 
       <div className="flex-1 flex items-center justify-center py-12">

@@ -13,9 +13,19 @@ export const TESTI_DEFAULT = {
   home_badge: 'Laboratorio di Design 3',
   home_titolo: 'Esplorare per progettare il cambiamento.',
   home_sottotitolo: 'Le attività del laboratorio, tutte da qui. Scegli quella a cui vuoi partecipare.',
+  // Non un testo ma un interruttore: 'true'/'false' salvato nella stessa
+  // tabella chiave/valore, per abilitare o disabilitare la scorciatoia
+  // "Accesso Studente diretto" dal pannello docente.
+  accesso_diretto_abilitato: 'true',
 } as const;
 
 export type ChiaveTestoPiattaforma = keyof typeof TESTI_DEFAULT;
+
+export const CHIAVE_ACCESSO_DIRETTO: ChiaveTestoPiattaforma = 'accesso_diretto_abilitato';
+
+export function accessoDirettoAbilitato(testi: Record<ChiaveTestoPiattaforma, string>): boolean {
+  return testi[CHIAVE_ACCESSO_DIRETTO] !== 'false';
+}
 
 export const CAMPI_TESTI: { chiave: ChiaveTestoPiattaforma; etichetta: string; righe: number }[] = [
   { chiave: 'incipit_badge', etichetta: 'Schermata iniziale — Badge', righe: 1 },
