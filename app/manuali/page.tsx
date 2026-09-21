@@ -142,7 +142,7 @@ function ManualiContenuto() {
                 <h3 className="text-lg font-serif font-bold">Caricare un caso studio</h3>
               </div>
               <p className="text-sm text-stone-600">
-                Con il team già loggato, il passo &quot;Il Gruppo&quot; è già compilato: si parte direttamente da <b>Il Progetto</b> (titolo,
+                Con il team già loggato, il passo &quot;Il Gruppo&quot; è già compilato: si parte direttamente da <b>Il Caso Studio</b> (titolo,
                 immagine, descrizione), poi <b>Temi</b> (i tag pertinenti, curati dal/dalla docente), <b>Valutazione</b> (i 4 driver IDEO da
                 0 a 5, ciascuno con una motivazione scritta) e <b>Riepilogo</b> prima dell&apos;invio definitivo. La scheda resta modificabile
                 o cancellabile in seguito dalla sezione &quot;Elenco &amp; Modifiche&quot; — riaprendola col vostro team non vi verrà richiesto
@@ -168,7 +168,7 @@ function ManualiContenuto() {
               <p className="text-sm text-stone-600">
                 Quando il/la docente apre la votazione su un caso studio, inserite il numero del vostro gruppo nella scheda &quot;Vota in Aula&quot;.
                 Prima di votare, leggete il pannello <b>&quot;Maggiori dettagli&quot;</b>: descrizione, tag e — per ciascun driver — il valore assegnato
-                e la motivazione scritta dal gruppo che ha proposto il progetto. Poi assegnate il vostro cartellino: <b>Verde</b>, <b>Giallo</b> o <b>Rosso</b>.
+                e la motivazione scritta dal gruppo che ha presentato il caso studio. Poi assegnate il vostro cartellino: <b>Verde</b>, <b>Giallo</b> o <b>Rosso</b>.
                 Potete cambiarlo finché la votazione resta aperta.
               </p>
               <div className="grid sm:grid-cols-2 gap-4">

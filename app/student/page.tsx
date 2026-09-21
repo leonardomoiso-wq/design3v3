@@ -48,7 +48,7 @@ type Step = 'gruppo' | 'contenuti' | 'tag' | 'driver' | 'riepilogo';
 
 const STEPS_BASE: { id: Step; label: string }[] = [
   { id: 'gruppo', label: 'Il Gruppo' },
-  { id: 'contenuti', label: 'Il Progetto' },
+  { id: 'contenuti', label: 'Il Caso Studio' },
   { id: 'tag', label: 'Temi' },
   { id: 'driver', label: 'Valutazione' },
   { id: 'riepilogo', label: 'Riepilogo' },
@@ -478,9 +478,9 @@ export default function StudentPage() {
       {activeTab === 'crea' ? (
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontaci il vostro progetto'}</h1>
+            <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontate il caso studio'}</h1>
             <p className="text-stone-600 text-sm mt-1">
-              {team ? 'Progetto, temi, valutazione e un riepilogo finale prima di inviare.' : 'Cinque passaggi brevi: gruppo, progetto, temi, valutazione e un riepilogo finale prima di inviare.'}
+              {team ? 'Caso studio, temi, valutazione e un riepilogo finale prima di inviare.' : 'Cinque passaggi brevi: gruppo, caso studio, temi, valutazione e un riepilogo finale prima di inviare.'}
             </p>
           </div>
 
@@ -554,14 +554,14 @@ export default function StudentPage() {
 
             {stepEffettivo === 'contenuti' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Il cuore della consegna: cosa avete progettato e perché.</p>
+                <p className="text-sm text-stone-500">Il cuore della consegna: quale caso studio avete scelto e perché.</p>
                 <div>
-                  <label htmlFor="titolo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Titolo del Progetto</label>
+                  <label htmlFor="titolo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Titolo del Caso Studio</label>
                   <input id="titolo" type="text" required value={titolo} onChange={e => setTitolo(e.target.value)} placeholder="Es. Superleggera" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
                 </div>
 
                 <div>
-                  <span className="block text-xs font-medium uppercase text-stone-500 mb-1">Immagine di Copertina / Progetto</span>
+                  <span className="block text-xs font-medium uppercase text-stone-500 mb-1">Immagine di Riferimento</span>
                   <div className="flex items-center space-x-4 border border-dashed border-stone-300 p-4 rounded-xl bg-stone-50/50">
                     <div className="w-20 h-20 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                       {immagine ? (
@@ -587,7 +587,7 @@ export default function StudentPage() {
 
             {stepEffettivo === 'tag' && (
               <div className="space-y-4">
-                <p className="text-sm text-stone-500">A quali temi si collega il vostro progetto? Sceglietene quanti ne servono, o aggiungetene uno vostro.</p>
+                <p className="text-sm text-stone-500">A quali temi si collega il caso studio? Assegnate le tag che ritenete opportune, o aggiungetene di vostre.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {tagOptions.map(tag => (
                     <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
@@ -617,7 +617,7 @@ export default function StudentPage() {
 
             {stepEffettivo === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il vostro progetto sui 4 driver di innovazione, da 0 a {MAX_DRIVER}. Non esiste una combinazione "giusta": riflettete onestamente su ciascuna domanda.</p>
+                <p className="text-sm text-stone-500">Ponderate il caso studio sui 4 driver di innovazione, da 0 a {MAX_DRIVER}, e aggiungete un commento per ciascuno. Non esiste una combinazione "giusta": riflettete onestamente su ogni domanda.</p>
                 {([
                   ['desiderabilita', desiderabilita, setDesiderabilita],
                   ['fattibilita', fattibilita, setFattibilita],
