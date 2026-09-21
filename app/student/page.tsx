@@ -8,7 +8,10 @@ import { useTeam } from '../../lib/team-context';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
-const TAG_OPTIONS = [
+// Fallback usato solo se la tabella tag_default_caso_studio non è
+// ancora raggiungibile (migrazione non eseguita): il/la docente cura
+// la lista vera da /teacher.
+const TAG_OPTIONS_FALLBACK = [
   'Eco-feedback interfaces',
   'Bio-digital architecture',
   'Non-human interaction design (NHID)',
@@ -67,6 +70,7 @@ export default function StudentPage() {
   const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
+  const [tagOptions, setTagOptions] = useState<string[]>(TAG_OPTIONS_FALLBACK);
   const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
   const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
   const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
@@ -86,6 +90,14 @@ export default function StudentPage() {
     setGruppoNum(prev => prev || String(team.numero));
     setCodiceGruppo(prev => prev || team.password);
   }, [team, editId]);
+
+  useEffect(() => {
+    const caricaTag = async () => {
+      const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+      if (data && data.length > 0) setTagOptions((data as any[]).map(t => t.testo));
+    };
+    caricaTag();
+  }, []);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 
@@ -255,8 +267,8 @@ export default function StudentPage() {
     setCodiceGiaVerificato(true);
     setErroreSalvataggio('');
     const tagsEsistenti: string[] = c.tags || [];
-    setTagsSelezionati(tagsEsistenti.filter(t => TAG_OPTIONS.includes(t)));
-    setTagPersonalizzato(tagsEsistenti.find(t => !TAG_OPTIONS.includes(t)) || '');
+    setTagsSelezionati(tagsEsistenti.filter(t => tagOptions.includes(t)));
+    setTagPersonalizzato(tagsEsistenti.find(t => !tagOptions.includes(t)) || '');
     if (c.driver) {
       setDesiderabilita(c.driver.desiderabilita);
       setFattibilita(c.driver.fattibilita);
@@ -429,7 +441,12 @@ export default function StudentPage() {
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <div className="flex items-center space-x-4">
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
-          <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
+          {team && (
+            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+              Gruppo {team.numero} — {team.nome}
+            </span>
+          )}
+          <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
         </div>
         <div className="space-x-2">
           <button onClick={() => setActiveTab('crea')} className={`px-4 py-2 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
@@ -485,40 +502,49 @@ export default function StudentPage() {
           <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
             {step === 'gruppo' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="gruppo-nome" className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
-                    <input id="gruppo-nome" type="text" required value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  </div>
-                  <div>
-                    <label htmlFor="gruppo-num" className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
-                    <input id="gruppo-num" type="number" required value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  </div>
-                </div>
-
-                {codiceGiaVerificato ? (
+                {team && editId === null ? (
                   <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-3 text-xs font-medium">
                     <span aria-hidden="true">✓</span>
-                    <span>Codice di gruppo verificato — potete modificare questa scheda.</span>
+                    <span>Gruppo {team.numero} — {team.nome}. Userete il codice del vostro team per modificare questa scheda in futuro.</span>
                   </div>
                 ) : (
-                  <div>
-                    <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
-                    <input
-                      id="codice-gruppo"
-                      type="password"
-                      required
-                      minLength={4}
-                      value={codiceGruppo}
-                      onChange={e => setCodiceGruppo(e.target.value)}
-                      placeholder="Scegli un codice (min. 4 caratteri)..."
-                      className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
-                    />
-                    <p className="text-[11px] text-stone-400 mt-1">
-                      Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
-                    </p>
-                  </div>
+                  <>
+                    <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="gruppo-nome" className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
+                        <input id="gruppo-nome" type="text" required value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                      </div>
+                      <div>
+                        <label htmlFor="gruppo-num" className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
+                        <input id="gruppo-num" type="number" required value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                      </div>
+                    </div>
+
+                    {codiceGiaVerificato ? (
+                      <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-3 text-xs font-medium">
+                        <span aria-hidden="true">✓</span>
+                        <span>Codice di gruppo verificato — potete modificare questa scheda.</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+                        <input
+                          id="codice-gruppo"
+                          type="password"
+                          required
+                          minLength={4}
+                          value={codiceGruppo}
+                          onChange={e => setCodiceGruppo(e.target.value)}
+                          placeholder="Scegli un codice (min. 4 caratteri)..."
+                          className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
+                        />
+                        <p className="text-[11px] text-stone-400 mt-1">
+                          Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -560,7 +586,7 @@ export default function StudentPage() {
               <div className="space-y-4">
                 <p className="text-sm text-stone-500">A quali temi si collega il vostro progetto? Sceglietene quanti ne servono, o aggiungetene uno vostro.</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {TAG_OPTIONS.map(tag => (
+                  {tagOptions.map(tag => (
                     <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
                       <input
                         type="checkbox"

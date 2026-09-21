@@ -154,7 +154,10 @@ export default function Crazy8Page() {
 
   const [gruppoNome, setGruppoNome] = useState('');
   const [gruppoNum, setGruppoNum] = useState('');
-  const [sottoAmbito, setSottoAmbito] = useState('');
+  // Un team può portare avanti più di un sotto-ambito in parallelo: un
+  // elenco dinamico invece di un solo campo di testo, uniti con "; " nel
+  // titolo della consegna (colonna hmw_o_tema, invariata).
+  const [sottoAmbiti, setSottoAmbiti] = useState<string[]>(['']);
   const [codiceNuovo, setCodiceNuovo] = useState('');
   const [erroreCreazione, setErroreCreazione] = useState('');
   const [creazioneInCorso, setCreazioneInCorso] = useState(false);
@@ -263,14 +266,19 @@ export default function Crazy8Page() {
   const chiudiCanvas = () => {
     setAttivaId(null);
     setAttivaCodice('');
-    setGruppoNome(''); setGruppoNum(''); setSottoAmbito(''); setCodiceNuovo('');
+    setGruppoNome(''); setGruppoNum(''); setSottoAmbiti(['']); setCodiceNuovo('');
     setMotoreUsato(''); setNotePrompt(''); setRiflessione('');
   };
 
+  const modificaSottoAmbito = (i: number, valore: string) => setSottoAmbiti(prev => prev.map((s, idx) => (idx === i ? valore : s)));
+  const aggiungiCampoSottoAmbito = () => setSottoAmbiti(prev => [...prev, '']);
+  const rimuoviCampoSottoAmbito = (i: number) => setSottoAmbiti(prev => prev.filter((_, idx) => idx !== i));
+
   const iniziaConsegna = async () => {
     setErroreCreazione('');
-    if (!gruppoNome.trim() || !gruppoNum.trim() || !sottoAmbito.trim() || codiceNuovo.trim().length < 4) {
-      setErroreCreazione('Compila gruppo, sotto-ambito e un codice di almeno 4 caratteri.');
+    const sottoAmbitiPuliti = sottoAmbiti.map(s => s.trim()).filter(Boolean);
+    if (!gruppoNome.trim() || !gruppoNum.trim() || sottoAmbitiPuliti.length === 0 || codiceNuovo.trim().length < 4) {
+      setErroreCreazione('Compila gruppo, almeno un sotto-ambito e un codice di almeno 4 caratteri.');
       return;
     }
     setCreazioneInCorso(true);
@@ -278,7 +286,7 @@ export default function Crazy8Page() {
       p_attivita_id: attivitaInfo?.id ?? null,
       p_gruppo_nome: gruppoNome,
       p_gruppo_num: Number(gruppoNum),
-      p_sotto_ambito: sottoAmbito,
+      p_sotto_ambito: sottoAmbitiPuliti.join('; '),
       p_codice: codiceNuovo,
     });
     setCreazioneInCorso(false);
@@ -414,6 +422,12 @@ export default function Crazy8Page() {
       <div className="flex justify-between items-center px-6 py-4 border-b border-stone-200">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
         <div className="flex items-center gap-2">
+          {team && (
+            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+              Gruppo {team.numero} — {team.nome}
+            </span>
+          )}
+          <a href="/manuali?attivita=crazy8_ai" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium px-2">📚 Manuale</a>
           <button onClick={() => setMostraTutorial(true)} className="text-xs text-stone-400 hover:text-stone-900 transition px-2">? Tutorial</button>
           <button onClick={() => { chiudiCanvas(); setActiveTab('crea'); }} className={`px-4 py-2 rounded-full text-xs font-medium transition ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
             {attiva ? attiva.hmw_o_tema || 'Consegna aperta' : '+ Nuova Consegna'}
@@ -430,15 +444,33 @@ export default function Crazy8Page() {
             <div className="max-w-md w-full space-y-4 animate-fade-in-up">
               <div className="text-center mb-2">
                 <h1 className="text-3xl font-serif">🎨 Iniziamo</h1>
-                <p className="text-sm text-stone-500 mt-1">Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.</p>
+                <p className="text-sm text-stone-500 mt-1">
+                  {team ? 'Il vostro sotto-ambito progettuale, uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Nome Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Numero Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              {!team && (
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Nome Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Numero Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                </div>
+              )}
+              <div className="space-y-2">
+                {sottoAmbiti.map((s, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={sottoAmbiti.length > 1 ? `Sotto-ambito ${i + 1}` : 'Sotto-ambito progettuale scelto'} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                    {sottoAmbiti.length > 1 && (
+                      <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
               </div>
-              <input type="text" value={sottoAmbito} onChange={e => setSottoAmbito(e.target.value)} placeholder="Sotto-ambito progettuale scelto" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-              <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Scegli un codice (min. 4 caratteri)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-              <p className="text-[11px] text-stone-400">Vi servirà per tornare a lavorarci: conservatelo, non è recuperabile.</p>
+              {!team && (
+                <>
+                  <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Scegli un codice (min. 4 caratteri)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  <p className="text-[11px] text-stone-400">Vi servirà per tornare a lavorarci: conservatelo, non è recuperabile.</p>
+                </>
+              )}
               {erroreCreazione && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreCreazione}</p>}
               <button onClick={iniziaConsegna} disabled={creazioneInCorso} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
                 {creazioneInCorso ? 'Creazione...' : 'Apri il canvas →'}

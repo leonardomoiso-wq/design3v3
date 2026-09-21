@@ -219,25 +219,35 @@ export default function HmwPage() {
     <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
+        <div className="flex items-center gap-3">
+          {team && (
+            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+              Gruppo {team.numero} — {team.nome}
+            </span>
+          )}
+          <a href="/manuali?attivita=hmw_role_prompting" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">📚 Manuale</a>
+        </div>
       </div>
 
       <h1 className="text-2xl font-serif mb-1">🎭 HMW + Role-Prompting</h1>
       <p className="text-sm text-stone-500 mb-6">Scrivete il vostro How Might We, fatelo evolvere da v1 a v2, e mettetelo alla prova con punti di vista diversi.</p>
 
       <div className="space-y-5">
-        <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Il Gruppo</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
-              <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
-              <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+        {!team && (
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Il Gruppo</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
+                <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Es. Design Studio" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Numero Gruppo</label>
+                <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Es. 4" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {iterazioniDelTeam.length > 0 && (
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">

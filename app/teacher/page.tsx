@@ -4,18 +4,66 @@ import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 
-const TAG_OPTIONS = [
-  'Eco-feedback interfaces',
-  'Bio-digital architecture',
-  'Non-human interaction design (NHID)',
-  'Algorithmic conservation',
-  'Multispecies product design',
-  'Regenerative urban prototyping',
-  'Foraged and bio-based materials',
-  'More-than-human service design',
-  'Speculative multispecies products',
-  'Microbial design',
-];
+function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [nuovoTag, setNuovoTag] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+
+  const carica = async () => {
+    const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+    if (data) setLista(data as any[]);
+  };
+
+  useEffect(() => { carica(); }, []);
+
+  const aggiungi = async () => {
+    setErrore('');
+    if (!nuovoTag.trim()) { setErrore('Scrivi il testo del tag.'); return; }
+    setInCorso(true);
+    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_testo: nuovoTag, p_passcode: passcode });
+    setInCorso(false);
+    if (error) { setErrore('Errore durante il salvataggio.'); return; }
+    setNuovoTag('');
+    carica();
+  };
+
+  const elimina = async (id: string) => {
+    setLista(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.rpc('docente_elimina_tag_default', { p_id: id, p_passcode: passcode });
+    if (error) carica();
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center">
+          <h2 className="font-serif font-bold text-lg">Tag di default per i Casi Studio</h2>
+          <button onClick={onChiudi} className="text-stone-400 hover:text-stone-900 text-xl leading-none">✕</button>
+        </div>
+        <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {lista.map(t => (
+            <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
+              {t.testo}
+              <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
+            </span>
+          ))}
+          {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
+        </div>
+
+        <div className="border-t border-stone-100 pt-3 flex gap-2">
+          <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
+          <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
+            {inCorso ? '...' : 'Aggiungi'}
+          </button>
+        </div>
+        {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function TeacherPage() {
   const { passcode: passcodeAttivo } = useDocente();
@@ -23,6 +71,7 @@ export default function TeacherPage() {
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
+  const [mostraTagDefault, setMostraTagDefault] = useState(false);
 
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
@@ -271,8 +320,13 @@ export default function TeacherPage() {
           <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             ⚙️ Controllo &amp; Reset
           </button>
+          <button onClick={() => setMostraTagDefault(true)} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
+            🏷️ Tag
+          </button>
         </div>
       </div>
+
+      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
