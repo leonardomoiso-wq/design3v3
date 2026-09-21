@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
 import { comprimiImmagine } from '../../lib/immagine';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
+import { useTeam } from '../../lib/team-context';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -51,6 +52,7 @@ const STEPS: { id: Step; label: string; numero: number }[] = [
 ];
 
 export default function StudentPage() {
+  const { team } = useTeam();
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci' | 'vota'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
   const [step, setStep] = useState<Step>('gruppo');
@@ -74,6 +76,16 @@ export default function StudentPage() {
   const [codiceGiaVerificato, setCodiceGiaVerificato] = useState(false);
   const [erroreSalvataggio, setErroreSalvataggio] = useState('');
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
+
+  // Con un team già loggato, la nuova consegna parte già con nome/numero
+  // gruppo e codice compilati: solo per una consegna nuova, non quando si
+  // sta modificando una scheda esistente (già sbloccata col suo codice).
+  useEffect(() => {
+    if (!team || editId !== null) return;
+    setGruppoNome(prev => prev || team.nome);
+    setGruppoNum(prev => prev || String(team.numero));
+    setCodiceGruppo(prev => prev || team.password);
+  }, [team, editId]);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 

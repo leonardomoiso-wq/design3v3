@@ -5,16 +5,44 @@ import { useDocente } from '@/lib/docente-context';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
-type ImmagineLightbox = { url: string; label: string };
+type ImmagineLightbox = {
+  url: string;
+  label: string;
+  gruppoNum: number;
+  gruppoNome: string;
+  contatore: string;
+  prompt: string | null;
+  deduzione: string | null;
+};
 
 // Tutte le immagini di una consegna, in ordine di percorso (sketch, poi i
 // suoi round; sketch successivo, poi i suoi round...): usata per popolare
-// la lightbox navigabile a schermo intero, qualunque miniatura l'abbia aperta.
+// la lightbox navigabile a schermo intero, qualunque miniatura l'abbia aperta,
+// col pannello informativo a fianco (prompt, team, conteggio round).
 function immaginiFlat(submission: any): ImmagineLightbox[] {
-  return (submission.immagini || []).flatMap((sketch: any) => [
-    { url: sketch.url_file, label: 'Sketch' },
-    ...(sketch.generazioni_crazy8 || []).map((g: any) => ({ url: g.url_immagine, label: `Round ${g.ordine}` })),
-  ]);
+  return (submission.immagini || []).flatMap((sketch: any) => {
+    const totaleRound = (sketch.generazioni_crazy8 || []).length;
+    return [
+      {
+        url: sketch.url_file,
+        label: 'Sketch',
+        gruppoNum: submission.gruppo_num,
+        gruppoNome: submission.gruppo_nome,
+        contatore: totaleRound > 0 ? `Sketch di partenza · ${totaleRound} round a seguire` : 'Sketch di partenza · nessun round ancora',
+        prompt: null,
+        deduzione: null,
+      },
+      ...(sketch.generazioni_crazy8 || []).map((g: any) => ({
+        url: g.url_immagine,
+        label: `Round ${g.ordine}`,
+        gruppoNum: submission.gruppo_num,
+        gruppoNome: submission.gruppo_nome,
+        contatore: `Round ${g.ordine} di ${totaleRound}`,
+        prompt: g.prompt_usato as string,
+        deduzione: (g.deduzione as string) || null,
+      })),
+    ];
+  });
 }
 
 function Lightbox({ immagini, indice, onCambiaIndice, onChiudi }: { immagini: ImmagineLightbox[]; indice: number; onCambiaIndice: (i: number) => void; onChiudi: () => void }) {
@@ -33,34 +61,57 @@ function Lightbox({ immagini, indice, onCambiaIndice, onChiudi }: { immagini: Im
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8 animate-fade-in"
+      className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-sm flex flex-col p-4 sm:p-8 animate-fade-in"
       role="dialog" aria-modal="true" aria-label="Immagine a grandezza intera"
       onClick={onChiudi}
     >
-      <div className="flex items-center justify-between w-full max-w-5xl mb-3 text-stone-400 text-xs uppercase tracking-widest flex-shrink-0" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between w-full mb-3 text-stone-400 text-xs uppercase tracking-widest flex-shrink-0" onClick={e => e.stopPropagation()}>
         <span>{corrente.label} · {indice + 1} / {immagini.length}</span>
         <button onClick={onChiudi} className="text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
       </div>
-      <div className="relative flex-1 w-full min-h-0 flex items-center justify-center" onClick={e => e.stopPropagation()}>
-        {immagini.length > 1 && (
-          <button
-            onClick={() => onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1)}
-            className="absolute left-1 sm:-left-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
-            aria-label="Immagine precedente"
-          >
-            ‹
-          </button>
-        )}
-        <img key={corrente.url} src={corrente.url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scale-in" />
-        {immagini.length > 1 && (
-          <button
-            onClick={() => onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1)}
-            className="absolute right-1 sm:-right-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
-            aria-label="Immagine successiva"
-          >
-            ›
-          </button>
-        )}
+      <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row gap-4" onClick={e => e.stopPropagation()}>
+        <div className="relative flex-1 min-h-0 flex items-center justify-center">
+          {immagini.length > 1 && (
+            <button
+              onClick={() => onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1)}
+              className="absolute left-1 sm:-left-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
+              aria-label="Immagine precedente"
+            >
+              ‹
+            </button>
+          )}
+          <img key={corrente.url} src={corrente.url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scale-in" />
+          {immagini.length > 1 && (
+            <button
+              onClick={() => onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1)}
+              className="absolute right-1 sm:-right-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
+              aria-label="Immagine successiva"
+            >
+              ›
+            </button>
+          )}
+        </div>
+
+        <div key={`pannello-${corrente.url}`} className="w-full lg:w-72 flex-shrink-0 bg-stone-900/80 border border-stone-800 rounded-2xl p-4 space-y-4 overflow-y-auto lg:max-h-full animate-fade-in-up">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Gruppo</p>
+            <p className="text-sm text-white font-medium mt-0.5">Gruppo {corrente.gruppoNum} — {corrente.gruppoNome}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Iterazioni</p>
+            <p className="text-sm text-stone-200 mt-0.5">{corrente.contatore}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Prompt usato</p>
+            <p className="text-sm text-stone-200 mt-0.5 leading-relaxed">{corrente.prompt || '—'}</p>
+          </div>
+          {corrente.deduzione && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Deduzione</p>
+              <p className="text-sm text-stone-300 italic mt-0.5 leading-relaxed">&ldquo;{corrente.deduzione}&rdquo;</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

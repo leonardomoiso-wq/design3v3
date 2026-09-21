@@ -2,8 +2,216 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
+import { useTeam, type TeamInfo } from '../lib/team-context';
 
-export default function LandingPage() {
+const messaggioErroreTeam = (codice: string) => {
+  switch (codice) {
+    case 'nome_troppo_corto': return 'Il nome del team deve avere almeno 2 caratteri.';
+    case 'password_troppo_corta': return 'La password deve avere almeno 4 caratteri.';
+    case 'domanda_mancante': return 'Scegliete una domanda segreta.';
+    case 'risposta_mancante': return 'Scrivete la risposta alla domanda segreta.';
+    case 'nome_gia_usato': return 'Questo nome team è già stato scelto da un altro gruppo.';
+    case 'credenziali_errate': return 'Nome team o password errati.';
+    case 'team_non_trovato': return 'Nessun team trovato con questo nome.';
+    case 'risposta_errata': return 'Risposta segreta errata.';
+    default: return 'Qualcosa è andato storto. Riprova.';
+  }
+};
+
+function Incipit({ onAvanti }: { onAvanti: () => void }) {
+  return (
+    <main className="min-h-screen flex items-center justify-center px-6">
+      <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
+        <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
+          Laboratorio di Design 3
+        </div>
+        <h1 className="text-4xl font-serif leading-tight">Prima di entrare, formate il vostro team.</h1>
+        <p className="text-stone-600 text-base leading-relaxed">
+          Ogni attività del laboratorio — casi studio, Crazy 8, HMW — si costruisce insieme, come team.
+          Bastano un nome e una password scelti da voi: da qui in poi l&apos;app vi riconoscerà, senza
+          doverli reinserire ogni volta.
+        </p>
+        <button
+          onClick={onAvanti}
+          className="bg-stone-900 text-white px-8 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+        >
+          Formiamo il team →
+        </button>
+      </div>
+    </main>
+  );
+}
+
+const DOMANDE_SUGGERITE = [
+  'Il piatto che cucinereste per festeggiare la consegna?',
+  'Il primo oggetto progettato da bambini?',
+  'Il soprannome del gruppo alle superiori?',
+];
+
+function SchermataAccesso({ onAccesso }: { onAccesso: (team: TeamInfo) => void }) {
+  const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
+  const [nome, setNome] = useState('');
+  const [password, setPassword] = useState('');
+  const [domandaSegreta, setDomandaSegreta] = useState('');
+  const [rispostaSegreta, setRispostaSegreta] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+
+  const [mostraRecupero, setMostraRecupero] = useState(false);
+  const [nomeRecupero, setNomeRecupero] = useState('');
+  const [domandaRecuperata, setDomandaRecuperata] = useState<string | null>(null);
+  const [rispostaRecupero, setRispostaRecupero] = useState('');
+  const [nuovaPassword, setNuovaPassword] = useState('');
+  const [erroreRecupero, setErroreRecupero] = useState('');
+  const [recuperoInCorso, setRecuperoInCorso] = useState(false);
+  const [passwordReimpostata, setPasswordReimpostata] = useState(false);
+
+  const invia = async () => {
+    setErrore('');
+    if (!nome.trim() || !password.trim()) {
+      setErrore('Compilate nome team e password.');
+      return;
+    }
+    setInCorso(true);
+    if (scheda === 'accedi') {
+      const { data, error } = await supabase.rpc('login_team', { p_nome: nome, p_password: password });
+      setInCorso(false);
+      if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || 'credenziali_errate')); return; }
+      const riga = data[0];
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password });
+    } else {
+      if (!domandaSegreta.trim() || !rispostaSegreta.trim()) {
+        setInCorso(false);
+        setErrore('Scegliete anche una domanda segreta e la sua risposta: servirà per recuperare la password.');
+        return;
+      }
+      const { data, error } = await supabase.rpc('crea_team', {
+        p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
+      });
+      setInCorso(false);
+      if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || '')); return; }
+      const riga = data[0];
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password });
+    }
+  };
+
+  const chiediDomanda = async () => {
+    setErroreRecupero('');
+    setDomandaRecuperata(null);
+    if (!nomeRecupero.trim()) { setErroreRecupero('Inserite il nome del vostro team.'); return; }
+    setRecuperoInCorso(true);
+    const { data, error } = await supabase.rpc('recupera_domanda_team', { p_nome: nomeRecupero });
+    setRecuperoInCorso(false);
+    if (error || !data) { setErroreRecupero(messaggioErroreTeam(error?.message || 'team_non_trovato')); return; }
+    setDomandaRecuperata(data as string);
+  };
+
+  const confermaRecupero = async () => {
+    setErroreRecupero('');
+    if (!rispostaRecupero.trim() || !nuovaPassword.trim()) {
+      setErroreRecupero('Rispondete alla domanda e scegliete una nuova password.');
+      return;
+    }
+    setRecuperoInCorso(true);
+    const { error } = await supabase.rpc('reimposta_password_team', {
+      p_nome: nomeRecupero, p_risposta_segreta: rispostaRecupero, p_nuova_password: nuovaPassword,
+    });
+    setRecuperoInCorso(false);
+    if (error) { setErroreRecupero(messaggioErroreTeam(error.message)); return; }
+    setPasswordReimpostata(true);
+  };
+
+  const chiudiRecupero = () => {
+    setMostraRecupero(false);
+    setNomeRecupero(''); setDomandaRecuperata(null); setRispostaRecupero(''); setNuovaPassword('');
+    setErroreRecupero(''); setPasswordReimpostata(false);
+  };
+
+  return (
+    <main className="min-h-screen flex items-center justify-center px-6">
+      <div className="max-w-md w-full space-y-5 animate-fade-in-up">
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-serif">Il vostro team</h1>
+          <p className="text-sm text-stone-500">Nome e password sono a vostra scelta: teneteli a mente, vi serviranno per ritrovare il team.</p>
+        </div>
+
+        <div className="flex bg-stone-100 rounded-full p-1">
+          <button onClick={() => { setScheda('accedi'); setErrore(''); }} className={`flex-1 text-xs font-medium py-2 rounded-full transition ${scheda === 'accedi' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500'}`}>
+            Accedi
+          </button>
+          <button onClick={() => { setScheda('crea'); setErrore(''); }} className={`flex-1 text-xs font-medium py-2 rounded-full transition ${scheda === 'crea' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500'}`}>
+            Crea il tuo team
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-3" aria-hidden={mostraRecupero || undefined}>
+          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder="Nome del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} placeholder="Password del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+
+          {scheda === 'crea' && (
+            <>
+              <select value={domandaSegreta} onChange={e => setDomandaSegreta(e.target.value)} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900">
+                <option value="">Scegliete una domanda segreta...</option>
+                {DOMANDE_SUGGERITE.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              <p className="text-[11px] text-stone-400">Vi servirà solo se dimenticate la password.</p>
+            </>
+          )}
+
+          {errore && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{errore}</p>}
+
+          <button onClick={invia} disabled={inCorso || mostraRecupero} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
+            {inCorso ? 'Un attimo...' : scheda === 'accedi' ? 'Entra' : 'Crea team ed entra'}
+          </button>
+
+          {scheda === 'accedi' && (
+            <button onClick={() => setMostraRecupero(true)} disabled={mostraRecupero} className="w-full text-center text-xs text-stone-400 hover:text-stone-900 transition disabled:opacity-50">
+              Password dimenticata?
+            </button>
+          )}
+        </div>
+      </div>
+
+      {mostraRecupero && (
+        <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={chiudiRecupero}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <h2 className="font-serif font-bold text-lg">Recupera la password</h2>
+
+            {passwordReimpostata ? (
+              <>
+                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">Password aggiornata. Ora potete accedere con quella nuova.</p>
+                <button onClick={chiudiRecupero} className="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-medium hover:bg-stone-800 transition">Torna all&apos;accesso</button>
+              </>
+            ) : (
+              <>
+                <input type="text" value={nomeRecupero} onChange={e => setNomeRecupero(e.target.value)} placeholder="Nome del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                {domandaRecuperata === null ? (
+                  <button onClick={chiediDomanda} disabled={recuperoInCorso} className="w-full bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50">
+                    {recuperoInCorso ? 'Verifica...' : 'Avanti'}
+                  </button>
+                ) : (
+                  <>
+                    <p className="text-xs text-stone-500 italic">&ldquo;{domandaRecuperata}&rdquo;</p>
+                    <input type="text" value={rispostaRecupero} onChange={e => setRispostaRecupero(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                    <input type="password" value={nuovaPassword} onChange={e => setNuovaPassword(e.target.value)} placeholder="Nuova password" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                    <button onClick={confermaRecupero} disabled={recuperoInCorso} className="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-medium hover:bg-stone-800 transition disabled:opacity-50">
+                      {recuperoInCorso ? 'Salvataggio...' : 'Reimposta password'}
+                    </button>
+                  </>
+                )}
+                {erroreRecupero && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-2.5">{erroreRecupero}</p>}
+                <button onClick={chiudiRecupero} className="w-full text-center text-xs text-stone-400 hover:text-stone-900 transition pt-1">Annulla</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function ElencoAttivita({ team, onLogout }: { team: TeamInfo; onLogout: () => void }) {
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
 
   useEffect(() => {
@@ -32,9 +240,17 @@ export default function LandingPage() {
     <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
         <span className="font-serif tracking-tight font-bold text-lg">DESIGN 3</span>
-        <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
-          📚 Manuali &amp; Tutorial
-        </a>
+        <div className="flex items-center gap-3">
+          <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
+            Gruppo {team.numero} — {team.nome}
+          </span>
+          <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
+            📚 Manuali &amp; Tutorial
+          </a>
+          <button onClick={onLogout} className="text-xs uppercase tracking-widest text-stone-400 hover:text-red-600 font-medium transition">
+            Esci
+          </button>
+        </div>
       </nav>
 
       <div className="pt-16 pb-10 text-center space-y-5">
@@ -111,4 +327,21 @@ export default function LandingPage() {
       </footer>
     </main>
   );
+}
+
+export default function LandingPage() {
+  const { team, pronto, accedi, logout } = useTeam();
+  const [fase, setFase] = useState<'incipit' | 'accesso'>('incipit');
+
+  if (!pronto) {
+    return <main className="min-h-screen bg-[#FBF9F5]" />;
+  }
+
+  if (!team) {
+    return fase === 'incipit'
+      ? <Incipit onAvanti={() => setFase('accesso')} />
+      : <SchermataAccesso onAccesso={accedi} />;
+  }
+
+  return <ElencoAttivita team={team} onLogout={logout} />;
 }

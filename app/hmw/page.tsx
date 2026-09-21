@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useTeam } from '../../lib/team-context';
 
 const messaggioErrore = (codice: string) => {
   switch (codice) {
@@ -14,6 +15,7 @@ const messaggioErrore = (codice: string) => {
 };
 
 export default function HmwPage() {
+  const { team } = useTeam();
   const [attivitaInfo, setAttivitaInfo] = useState<{ id: string; stato: string; richiediLogPrompt: boolean; richiediRiflessione: boolean } | null | undefined>(undefined);
   const [iterazioni, setIterazioni] = useState<any[]>([]);
   const [ruoli, setRuoli] = useState<any[]>([]);
@@ -27,6 +29,15 @@ export default function HmwPage() {
   const [codiceGruppo, setCodiceGruppo] = useState('');
   const [erroreSalvataggio, setErroreSalvataggio] = useState('');
   const [salvataggioInCorso, setSalvataggioInCorso] = useState(false);
+
+  // Con un team già loggato, non serve reinserire nome/numero né inventare
+  // un codice: si precompila con l'identità del team.
+  useEffect(() => {
+    if (!team) return;
+    setGruppoNome(prev => prev || team.nome);
+    setGruppoNum(prev => prev || String(team.numero));
+    setCodiceGruppo(prev => prev || team.password);
+  }, [team]);
 
   const [ruoliSelezionati, setRuoliSelezionati] = useState<string[]>([]);
   const [codiceStressTest, setCodiceStressTest] = useState('');

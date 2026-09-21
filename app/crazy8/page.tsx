@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { comprimiImmagine } from '../../lib/immagine';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
+import { useTeam } from '../../lib/team-context';
 
 const TUTORIAL_VISTO_KEY = 'crazy8_tutorial_visto';
 
@@ -133,6 +134,7 @@ function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti, onCaricame
 }
 
 export default function Crazy8Page() {
+  const { team } = useTeam();
   const [attivitaInfo, setAttivitaInfo] = useState<{ id: string; stato: string; richiediLogPrompt: boolean; richiediRiflessione: boolean } | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci'>('crea');
   const [mostraTutorial, setMostraTutorial] = useState(false);
@@ -156,6 +158,16 @@ export default function Crazy8Page() {
   const [codiceNuovo, setCodiceNuovo] = useState('');
   const [erroreCreazione, setErroreCreazione] = useState('');
   const [creazioneInCorso, setCreazioneInCorso] = useState(false);
+
+  // Con un team già loggato, non serve reinserire nome/numero né inventare
+  // un codice: si precompila con l'identità del team, restando comunque
+  // modificabile per chi vuole un codice diverso per questa consegna.
+  useEffect(() => {
+    if (!team) return;
+    setGruppoNome(prev => prev || team.nome);
+    setGruppoNum(prev => prev || String(team.numero));
+    setCodiceNuovo(prev => prev || team.password);
+  }, [team]);
 
   const [motoreUsato, setMotoreUsato] = useState('');
   const [notePrompt, setNotePrompt] = useState('');
