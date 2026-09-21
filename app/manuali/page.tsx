@@ -43,11 +43,11 @@ export default function ManualiPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-4">
               <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                <img src="/manuali/img/passo-gruppo.png" alt="Primo passaggio del wizard: nome gruppo, numero e codice" className="w-full" />
+                <img src="/manuali/img/passo-gruppo.png" alt="Primo passaggio del wizard: nome gruppo, numero e codice" loading="lazy" decoding="async" className="w-full" />
                 <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 1 — Il Gruppo</figcaption>
               </figure>
               <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                <img src="/manuali/img/passo-valutazione.png" alt="Passaggio di valutazione dei 4 driver con motivazione" className="w-full" />
+                <img src="/manuali/img/passo-valutazione.png" alt="Passaggio di valutazione dei 4 driver con motivazione" loading="lazy" decoding="async" className="w-full" />
                 <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Passo 4 — Valutazione (0-5, con motivazione)</figcaption>
               </figure>
             </div>
@@ -66,11 +66,11 @@ export default function ManualiPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-4">
               <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                <img src="/manuali/img/voto-dettagli.png" alt="Pannello con i dettagli del caso in votazione" className="w-full" />
+                <img src="/manuali/img/voto-dettagli.png" alt="Pannello con i dettagli del caso in votazione" loading="lazy" decoding="async" className="w-full" />
                 <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Dettagli e motivazioni prima del voto</figcaption>
               </figure>
               <figure className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
-                <img src="/manuali/img/voto-registrato.png" alt="Conferma del voto registrato" className="w-full" />
+                <img src="/manuali/img/voto-registrato.png" alt="Conferma del voto registrato" loading="lazy" decoding="async" className="w-full" />
                 <figcaption className="text-[11px] text-stone-500 italic px-3 py-2">Voto registrato</figcaption>
               </figure>
             </div>

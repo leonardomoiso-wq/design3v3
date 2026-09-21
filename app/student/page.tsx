@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
+import { comprimiImmagine } from '../../lib/immagine';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -138,15 +139,13 @@ export default function StudentPage() {
     );
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImmagine(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    // Compattata prima di finire nello stato/DB: le foto di copertina
+    // arrivano spesso a piena risoluzione dalla fotocamera.
+    const dataUrl = await comprimiImmagine(file);
+    setImmagine(dataUrl);
   };
 
   const messaggioErrore = (codice: string) => {
@@ -715,7 +714,7 @@ export default function StudentPage() {
                   <div className="flex items-center space-x-4">
                     {c.immagine ? (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
-                        <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                        <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </div>
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] text-stone-400 font-bold flex-shrink-0">IMG</div>

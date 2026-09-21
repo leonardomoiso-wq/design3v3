@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { comprimiImmagine } from '../../lib/immagine';
 
 const TUTORIAL_VISTO_KEY = 'crazy8_tutorial_visto';
 
@@ -22,14 +23,10 @@ const messaggioErrore = (codice: string) => {
   }
 };
 
-function leggiFileComeDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// Le foto di sketch e generazioni arrivano spesso dritte dalla fotocamera
+// del telefono (diversi MB): le compattiamo prima di salvarle, così le
+// gallerie e la timeline restano rapide da caricare e scorrere.
+const leggiFileComeDataUrl = comprimiImmagine;
 
 function TutorialOverlay({ onChiudi }: { onChiudi: () => void }) {
   const [indice, setIndice] = useState(0);
@@ -416,7 +413,7 @@ export default function Crazy8Page() {
                 <div key={sketch.id} className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 space-y-4 animate-scale-in">
                   <div className="flex items-start gap-4">
                     <div className="w-24 h-24 rounded-2xl bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      <img src={sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                      <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                     <div className="flex-1">
                       <p className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Sketch</p>
@@ -428,7 +425,7 @@ export default function Crazy8Page() {
                   {sketch.generazioni_crazy8.map((g: any, i: number) => (
                     <div key={g.id} className="grid sm:grid-cols-[auto_1fr] gap-3 pl-4 border-l-2 border-stone-100 animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
                       <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center">
-                        <img src={g.url_immagine} alt={`Round ${g.ordine}`} className="max-w-full max-h-full object-contain" />
+                        <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </div>
                       <div className="text-xs space-y-1">
                         <p className="font-bold text-stone-700">Round {g.ordine}</p>
@@ -480,7 +477,7 @@ export default function Crazy8Page() {
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
                       {s.immagini?.[0] ? (
-                        <img src={s.immagini[0].url_file} alt="" className="w-full h-full object-cover" />
+                        <img src={s.immagini[0].url_file} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-[10px] text-stone-400 font-bold">IMG</span>
                       )}

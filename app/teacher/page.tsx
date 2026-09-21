@@ -344,7 +344,7 @@ export default function TeacherPage() {
                 >
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -531,7 +531,7 @@ export default function TeacherPage() {
 
                     <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
-                        <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain rounded-lg" />
+                        <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
                         <span className="text-xs text-stone-400">Nessuna immagine</span>
                       )}

@@ -451,7 +451,7 @@ export default function RadarPage() {
               >
                 <div className="h-28 bg-stone-100 flex items-center justify-center p-3 relative" style={{ borderBottom: `3px solid ${colore}` }}>
                   {c.immagine ? (
-                    <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                    <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                   ) : (
                     <span className="text-[10px] text-stone-400">Nessuna immagine</span>
                   )}

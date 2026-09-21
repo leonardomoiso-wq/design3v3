@@ -13,7 +13,7 @@ function Lightbox({ url, onChiudi }: { url: string; onChiudi: () => void }) {
       onClick={onChiudi}
     >
       <button onClick={onChiudi} className="absolute top-5 right-6 text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
-      <img src={url} alt="" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+      <img src={url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
     </div>
   );
 }
@@ -37,7 +37,7 @@ function TimelineSottoambito({ submission, onImageClick, dark }: { submission: a
           <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
             <button onClick={() => onImageClick(sketch.url_file)} className="flex-shrink-0 text-center group">
               <div className={`w-24 h-24 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
-                <img src={sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
               </div>
               <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Sketch</p>
             </button>
@@ -46,7 +46,7 @@ function TimelineSottoambito({ submission, onImageClick, dark }: { submission: a
                 <span className={`text-lg ${labelColor}`}>→</span>
                 <button onClick={() => onImageClick(g.url_immagine)} className="text-center group">
                   <div className={`w-24 h-24 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
-                    <img src={g.url_immagine} alt={`Round ${g.ordine}`} className="max-w-full max-h-full object-contain" />
+                    <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                   </div>
                   <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Round {g.ordine}</p>
                 </button>
@@ -315,7 +315,7 @@ export default function Crazy8DocentePage() {
 
             {!corrente.round ? (
               <button onClick={() => setLightboxUrl(corrente.sketch.url_file)} className="h-80 w-80 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                <img src={corrente.sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
               </button>
             ) : (
               <>
@@ -323,13 +323,13 @@ export default function Crazy8DocentePage() {
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch di partenza</p>
                     <button onClick={() => setLightboxUrl(corrente.sketch.url_file)} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                      <img src={corrente.sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                      <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
                     </button>
                   </div>
                   <div className="space-y-2">
                     <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata (round {corrente.round.ordine})</p>
                     <button onClick={() => setLightboxUrl(corrente.round.url_immagine)} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                      <img src={corrente.round.url_immagine} alt="" className="max-w-full max-h-full object-contain" />
+                      <img src={corrente.round.url_immagine} alt="" decoding="async" className="max-w-full max-h-full object-contain" />
                     </button>
                   </div>
                 </div>
@@ -455,7 +455,7 @@ export default function Crazy8DocentePage() {
                   <div key={sketch.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                     <div className="flex items-center gap-4 p-4 bg-stone-50 border-b border-stone-100">
                       <button onClick={() => setLightboxUrl(sketch.url_file)} className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 hover:opacity-80 transition">
-                        <img src={sketch.url_file} alt="Sketch" className="max-w-full max-h-full object-contain" />
+                        <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </button>
                       <p className="text-xs font-bold text-stone-600">Sketch — {sketch.generazioni_crazy8.length} round di generazione</p>
                     </div>
@@ -465,7 +465,7 @@ export default function Crazy8DocentePage() {
                         {sketch.generazioni_crazy8.map((g: any) => (
                           <div key={g.id} className="grid sm:grid-cols-[80px_1fr] gap-3 text-xs">
                             <button onClick={() => setLightboxUrl(g.url_immagine)} className="w-20 h-20 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center hover:opacity-80 transition">
-                              <img src={g.url_immagine} alt={`Round ${g.ordine}`} className="max-w-full max-h-full object-contain" />
+                              <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                             </button>
                             <div>
                               <p className="font-bold text-stone-700">Round {g.ordine}</p>

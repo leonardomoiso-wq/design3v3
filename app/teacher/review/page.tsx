@@ -227,7 +227,7 @@ export default function ReviewPage() {
                   </div>
                   <div className="h-48 bg-stone-100 rounded-xl border border-stone-200 flex items-center justify-center p-3 overflow-hidden">
                     {c.immagine ? (
-                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     ) : (
                       <span className="text-xs text-stone-400">Nessuna immagine</span>
                     )}
@@ -477,7 +477,7 @@ export default function ReviewPage() {
                     />
                     <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
                       {c.immagine ? (
-                        <img src={c.immagine} alt="" className="max-w-full max-h-full object-contain" />
+                        <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       ) : (
                         <span className="text-[9px] text-stone-400 font-bold">IMG</span>
                       )}
