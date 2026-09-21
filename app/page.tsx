@@ -371,8 +371,16 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
               </button>
             </>
           ) : (
-            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-500 font-medium">
+            <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 pl-3 pr-1.5 py-1.5 rounded-full text-stone-500 font-medium">
               Accesso diretto (nessun team)
+              <button
+                onClick={onLogout}
+                aria-label="Deseleziona accesso diretto e torna al login"
+                title="Deseleziona accesso diretto"
+                className="w-4 h-4 flex items-center justify-center rounded-full text-stone-400 hover:bg-stone-200 hover:text-stone-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              >
+                ✕
+              </button>
             </span>
           )}
           <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
