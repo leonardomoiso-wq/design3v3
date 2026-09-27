@@ -91,12 +91,14 @@ h1, h2, h3, h4 {
   }
 
   /* La larghezza segue la pagina landscape (un valore assoluto, deciso da
-     @page); l'altezza resta governata dal rapporto 16:9 (aspect-[16/9] in
-     JSX), calcolato su quella larghezza — esattamente come a schermo.
+     @page); l'altezza NON è fissata: la scheda cresce quanto serve per
+     mostrare tutto il testo (min-h in JSX è solo un minimo), anche oltre
+     una singola pagina se un caso studio ha molto testo — il browser la
+     spezza naturalmente sulla pagina successiva.
      Da NON usare qui: un'altezza in "vh": nel motore di stampa/PDF di
      Chromium è relativa alla finestra del browser al momento della
      generazione, non alla pagina fisica di @page, e in pratica produce
-     un'altezza sbagliata (schede tagliate a metà su due pagine). */
+     un'altezza sbagliata. */
   .page-break {
     page-break-after: always;
     break-after: page;
