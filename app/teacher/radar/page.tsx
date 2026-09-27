@@ -104,28 +104,42 @@ export default function RadarPage() {
   const onMouseUpRadar = () => setTrascinando(false);
 
   useEffect(() => {
+    const formattaCaso = (c: any) => ({
+      id: Number(c.id),
+      gruppoNome: c.gruppo_nome,
+      gruppoNum: c.gruppo_num,
+      titolo: c.titolo,
+      descrizione: c.descrizione,
+      immagine: c.immagine,
+      tags: c.tags || [],
+      driver: normalizzaDriver(c.driver),
+      driverNote: estraiNote(c.driver),
+    });
+
     const carica = async () => {
       const { data, error } = await supabase.from('casi_studio').select('*');
       if (!error && data) {
-        const formattati = data.map((c: any) => ({
-          id: Number(c.id),
-          gruppoNome: c.gruppo_nome,
-          gruppoNum: c.gruppo_num,
-          titolo: c.titolo,
-          descrizione: c.descrizione,
-          immagine: c.immagine,
-          tags: c.tags || [],
-          driver: normalizzaDriver(c.driver),
-          driverNote: estraiNote(c.driver),
-        }));
-        setCasi(formattati);
+        setCasi(data.map(formattaCaso));
       }
     };
     carica();
 
+    // Aggiorna solo la riga toccata invece di riscaricare l'intera tabella
+    // (immagini comprese) a ogni modifica di un gruppo qualsiasi.
     const channel = supabase
       .channel('realtime-radar')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, carica)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number(payload.old?.id);
+          setCasi(prev => prev.filter((c: any) => c.id !== idEliminato));
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esiste = prev.some((c: any) => c.id === aggiornato.id);
+          return esiste ? prev.map((c: any) => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+        });
+      })
       .subscribe();
 
     return () => {

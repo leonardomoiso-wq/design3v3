@@ -58,6 +58,7 @@ export default function StudentPage() {
   const { team } = useTeam();
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci' | 'vota'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
+  const [erroreCasi, setErroreCasi] = useState('');
   const [step, setStep] = useState<Step>('gruppo');
   const [maxStepRaggiunto, setMaxStepRaggiunto] = useState(0);
 
@@ -117,13 +118,43 @@ export default function StudentPage() {
   const [erroreVoto, setErroreVoto] = useState('');
   const [votoInCorso, setVotoInCorso] = useState(false);
 
+  // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
+  const formattaCaso = (c: any) => ({
+    id: Number(c.id),
+    gruppoNome: c.gruppo_nome,
+    gruppoNum: c.gruppo_num,
+    titolo: c.titolo,
+    descrizione: c.descrizione,
+    immagine: c.immagine,
+    tags: c.tags || [],
+    driver: normalizzaDriver(c.driver),
+    driverNote: estraiNote(c.driver),
+    x: Number(c.x),
+    y: Number(c.y),
+  });
+
   useEffect(() => {
     caricaDati();
     caricaStatoRevisione();
 
+    // Aggiorna solo la riga toccata invece di riscaricare l'intera tabella
+    // (immagini comprese) ogni volta che un gruppo qualsiasi tra i tanti
+    // salva una modifica: con molte consegne era diventato un carico enorme
+    // ripetuto sul browser di ogni singolo studente collegato.
     const channel = supabase
       .channel('realtime-casi-studio-studenti')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, caricaDati)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number(payload.old?.id);
+          setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esiste = prev.some(c => c.id === aggiornato.id);
+          return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+        });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStatoRevisione)
       .subscribe();
 
@@ -141,21 +172,13 @@ export default function StudentPage() {
 
   const caricaDati = async () => {
     const { data, error } = await supabase.from('casi_studio').select('*');
-    if (!error && data) {
-      const formattati = data.map(c => ({
-        id: Number(c.id),
-        gruppoNome: c.gruppo_nome,
-        gruppoNum: c.gruppo_num,
-        titolo: c.titolo,
-        descrizione: c.descrizione,
-        immagine: c.immagine,
-        tags: c.tags || [],
-        driver: normalizzaDriver(c.driver),
-        driverNote: estraiNote(c.driver),
-        x: Number(c.x),
-        y: Number(c.y)
-      }));
-      setCasi(formattati);
+    if (error) {
+      setErroreCasi(`Errore nel caricamento dei casi studio: ${error.message}`);
+      return;
+    }
+    if (data) {
+      setErroreCasi('');
+      setCasi(data.map(formattaCaso));
     }
   };
 
@@ -453,6 +476,9 @@ export default function StudentPage() {
   return (
     <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
       {comprimendoImmagine && <SfondoCaricamento />}
+      {erroreCasi && (
+        <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 mb-4">{erroreCasi}</p>
+      )}
       <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
         <div className="flex flex-wrap items-center gap-3">
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>

@@ -50,23 +50,24 @@ export default function ReviewPage() {
   const [selezionePannelloAperto, setSelezionePannelloAperto] = useState(false);
 
   useEffect(() => {
+    const formattaCaso = (c: any) => ({
+      id: Number(c.id),
+      gruppoNome: c.gruppo_nome,
+      gruppoNum: c.gruppo_num,
+      titolo: c.titolo,
+      descrizione: c.descrizione,
+      immagine: c.immagine,
+      tags: c.tags || [],
+      driver: normalizzaDriver(c.driver),
+      driverNote: estraiNote(c.driver),
+      esitoRevisione: c.esito_revisione || null,
+      inclusoRevisione: c.incluso_revisione ?? true,
+    });
+
     const caricaCasi = async () => {
       const { data, error } = await supabase.from('casi_studio').select('*');
       if (!error && data) {
-        const formattati = data.map((c: any) => ({
-          id: Number(c.id),
-          gruppoNome: c.gruppo_nome,
-          gruppoNum: c.gruppo_num,
-          titolo: c.titolo,
-          descrizione: c.descrizione,
-          immagine: c.immagine,
-          tags: c.tags || [],
-          driver: normalizzaDriver(c.driver),
-          driverNote: estraiNote(c.driver),
-          esitoRevisione: c.esito_revisione || null,
-          inclusoRevisione: c.incluso_revisione ?? true,
-        }));
-        setCasi(formattati);
+        setCasi(data.map(formattaCaso));
       }
     };
 
@@ -100,7 +101,18 @@ export default function ReviewPage() {
 
     const channel = supabase
       .channel('realtime-review')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, caricaCasi)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number(payload.old?.id);
+          setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esiste = prev.some(c => c.id === aggiornato.id);
+          return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+        });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voti_revisione' }, caricaVoti)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStato)
       .subscribe();
