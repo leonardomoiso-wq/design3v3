@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
@@ -93,6 +93,7 @@ export default function TeacherPage() {
   const [ricercaMatrice, setRicercaMatrice] = useState('');
   const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
   const [erroreCasi, setErroreCasi] = useState('');
+  const [tempoCaricamentoMs, setTempoCaricamentoMs] = useState<number | null>(null);
 
   // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
   const formattaCaso = (c: any) => ({
@@ -113,6 +114,8 @@ export default function TeacherPage() {
 
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
+      const inizioCaricamento = performance.now();
+
       // Usa la cache locale del browser: riscarica solo i casi studio nuovi
       // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
       // insieme) così anche una connessione lenta vede i casi studio
@@ -131,6 +134,7 @@ export default function TeacherPage() {
       };
 
       const { righe, errore } = await caricaCasiConCache(aggiornaVista);
+      setTempoCaricamentoMs(performance.now() - inizioCaricamento);
       if (errore) {
         // Con molte consegne (immagini comprese) la risposta può diventare
         // pesante: se la query fallisce (timeout, limite di dimensione...)
@@ -326,6 +330,44 @@ export default function TeacherPage() {
       );
     });
 
+  // I punteggi driver vanno da 0 a 5, quindi la posizione derivata può
+  // assumere solo poche decine di valori distinti: è frequente che più casi
+  // studio cadano esattamente nello stesso punto e si nascondano del tutto
+  // l'uno sotto l'altro. Qui si individuano i gruppi di casi troppo vicini
+  // e si calcola per ciascuno un piccolo scarto (in pixel, non in punteggio)
+  // che li dispone a corona attorno al punto condiviso, senza toccare la
+  // posizione reale salvata sul database.
+  const offsetSparso = useMemo(() => {
+    const SOGLIA = 10; // unità driver (scala -100..100)
+    const visitati = new Set<number>();
+    const risultato: Record<number, { dx: number; dy: number }> = {};
+    casiFiltrati.forEach((c, i) => {
+      if (visitati.has(c.id)) return;
+      const gruppo = [c];
+      visitati.add(c.id);
+      for (let j = i + 1; j < casiFiltrati.length; j++) {
+        const altro = casiFiltrati[j];
+        if (visitati.has(altro.id)) continue;
+        const dx = c.x - altro.x;
+        const dy = c.y - altro.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= SOGLIA) {
+          gruppo.push(altro);
+          visitati.add(altro.id);
+        }
+      }
+      if (gruppo.length === 1) {
+        risultato[c.id] = { dx: 0, dy: 0 };
+      } else {
+        const raggio = 24 + Math.min(gruppo.length, 8) * 4;
+        gruppo.forEach((membro, indice) => {
+          const angolo = (Math.PI * 2 * indice) / gruppo.length - Math.PI / 2;
+          risultato[membro.id] = { dx: Math.cos(angolo) * raggio, dy: Math.sin(angolo) * raggio };
+        });
+      }
+    });
+    return risultato;
+  }, [casiFiltrati]);
+
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
     const sociali = casi.filter(c => c.x < 0 && c.y < 0);
@@ -417,6 +459,8 @@ export default function TeacherPage() {
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
               const inEvidenza = casoHoverId === c.id;
+              const off = offsetSparso[c.id] || { dx: 0, dy: 0 };
+              const scala = isSelected || inEvidenza ? 1.05 : 1;
 
               return (
                 <div
@@ -426,12 +470,12 @@ export default function TeacherPage() {
                   onClick={() => { setSelezionato(c); setAiCritica(''); }}
                   onMouseEnter={() => setCasoHoverId(c.id)}
                   onMouseLeave={() => setCasoHoverId(null)}
-                  style={{ left, top }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
+                  style={{ left, top, transform: `translate(calc(-50% + ${off.dx}px), calc(-50% + ${off.dy}px)) scale(${scala})` }}
+                  className={`absolute cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
                     isSelected
-                      ? 'border-stone-900 shadow-2xl scale-105 z-30'
+                      ? 'border-stone-900 shadow-2xl z-30'
                       : inEvidenza
-                        ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg scale-105 z-20'
+                        ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg z-20'
                         : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
                   }`}
                 >
@@ -449,6 +493,18 @@ export default function TeacherPage() {
                 </div>
               );
             })}
+
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap">
+              {casi.length.toLocaleString('it-IT')} {casi.length === 1 ? 'caso studio trovato' : 'casi studio trovati'}
+              {' '}&middot;{' '}
+              {tuttiITag.length.toLocaleString('it-IT')} {tuttiITag.length === 1 ? 'tema diverso' : 'temi diversi'}
+              {tempoCaricamentoMs !== null && (
+                <>
+                  {' '}&middot;{' '}
+                  caricati in {(tempoCaricamentoMs / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s
+                </>
+              )}
+            </div>
           </div>
 
           <div className="w-[440px] bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">

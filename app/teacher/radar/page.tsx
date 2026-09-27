@@ -28,7 +28,9 @@ const ASSI = [
 // occhio e falliva la verifica (due viola quasi indistinguibili anche a
 // vista normale) — questa passa lightness/chroma/CVD/contrasto.
 const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
-const LIMITE_ATTIVI = 6;
+const LIMITE_ATTIVI_DEFAULT = 6;
+const LIMITE_ATTIVI_MIN = 2;
+const LIMITE_ATTIVI_MAX = 10;
 
 const RAGGIO = 200;
 const LABEL_OFFSET = 32;
@@ -66,6 +68,7 @@ export default function RadarPage() {
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
   const [ricerca, setRicerca] = useState('');
   const [limiteRaggiunto, setLimiteRaggiunto] = useState(false);
+  const [limiteAttivi, setLimiteAttivi] = useState(LIMITE_ATTIVI_DEFAULT);
   const [erroreCasi, setErroreCasi] = useState('');
   const cardRefs = useRef<Record<number, HTMLElement | null>>({});
 
@@ -190,19 +193,28 @@ export default function RadarPage() {
   }, [casi, filtroTag, filtroDriver, ricerca]);
 
   useEffect(() => {
-    setAttivi(casiFiltrati.slice(0, 5).map(c => c.id));
+    setAttivi(casiFiltrati.slice(0, Math.min(5, limiteAttivi)).map(c => c.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [casiFiltrati]);
 
   const toggleAttivo = (id: number) => {
     setAttivi(prev => {
       if (prev.includes(id)) return prev.filter(a => a !== id);
-      if (prev.length >= LIMITE_ATTIVI) {
+      if (prev.length >= limiteAttivi) {
         setLimiteRaggiunto(true);
         setTimeout(() => setLimiteRaggiunto(false), 2500);
         return prev;
       }
       return [...prev, id];
     });
+  };
+
+  const cambiaLimiteAttivi = (nuovoLimite: number) => {
+    setLimiteAttivi(nuovoLimite);
+    // Se il nuovo limite è più basso di quanti progetti sono già attivi,
+    // si tengono solo i primi (quelli aggiunti prima) invece di lasciare
+    // uno stato incoerente (più attivi del limite appena scelto).
+    setAttivi(prev => prev.slice(0, nuovoLimite));
   };
 
   const casiAttivi = casiFiltrati.filter(c => attivi.includes(c.id));
@@ -258,6 +270,17 @@ export default function RadarPage() {
               <option key={a.chiave} value={a.chiave}>Top 5 &middot; {a.etichetta}</option>
             ))}
           </select>
+          <label className="sr-only" htmlFor="radar-limite-attivi">Numero massimo di casi studio da confrontare insieme</label>
+          <select
+            id="radar-limite-attivi"
+            value={limiteAttivi}
+            onChange={e => cambiaLimiteAttivi(Number(e.target.value))}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            {Array.from({ length: LIMITE_ATTIVI_MAX - LIMITE_ATTIVI_MIN + 1 }, (_, i) => LIMITE_ATTIVI_MIN + i).map(n => (
+              <option key={n} value={n}>Confronta fino a {n}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -273,10 +296,10 @@ export default function RadarPage() {
             className="w-full text-xs border border-stone-200 rounded-full px-3 py-2 bg-white mb-2 focus:outline-none focus:ring-2 focus:ring-stone-900"
           />
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Progetti ({casiFiltrati.length})</h2>
-          <p className="text-[10px] text-stone-400 px-1 pb-1">{attivi.length}/{LIMITE_ATTIVI} attivi sul radar</p>
+          <p className="text-[10px] text-stone-400 px-1 pb-1">{attivi.length}/{limiteAttivi} attivi sul radar</p>
           {limiteRaggiunto && (
             <p role="alert" className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mb-1">
-              Massimo {LIMITE_ATTIVI} progetti insieme, oltre diventa illeggibile. Deselezionane uno per aggiungerne un altro.
+              Massimo {limiteAttivi} progetti insieme, oltre diventa illeggibile. Deselezionane uno per aggiungerne un altro (o alza il limite qui sopra).
             </p>
           )}
           {casiFiltrati.length === 0 && (
