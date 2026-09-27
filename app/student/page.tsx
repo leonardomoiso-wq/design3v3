@@ -242,7 +242,7 @@ export default function StudentPage() {
 
     const driver = costruisciDriver({ desiderabilita, fattibilita, responsabilita, vitalita }, note);
 
-    const { error } = editId !== null
+    const { data: nuovoId, error } = editId !== null
       ? await supabase.rpc('aggiorna_caso_studio', {
           p_id: editId,
           p_codice: codiceGruppo,
@@ -277,9 +277,34 @@ export default function StudentPage() {
       return;
     }
 
+    // La conferma di salvataggio non deve dipendere da un secondo giro di
+    // rete: l'RPC è già andato a buon fine, quindi si aggiorna subito la
+    // vista locale con i dati appena inviati (l'id lo restituisce
+    // crea_caso_studio; in modifica è già noto). Il riallineamento con il
+    // server avviene comunque in background, ma un suo eventuale rallenta-
+    // mento o errore non deve far sembrare fallito un salvataggio riuscito.
+    const idSalvato = editId !== null ? editId : Number(nuovoId);
+    const casoSalvato = formattaCaso({
+      id: idSalvato,
+      gruppo_nome: gruppoNome,
+      gruppo_num: Number(gruppoNum),
+      titolo,
+      descrizione,
+      immagine,
+      tags: tagsFinali,
+      driver,
+      x,
+      y,
+    });
+    setCasi(prev => {
+      const esiste = prev.some(c => c.id === idSalvato);
+      return esiste ? prev.map(c => (c.id === idSalvato ? casoSalvato : c)) : [...prev, casoSalvato];
+    });
+    setErroreCasi('');
+
     resetForm();
-    await caricaDati();
     setActiveTab('gestisci');
+    caricaDati();
   };
 
   const avviaModifica = (c: any, codiceVerificato: string) => {
