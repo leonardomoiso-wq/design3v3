@@ -161,7 +161,19 @@ export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: stri
       // (anche se non freschissimi) che uno schermo vuoto o un errore.
       return { righe: cache, errore: null };
     }
-    return { righe: [], errore: messaggioErrore(erroreElenco) };
+    // La query leggera (id + updated_at) può fallire per un motivo specifico
+    // della cache (es. la colonna updated_at non esiste ancora perché la
+    // migrazione non è stata eseguita): la cache è solo un'ottimizzazione e
+    // non deve impedire il caricamento di base, quindi si ritenta con una
+    // query completa, esattamente come funzionava prima di introdurla.
+    const { data: tutti, error: erroreTutti } = await eseguiConTimeout(signal =>
+      supabase.from('casi_studio').select('*').abortSignal(signal)
+    );
+    if (erroreTutti) {
+      return { righe: [], errore: messaggioErrore(erroreTutti) };
+    }
+    if (tutti && tutti.length > 0) await scriviCache(tutti);
+    return { righe: tutti || [], errore: null };
   }
   if (!elenco) return { righe: cache, errore: null };
 

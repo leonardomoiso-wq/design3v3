@@ -66,6 +66,7 @@ export default function RadarPage() {
   const [casoEspanso, setCasoEspanso] = useState<Caso | null>(null);
   const [ricerca, setRicerca] = useState('');
   const [limiteRaggiunto, setLimiteRaggiunto] = useState(false);
+  const [erroreCasi, setErroreCasi] = useState('');
   const cardRefs = useRef<Record<number, HTMLElement | null>>({});
 
   const [zoom, setZoom] = useState(1);
@@ -121,9 +122,12 @@ export default function RadarPage() {
       // Usa la cache locale del browser: riscarica solo i casi studio nuovi
       // o modificati dall'ultima visita, non tutte le immagini ogni volta.
       const { righe, errore } = await caricaCasiConCache();
-      if (!errore) {
-        setCasi(righe.map(formattaCaso));
+      if (errore) {
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
+        return;
       }
+      setErroreCasi('');
+      setCasi(righe.map(formattaCaso));
     };
     carica();
 
@@ -218,7 +222,12 @@ export default function RadarPage() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="px-6 py-2.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <h1 className="font-serif text-sm font-medium text-stone-500">Analisi Radar Multicriterio</h1>
+        <div className="flex items-center space-x-3 min-w-0">
+          <h1 className="font-serif text-sm font-medium text-stone-500 flex-shrink-0">Analisi Radar Multicriterio</h1>
+          {erroreCasi && (
+            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 truncate">{erroreCasi}</p>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
           <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
           <select

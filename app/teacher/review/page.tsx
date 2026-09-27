@@ -49,6 +49,7 @@ export default function ReviewPage() {
   const [indice, setIndice] = useState(0);
   const [modalitaStampa, setModalitaStampa] = useState(false);
   const [selezionePannelloAperto, setSelezionePannelloAperto] = useState(false);
+  const [erroreCasi, setErroreCasi] = useState('');
 
   useEffect(() => {
     const formattaCaso = (c: any) => ({
@@ -69,9 +70,12 @@ export default function ReviewPage() {
       // Usa la cache locale del browser: riscarica solo i casi studio nuovi
       // o modificati dall'ultima visita, non tutte le immagini ogni volta.
       const { righe, errore } = await caricaCasiConCache();
-      if (!errore) {
-        setCasi(righe.map(formattaCaso));
+      if (errore) {
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
+        return;
       }
+      setErroreCasi('');
+      setCasi(righe.map(formattaCaso));
     };
 
     const caricaVoti = async () => {
@@ -307,7 +311,12 @@ export default function ReviewPage() {
       style={{ backgroundColor: SFONDO[esitoCorrente] }}
     >
       <div className="px-6 py-2.5 border-b border-stone-200/70 flex justify-between items-center backdrop-blur z-20 flex-shrink-0">
-        <h1 className="font-serif text-sm font-medium text-stone-500">Peer Review in Aula</h1>
+        <div className="flex items-center space-x-3 min-w-0">
+          <h1 className="font-serif text-sm font-medium text-stone-500 flex-shrink-0">Peer Review in Aula</h1>
+          {erroreCasi && (
+            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 truncate">{erroreCasi}</p>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
           <button onClick={() => setSelezionePannelloAperto(true)} className="text-xs bg-white border border-stone-200 px-4 py-1.5 rounded-full font-medium hover:border-stone-400 transition">
             🎯 Seleziona Casi ({casiInclusi.length}/{casi.length})
@@ -320,7 +329,7 @@ export default function ReviewPage() {
 
       {!casoCorrente ? (
         <div className="flex-1 flex flex-col items-center justify-center text-stone-400 text-sm space-y-3">
-          <p>{casi.length === 0 ? 'Nessun caso studio disponibile per la revisione.' : 'Nessun caso studio selezionato per questa revisione.'}</p>
+          <p>{erroreCasi ? erroreCasi : casi.length === 0 ? 'Nessun caso studio disponibile per la revisione.' : 'Nessun caso studio selezionato per questa revisione.'}</p>
           {casi.length > 0 && (
             <button onClick={() => setSelezionePannelloAperto(true)} className="text-xs bg-stone-900 text-white px-4 py-2 rounded-full font-medium hover:bg-stone-800 transition">
               Seleziona i casi da discutere
