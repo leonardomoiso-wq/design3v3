@@ -91,27 +91,38 @@ export default function TeacherPage() {
   const [filtroTag, setFiltroTag] = useState('');
   const [ricercaMatrice, setRicercaMatrice] = useState('');
   const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
+  const [erroreCasi, setErroreCasi] = useState('');
+
+  // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
+  const formattaCaso = (c: any) => ({
+    id: Number(c.id),
+    gruppoNome: c.gruppo_nome,
+    gruppoNum: c.gruppo_num,
+    titolo: c.titolo,
+    descrizione: c.descrizione,
+    immagine: c.immagine,
+    tags: c.tags || [],
+    driver: normalizzaDriver(c.driver),
+    driverNote: estraiNote(c.driver),
+    x: Number(c.x),
+    y: Number(c.y),
+  });
 
   useEffect(() => {
 
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
       const { data, error } = await supabase.from('casi_studio').select('*');
-      if (!error && data) {
-        // Mappa i campi dal formato snake_case del db al formato camelCase dell'app
-        const formattati = data.map(c => ({
-          id: Number(c.id),
-          gruppoNome: c.gruppo_nome,
-          gruppoNum: c.gruppo_num,
-          titolo: c.titolo,
-          descrizione: c.descrizione,
-          immagine: c.immagine,
-          tags: c.tags || [],
-          driver: normalizzaDriver(c.driver),
-          driverNote: estraiNote(c.driver),
-          x: Number(c.x),
-          y: Number(c.y)
-        }));
+      if (error) {
+        // Con molte consegne (immagini comprese) la risposta può diventare
+        // pesante: se la query fallisce (timeout, limite di dimensione...)
+        // meglio dirlo chiaramente che mostrare "nessun caso studio".
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${error.message}`);
+        return;
+      }
+      if (data) {
+        setErroreCasi('');
+        const formattati = data.map(formattaCaso);
         setCasi(formattati);
         setSelezionato((prev: any) => {
           if (prev) {
@@ -122,18 +133,30 @@ export default function TeacherPage() {
         });
       }
     };
-  
+
     fetchCasiIniziali();
-  
-    // 2. Ascolta i cambiamenti in tempo reale (Realtime subscription)
+
+    // 2. Ascolta i cambiamenti in tempo reale (Realtime subscription): aggiorna
+    // solo la riga toccata invece di riscaricare l'intera tabella (immagini
+    // comprese) a ogni singola modifica di uno qualsiasi dei tanti gruppi.
     const channel = supabase
       .channel('realtime-casi-studio')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload) => {
-        // Ricarica i dati o aggiorna lo stato istantaneamente quando un utente modifica/inserisce qualcosa
-        fetchCasiIniziali();
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number((payload.old as any)?.id);
+          setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          setSelezionato((prev: any) => (prev && prev.id === idEliminato ? null : prev));
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esiste = prev.some(c => c.id === aggiornato.id);
+          return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+        });
+        setSelezionato((prev: any) => (prev && prev.id === aggiornato.id ? aggiornato : prev));
       })
       .subscribe();
-  
+
     return () => {
       supabase.removeChannel(channel);
     };
@@ -328,6 +351,12 @@ export default function TeacherPage() {
 
       {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
 
+      {erroreCasi && (
+        <p role="alert" className="mx-6 mt-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 flex-shrink-0">
+          {erroreCasi}
+        </p>
+      )}
+
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
           <div
@@ -365,7 +394,7 @@ export default function TeacherPage() {
               />
             </div>
 
-            {casiFiltrati.length === 0 && (
+            {casiFiltrati.length === 0 && !erroreCasi && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
                 {casi.length === 0
                   ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
