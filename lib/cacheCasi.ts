@@ -26,12 +26,31 @@ function apriDb(): Promise<IDBDatabase> {
     };
     richiesta.onsuccess = () => resolve(richiesta.result);
     richiesta.onerror = () => reject(richiesta.error);
+    // "onblocked" (un'altra scheda con una versione diversa del DB aperta) e
+    // qualsiasi altro caso limite in cui indexedDB.open non chiama mai
+    // onsuccess/onerror non devono bloccare per sempre il caricamento dei
+    // casi studio: dopo un timeout si rinuncia alla cache per questo giro.
+    richiesta.onblocked = () => reject(new Error('indexeddb_bloccato'));
   });
+}
+
+function conTimeout<T>(promessa: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promessa.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+function apriDbConTimeout(): Promise<IDBDatabase> {
+  return conTimeout(apriDb(), 2000);
 }
 
 async function leggiCache(): Promise<any[]> {
   try {
-    const db = await apriDb();
+    const db = await apriDbConTimeout();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
       const richiesta = tx.objectStore(STORE).getAll();
@@ -48,7 +67,7 @@ async function leggiCache(): Promise<any[]> {
 async function scriviCache(righe: any[]): Promise<void> {
   if (righe.length === 0) return;
   try {
-    const db = await apriDb();
+    const db = await apriDbConTimeout();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
@@ -64,7 +83,7 @@ async function scriviCache(righe: any[]): Promise<void> {
 async function rimuoviDallaCache(ids: number[]): Promise<void> {
   if (ids.length === 0) return;
   try {
-    const db = await apriDb();
+    const db = await apriDbConTimeout();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
@@ -92,7 +111,7 @@ export async function rimuoviCasoDallaCache(id: number): Promise<void> {
 // locale non deve continuare a mostrare casi ormai cancellati sul server.
 export async function svuotaCacheCasi(): Promise<void> {
   try {
-    const db = await apriDb();
+    const db = await apriDbConTimeout();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).clear();
@@ -104,16 +123,37 @@ export async function svuotaCacheCasi(): Promise<void> {
   }
 }
 
+// Un fetch che non risponde mai (rete instabile, tabella troppo pesante)
+// non deve tenere la pagina in caricamento all'infinito senza dire nulla:
+// dopo TIMEOUT_MS la richiesta viene annullata e trattata come un errore
+// chiaro, mostrabile all'utente.
+const TIMEOUT_MS = 20000;
+
+function eseguiConTimeout<T>(costruisciQuery: (signal: AbortSignal) => PromiseLike<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  return Promise.resolve(costruisciQuery(controller.signal)).finally(() => clearTimeout(timer));
+}
+
+function messaggioErrore(error: any): string {
+  if (error?.name === 'AbortError' || /abort/i.test(error?.message || '')) {
+    return `Il caricamento è troppo lento (timeout dopo ${TIMEOUT_MS / 1000}s). Controlla la connessione e riprova.`;
+  }
+  return error?.message || 'Errore sconosciuto';
+}
+
 // Restituisce le righe aggiornate di casi_studio (formato grezzo dal db,
 // snake_case) usando la cache locale per evitare di riscaricare le
 // immagini di righe non cambiate dall'ultima visita.
 export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: string | null }> {
+  // La cache locale (IndexedDB) non deve mai bloccare il caricamento: se
+  // per qualsiasi motivo non risponde, si procede semplicemente senza.
   const cache = await leggiCache();
   const cacheMap = new Map(cache.map(r => [Number(r.id), r]));
 
-  const { data: elenco, error: erroreElenco } = await supabase
-    .from('casi_studio')
-    .select('id, updated_at');
+  const { data: elenco, error: erroreElenco } = await eseguiConTimeout(signal =>
+    supabase.from('casi_studio').select('id, updated_at').abortSignal(signal)
+  );
 
   if (erroreElenco) {
     if (cache.length > 0) {
@@ -121,7 +161,7 @@ export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: stri
       // (anche se non freschissimi) che uno schermo vuoto o un errore.
       return { righe: cache, errore: null };
     }
-    return { righe: [], errore: erroreElenco.message };
+    return { righe: [], errore: messaggioErrore(erroreElenco) };
   }
   if (!elenco) return { righe: cache, errore: null };
 
@@ -138,9 +178,11 @@ export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: stri
 
   let nuovi: any[] = [];
   if (daScaricare.length > 0) {
-    const { data, error } = await supabase.from('casi_studio').select('*').in('id', daScaricare);
+    const { data, error } = await eseguiConTimeout(signal =>
+      supabase.from('casi_studio').select('*').in('id', daScaricare).abortSignal(signal)
+    );
     if (error) {
-      return { righe: cache.filter(r => idAttuali.has(Number(r.id))), errore: error.message };
+      return { righe: cache.filter(r => idAttuali.has(Number(r.id))), errore: messaggioErrore(error) };
     }
     nuovi = data || [];
     await scriviCache(nuovi);
