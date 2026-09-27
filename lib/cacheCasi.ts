@@ -125,19 +125,23 @@ export async function svuotaCacheCasi(): Promise<void> {
 
 // Un fetch che non risponde mai (rete instabile, tabella troppo pesante)
 // non deve tenere la pagina in caricamento all'infinito senza dire nulla:
-// dopo TIMEOUT_MS la richiesta viene annullata e trattata come un errore
-// chiaro, mostrabile all'utente.
+// dopo il timeout la richiesta viene annullata e trattata come un errore
+// chiaro, mostrabile all'utente. Le query "leggere" (solo id/date, senza
+// immagini) usano un timeout breve; i blocchi con le immagini vere e
+// proprie ne usano uno più lungo, perché su una connessione lenta anche
+// poche immagini possono metterci più di 20 secondi a scaricarsi.
 const TIMEOUT_MS = 20000;
+const TIMEOUT_BLOCCO_MS = 45000;
 
-function eseguiConTimeout<T>(costruisciQuery: (signal: AbortSignal) => PromiseLike<T>): Promise<T> {
+function eseguiConTimeout<T>(costruisciQuery: (signal: AbortSignal) => PromiseLike<T>, ms: number = TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), ms);
   return Promise.resolve(costruisciQuery(controller.signal)).finally(() => clearTimeout(timer));
 }
 
-function messaggioErrore(error: any): string {
+function messaggioErrore(error: any, timeoutMs: number = TIMEOUT_MS): string {
   if (error?.name === 'AbortError' || /abort/i.test(error?.message || '')) {
-    return `Il caricamento è troppo lento (timeout dopo ${TIMEOUT_MS / 1000}s). Controlla la connessione e riprova.`;
+    return `Il caricamento è troppo lento (timeout dopo ${timeoutMs / 1000}s). Controlla la connessione e riprova.`;
   }
   return error?.message || 'Errore sconosciuto';
 }
@@ -145,10 +149,10 @@ function messaggioErrore(error: any): string {
 // Con una connessione lenta, scaricare tutte le immagini nuove/cambiate in
 // un'unica richiesta enorme può far scadere il timeout prima che arrivi
 // qualsiasi cosa: si scarica invece un piccolo gruppo di righe alla volta,
-// così ogni singola richiesta resta leggera (va a buon fine anche su una
-// connessione lenta) e chi guarda vede i casi studio comparire un po' alla
-// volta invece di aspettare tutto o niente.
-const DIMENSIONE_BLOCCO = 8;
+// così ogni singola richiesta resta più leggera (va a buon fine anche su
+// una connessione lenta) e chi guarda vede i casi studio comparire un po'
+// alla volta invece di aspettare tutto o niente.
+const DIMENSIONE_BLOCCO = 4;
 
 async function scaricaAcBlocchi(
   ids: (number | string)[],
@@ -156,15 +160,21 @@ async function scaricaAcBlocchi(
   onProgresso?: (righeCorrenti: any[]) => void
 ): Promise<{ righe: any[]; errore: string | null }> {
   let correnti = correntiIniziali;
+  let ultimoErrore: string | null = null;
   for (let i = 0; i < ids.length; i += DIMENSIONE_BLOCCO) {
     const blocco = ids.slice(i, i + DIMENSIONE_BLOCCO);
-    const { data, error } = await eseguiConTimeout(signal =>
-      supabase.from('casi_studio').select('*').in('id', blocco).abortSignal(signal)
+    const { data, error } = await eseguiConTimeout(
+      signal => supabase.from('casi_studio').select('*').in('id', blocco).abortSignal(signal),
+      TIMEOUT_BLOCCO_MS
     );
     if (error) {
-      // Quello scaricato finora resta comunque visibile: meglio una lista
-      // parziale che ripartire da zero o restare a schermo vuoto.
-      return { righe: correnti, errore: messaggioErrore(error) };
+      // Con molte righe da scaricare (cache vuota, cambio browser...) un
+      // blocco lento o fallito non deve interrompere tutti quelli dopo:
+      // si continua con i blocchi successivi e si segnala l'errore solo
+      // alla fine, mostrando comunque tutto quello che si è riusciti a
+      // scaricare invece di abbandonare l'intero caricamento a metà.
+      ultimoErrore = messaggioErrore(error, TIMEOUT_BLOCCO_MS);
+      continue;
     }
     const nuovi = data || [];
     await scriviCache(nuovi);
@@ -173,7 +183,7 @@ async function scaricaAcBlocchi(
     correnti = Array.from(mappa.values());
     onProgresso?.(correnti);
   }
-  return { righe: correnti, errore: null };
+  return { righe: correnti, errore: ultimoErrore };
 }
 
 // Restituisce le righe aggiornate di casi_studio (formato grezzo dal db,
