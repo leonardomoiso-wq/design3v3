@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX_DRIVER, type NoteDriver } from '../../lib/driver';
 import { comprimiImmagine } from '../../lib/immagine';
+import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '../../lib/cacheCasi';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam } from '../../lib/team-context';
 
@@ -147,6 +148,7 @@ export default function StudentPage() {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number(payload.old?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          rimuoviCasoDallaCache(idEliminato);
           return;
         }
         const aggiornato = formattaCaso(payload.new);
@@ -154,6 +156,7 @@ export default function StudentPage() {
           const esiste = prev.some(c => c.id === aggiornato.id);
           return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
         });
+        aggiornaCacheCaso(payload.new);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStatoRevisione)
       .subscribe();
@@ -171,15 +174,15 @@ export default function StudentPage() {
   };
 
   const caricaDati = async () => {
-    const { data, error } = await supabase.from('casi_studio').select('*');
-    if (error) {
-      setErroreCasi(`Errore nel caricamento dei casi studio: ${error.message}`);
+    // Usa la cache locale del browser: riscarica solo i casi studio nuovi
+    // o modificati dall'ultima visita, non tutte le immagini ogni volta.
+    const { righe, errore } = await caricaCasiConCache();
+    if (errore) {
+      setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
       return;
     }
-    if (data) {
-      setErroreCasi('');
-      setCasi(data.map(formattaCaso));
-    }
+    setErroreCasi('');
+    setCasi(righe.map(formattaCaso));
   };
 
   const toggleTag = (tag: string) => {

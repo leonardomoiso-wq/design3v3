@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
 
 type Caso = {
   id: number;
@@ -65,9 +66,11 @@ export default function ReviewPage() {
     });
 
     const caricaCasi = async () => {
-      const { data, error } = await supabase.from('casi_studio').select('*');
-      if (!error && data) {
-        setCasi(data.map(formattaCaso));
+      // Usa la cache locale del browser: riscarica solo i casi studio nuovi
+      // o modificati dall'ultima visita, non tutte le immagini ogni volta.
+      const { righe, errore } = await caricaCasiConCache();
+      if (!errore) {
+        setCasi(righe.map(formattaCaso));
       }
     };
 
@@ -105,6 +108,7 @@ export default function ReviewPage() {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number(payload.old?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          rimuoviCasoDallaCache(idEliminato);
           return;
         }
         const aggiornato = formattaCaso(payload.new);
@@ -112,6 +116,7 @@ export default function ReviewPage() {
           const esiste = prev.some(c => c.id === aggiornato.id);
           return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
         });
+        aggiornaCacheCaso(payload.new);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voti_revisione' }, caricaVoti)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStato)

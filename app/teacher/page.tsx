@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 
 function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -112,26 +113,26 @@ export default function TeacherPage() {
 
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
-      const { data, error } = await supabase.from('casi_studio').select('*');
-      if (error) {
+      // Usa la cache locale del browser: riscarica solo i casi studio nuovi
+      // o modificati dall'ultima visita, non tutte le immagini ogni volta.
+      const { righe, errore } = await caricaCasiConCache();
+      if (errore) {
         // Con molte consegne (immagini comprese) la risposta può diventare
         // pesante: se la query fallisce (timeout, limite di dimensione...)
         // meglio dirlo chiaramente che mostrare "nessun caso studio".
-        setErroreCasi(`Errore nel caricamento dei casi studio: ${error.message}`);
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
         return;
       }
-      if (data) {
-        setErroreCasi('');
-        const formattati = data.map(formattaCaso);
-        setCasi(formattati);
-        setSelezionato((prev: any) => {
-          if (prev) {
-            const aggiornato = formattati.find(f => f.id === prev.id);
-            if (aggiornato) return aggiornato;
-          }
-          return formattati.length > 0 ? formattati[0] : null;
-        });
-      }
+      setErroreCasi('');
+      const formattati = righe.map(formattaCaso);
+      setCasi(formattati);
+      setSelezionato((prev: any) => {
+        if (prev) {
+          const aggiornato = formattati.find(f => f.id === prev.id);
+          if (aggiornato) return aggiornato;
+        }
+        return formattati.length > 0 ? formattati[0] : null;
+      });
     };
 
     fetchCasiIniziali();
@@ -146,6 +147,7 @@ export default function TeacherPage() {
           const idEliminato = Number((payload.old as any)?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
           setSelezionato((prev: any) => (prev && prev.id === idEliminato ? null : prev));
+          rimuoviCasoDallaCache(idEliminato);
           return;
         }
         const aggiornato = formattaCaso(payload.new);
@@ -154,6 +156,7 @@ export default function TeacherPage() {
           return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
         });
         setSelezionato((prev: any) => (prev && prev.id === aggiornato.id ? aggiornato : prev));
+        aggiornaCacheCaso(payload.new);
       })
       .subscribe();
 
@@ -171,6 +174,7 @@ export default function TeacherPage() {
       setSuccessoReset(false);
       return;
     }
+    svuotaCacheCasi();
     setCasi([]);
     setSelezionato(null);
     setAiCritica('');
