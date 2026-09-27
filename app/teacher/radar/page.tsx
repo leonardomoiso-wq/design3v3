@@ -178,13 +178,19 @@ export default function RadarPage() {
     let lista = filtroTag ? casi.filter(c => (c.tags || []).includes(filtroTag)) : casi;
     if (ricerca.trim()) {
       const q = ricerca.trim().toLowerCase();
-      lista = lista.filter(c =>
-        c.titolo.toLowerCase().includes(q) ||
-        c.gruppoNome.toLowerCase().includes(q) ||
-        // Confronto esatto sul numero (non "includes"): altrimenti cercando
-        // "4" comparirebbero anche i gruppi 14, 24, 40...
-        String(c.gruppoNum) === q
-      );
+      // Una ricerca di soli numeri ("4") è chiaramente un numero di gruppo,
+      // non un pezzo di titolo o nome: la si tratta come tale (uguaglianza
+      // esatta, niente titolo/nome) invece che come sottostringa da cercare
+      // ovunque, dove "4" comparirebbe anche dentro un titolo o un gruppo
+      // 14/24/40.
+      if (/^\d+$/.test(q)) {
+        lista = lista.filter(c => String(c.gruppoNum) === q);
+      } else {
+        lista = lista.filter(c =>
+          c.titolo.toLowerCase().includes(q) ||
+          c.gruppoNome.toLowerCase().includes(q)
+        );
+      }
     }
     if (filtroDriver !== 'nessuno') {
       lista = [...lista]

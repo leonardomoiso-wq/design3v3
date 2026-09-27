@@ -319,16 +319,21 @@ export default function TeacherPage() {
 
   const ricercaNormalizzata = ricercaMatrice.trim().toLowerCase();
 
+  // Una ricerca di soli numeri ("4") è chiaramente un numero di gruppo, non
+  // un pezzo di titolo o nome: la si tratta come tale (uguaglianza esatta,
+  // niente titolo/nome) invece di trattarla come sottostringa da cercare
+  // ovunque, dove "4" comparirebbe anche dentro un titolo come "Sedia n.4"
+  // o un gruppo 14/24/40.
+  const ricercaSoloNumero = /^\d+$/.test(ricercaNormalizzata);
+
   const casiFiltrati = casi
     .filter(c => (filtroTag ? (c.tags || []).includes(filtroTag) : true))
     .filter(c => {
       if (!ricercaNormalizzata) return true;
+      if (ricercaSoloNumero) return String(c.gruppoNum) === ricercaNormalizzata;
       return (
         c.titolo?.toLowerCase().includes(ricercaNormalizzata) ||
-        c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata) ||
-        // Confronto esatto sul numero (non "includes"): altrimenti cercando
-        // "4" comparirebbero anche i gruppi 14, 24, 40...
-        String(c.gruppoNum) === ricercaNormalizzata
+        c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata)
       );
     });
 
