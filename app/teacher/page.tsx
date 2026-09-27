@@ -326,7 +326,9 @@ export default function TeacherPage() {
       return (
         c.titolo?.toLowerCase().includes(ricercaNormalizzata) ||
         c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata) ||
-        String(c.gruppoNum).includes(ricercaNormalizzata)
+        // Confronto esatto sul numero (non "includes"): altrimenti cercando
+        // "4" comparirebbero anche i gruppi 14, 24, 40...
+        String(c.gruppoNum) === ricercaNormalizzata
       );
     });
 

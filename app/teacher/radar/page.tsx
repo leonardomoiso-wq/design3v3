@@ -181,7 +181,9 @@ export default function RadarPage() {
       lista = lista.filter(c =>
         c.titolo.toLowerCase().includes(q) ||
         c.gruppoNome.toLowerCase().includes(q) ||
-        String(c.gruppoNum).includes(q)
+        // Confronto esatto sul numero (non "includes"): altrimenti cercando
+        // "4" comparirebbero anche i gruppi 14, 24, 40...
+        String(c.gruppoNum) === q
       );
     }
     if (filtroDriver !== 'nessuno') {
