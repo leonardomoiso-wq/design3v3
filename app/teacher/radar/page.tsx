@@ -120,8 +120,13 @@ export default function RadarPage() {
 
     const carica = async () => {
       // Usa la cache locale del browser: riscarica solo i casi studio nuovi
-      // o modificati dall'ultima visita, non tutte le immagini ogni volta.
-      const { righe, errore } = await caricaCasiConCache();
+      // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
+      // insieme) così anche una connessione lenta vede i casi studio
+      // comparire man mano invece di aspettare tutto o niente.
+      const { righe, errore } = await caricaCasiConCache(correnti => {
+        setErroreCasi('');
+        setCasi(correnti.map(formattaCaso));
+      });
       if (errore) {
         setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
         return;

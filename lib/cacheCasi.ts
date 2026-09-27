@@ -142,10 +142,50 @@ function messaggioErrore(error: any): string {
   return error?.message || 'Errore sconosciuto';
 }
 
+// Con una connessione lenta, scaricare tutte le immagini nuove/cambiate in
+// un'unica richiesta enorme può far scadere il timeout prima che arrivi
+// qualsiasi cosa: si scarica invece un piccolo gruppo di righe alla volta,
+// così ogni singola richiesta resta leggera (va a buon fine anche su una
+// connessione lenta) e chi guarda vede i casi studio comparire un po' alla
+// volta invece di aspettare tutto o niente.
+const DIMENSIONE_BLOCCO = 8;
+
+async function scaricaAcBlocchi(
+  ids: (number | string)[],
+  correntiIniziali: any[],
+  onProgresso?: (righeCorrenti: any[]) => void
+): Promise<{ righe: any[]; errore: string | null }> {
+  let correnti = correntiIniziali;
+  for (let i = 0; i < ids.length; i += DIMENSIONE_BLOCCO) {
+    const blocco = ids.slice(i, i + DIMENSIONE_BLOCCO);
+    const { data, error } = await eseguiConTimeout(signal =>
+      supabase.from('casi_studio').select('*').in('id', blocco).abortSignal(signal)
+    );
+    if (error) {
+      // Quello scaricato finora resta comunque visibile: meglio una lista
+      // parziale che ripartire da zero o restare a schermo vuoto.
+      return { righe: correnti, errore: messaggioErrore(error) };
+    }
+    const nuovi = data || [];
+    await scriviCache(nuovi);
+    const mappa = new Map(correnti.map(r => [Number(r.id), r]));
+    nuovi.forEach(r => mappa.set(Number(r.id), r));
+    correnti = Array.from(mappa.values());
+    onProgresso?.(correnti);
+  }
+  return { righe: correnti, errore: null };
+}
+
 // Restituisce le righe aggiornate di casi_studio (formato grezzo dal db,
 // snake_case) usando la cache locale per evitare di riscaricare le
-// immagini di righe non cambiate dall'ultima visita.
-export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: string | null }> {
+// immagini di righe non cambiate dall'ultima visita, e scaricando quelle
+// nuove/cambiate a piccoli blocchi cosi' il caricamento avanza in modo
+// graduale anche su una connessione lenta. Se passato, onProgresso viene
+// richiamato via via che nuovi blocchi arrivano, con l'elenco più
+// aggiornato disponibile in quel momento.
+export async function caricaCasiConCache(
+  onProgresso?: (righeCorrenti: any[]) => void
+): Promise<{ righe: any[]; errore: string | null }> {
   // La cache locale (IndexedDB) non deve mai bloccare il caricamento: se
   // per qualsiasi motivo non risponde, si procede semplicemente senza.
   const cache = await leggiCache();
@@ -164,16 +204,16 @@ export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: stri
     // La query leggera (id + updated_at) può fallire per un motivo specifico
     // della cache (es. la colonna updated_at non esiste ancora perché la
     // migrazione non è stata eseguita): la cache è solo un'ottimizzazione e
-    // non deve impedire il caricamento di base, quindi si ritenta con una
-    // query completa, esattamente come funzionava prima di introdurla.
-    const { data: tutti, error: erroreTutti } = await eseguiConTimeout(signal =>
-      supabase.from('casi_studio').select('*').abortSignal(signal)
+    // non deve impedire il caricamento di base. Non conosciamo ancora gli id
+    // (quella query è fallita), quindi si scarica prima un elenco leggero
+    // di soli id e poi si procede comunque a blocchi.
+    const { data: soliId, error: erroreSoliId } = await eseguiConTimeout(signal =>
+      supabase.from('casi_studio').select('id').abortSignal(signal)
     );
-    if (erroreTutti) {
-      return { righe: [], errore: messaggioErrore(erroreTutti) };
+    if (erroreSoliId) {
+      return { righe: [], errore: messaggioErrore(erroreSoliId) };
     }
-    if (tutti && tutti.length > 0) await scriviCache(tutti);
-    return { righe: tutti || [], errore: null };
+    return await scaricaAcBlocchi((soliId || []).map((r: any) => r.id), [], onProgresso);
   }
   if (!elenco) return { righe: cache, errore: null };
 
@@ -188,22 +228,9 @@ export async function caricaCasiConCache(): Promise<{ righe: any[]; errore: stri
     })
     .map((r: any) => r.id);
 
-  let nuovi: any[] = [];
-  if (daScaricare.length > 0) {
-    const { data, error } = await eseguiConTimeout(signal =>
-      supabase.from('casi_studio').select('*').in('id', daScaricare).abortSignal(signal)
-    );
-    if (error) {
-      return { righe: cache.filter(r => idAttuali.has(Number(r.id))), errore: messaggioErrore(error) };
-    }
-    nuovi = data || [];
-    await scriviCache(nuovi);
-  }
+  const correntiIniziali = cache.filter(r => idAttuali.has(Number(r.id)));
+  if (daScaricare.length === 0) return { righe: correntiIniziali, errore: null };
 
-  const mappaFinale = new Map(
-    cache.filter(r => idAttuali.has(Number(r.id))).map(r => [Number(r.id), r])
-  );
-  nuovi.forEach(r => mappaFinale.set(Number(r.id), r));
-
-  return { righe: Array.from(mappaFinale.values()), errore: null };
+  onProgresso?.(correntiIniziali);
+  return await scaricaAcBlocchi(daScaricare, correntiIniziali, onProgresso);
 }

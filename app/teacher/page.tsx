@@ -114,8 +114,23 @@ export default function TeacherPage() {
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
       // Usa la cache locale del browser: riscarica solo i casi studio nuovi
-      // o modificati dall'ultima visita, non tutte le immagini ogni volta.
-      const { righe, errore } = await caricaCasiConCache();
+      // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
+      // insieme) così anche una connessione lenta vede i casi studio
+      // comparire man mano invece di aspettare tutto o niente.
+      const aggiornaVista = (correnti: any[]) => {
+        setErroreCasi('');
+        const formattati = correnti.map(formattaCaso);
+        setCasi(formattati);
+        setSelezionato((prev: any) => {
+          if (prev) {
+            const aggiornato = formattati.find(f => f.id === prev.id);
+            if (aggiornato) return aggiornato;
+          }
+          return formattati.length > 0 ? formattati[0] : null;
+        });
+      };
+
+      const { righe, errore } = await caricaCasiConCache(aggiornaVista);
       if (errore) {
         // Con molte consegne (immagini comprese) la risposta può diventare
         // pesante: se la query fallisce (timeout, limite di dimensione...)
@@ -123,16 +138,7 @@ export default function TeacherPage() {
         setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
         return;
       }
-      setErroreCasi('');
-      const formattati = righe.map(formattaCaso);
-      setCasi(formattati);
-      setSelezionato((prev: any) => {
-        if (prev) {
-          const aggiornato = formattati.find(f => f.id === prev.id);
-          if (aggiornato) return aggiornato;
-        }
-        return formattati.length > 0 ? formattati[0] : null;
-      });
+      aggiornaVista(righe);
     };
 
     fetchCasiIniziali();
