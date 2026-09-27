@@ -625,7 +625,7 @@ export default function TeacherPage() {
 
       {activeTab === 'slides' && (
         <div className="printable-area flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
-          <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
+          <div className="print:hidden max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
               <p className="text-xs text-stone-500 mt-0.5">Ogni caso studio è impaginato come slide orizzontale indipendente. Clicca sotto per stampare o salvare in PDF.</p>
@@ -643,19 +643,26 @@ export default function TeacherPage() {
               <div className="bg-white p-12 rounded-2xl text-center text-stone-400 text-sm">Nessun caso studio disponibile per le slide.</div>
             ) : (
               casi.map((c, index) => (
-                <div key={c.id} className="bg-white min-h-[34rem] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
-                  <div className="flex justify-between items-center border-b border-stone-200 pb-4">
+                <div key={c.id} className="bg-white aspect-[16/9] p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col overflow-hidden page-break">
+                  <div className="flex justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
                     <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 items-start my-auto">
-                    <div className="space-y-4">
-                      <h2 className="text-3xl font-serif font-bold text-stone-900">{c.titolo}</h2>
-                      <p className="text-sm text-stone-600 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
+                  {/* Ogni blocco qui sotto ha un'altezza limitata in modo esplicito
+                      (truncate/max-h, mai flex-1+min-h-0): nel motore di
+                      impaginazione per la stampa/PDF di Chromium quella
+                      combinazione, per quanto valida a schermo, può risolvere
+                      le altezze in modo scorretto e far sovrapporre gli
+                      elementi. Con altezze note in anticipo la riga si adatta
+                      correttamente sia a schermo sia nel PDF. */}
+                  <div className="grid grid-cols-2 gap-8 mt-4">
+                    <div className="space-y-2.5 min-w-0">
+                      <h2 className="text-2xl font-serif font-bold text-stone-900 truncate">{c.titolo}</h2>
+                      <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200 max-h-[3.7rem] overflow-hidden">
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-1.5">
                         {([
                           ['desiderabilita', 'Desiderabilità'],
                           ['fattibilita', 'Fattibilità'],
@@ -664,13 +671,13 @@ export default function TeacherPage() {
                         ] as const).map(([chiave, etichetta]) => {
                           const nota = c.driverNote?.[chiave];
                           return (
-                            <div key={chiave} className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs">
+                            <div key={chiave} className="bg-stone-50 p-2 rounded-lg border border-stone-200 text-[11px]">
                               <div className="flex justify-between">
                                 <span className="font-medium text-stone-600">{etichetta}</span>
                                 <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
                               </div>
                               {nota && (
-                                <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{nota}&rdquo;</p>
+                                <p className="text-[10px] text-stone-500 italic mt-0.5 border-t border-stone-200 pt-0.5 truncate">&ldquo;{nota}&rdquo;</p>
                               )}
                             </div>
                           );
@@ -678,7 +685,7 @@ export default function TeacherPage() {
                       </div>
                     </div>
 
-                    <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
+                    <div className="h-full bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
                         <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
@@ -687,7 +694,7 @@ export default function TeacherPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-stone-200 pt-4 flex justify-between items-center text-[10px] text-stone-400">
+                  <div className="mt-auto border-t border-stone-200 pt-3 flex justify-between items-center text-[10px] text-stone-400">
                     <span>Framework IDEO 4-Driver &mdash; RothFinder Style</span>
                     <span>Coordinate Matrice &mdash; X: {c.x}, Y: {c.y}</span>
                   </div>

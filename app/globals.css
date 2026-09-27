@@ -56,6 +56,14 @@ h1, h2, h3, h4 {
 }
 
 @media print {
+  /* Ogni scheda è pensata come una slide orizzontale 16:9: la pagina
+     stampata deve avere lo stesso orientamento, altrimenti su un foglio
+     verticale la slide viene rimpicciolita o tagliata in modo incoerente. */
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
   html, body {
     background-color: #ffffff !important;
     height: auto !important;
@@ -82,15 +90,21 @@ h1, h2, h3, h4 {
     display: block !important;
   }
 
+  /* La larghezza segue la pagina landscape (un valore assoluto, deciso da
+     @page); l'altezza resta governata dal rapporto 16:9 (aspect-[16/9] in
+     JSX), calcolato su quella larghezza — esattamente come a schermo.
+     Da NON usare qui: un'altezza in "vh": nel motore di stampa/PDF di
+     Chromium è relativa alla finestra del browser al momento della
+     generazione, non alla pagina fisica di @page, e in pratica produce
+     un'altezza sbagliata (schede tagliate a metà su due pagine). */
   .page-break {
     page-break-after: always;
     break-after: page;
     box-shadow: none !important;
     border: none !important;
     width: 100% !important;
-    height: 100vh !important;
+    max-width: none !important;
     margin: 0 !important;
-    padding: 2rem !important;
   }
 
   .page-break:last-child {
