@@ -1,21 +1,72 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver, estraiNote } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
+import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
+import StellaScelto from '@/components/StellaScelto';
 
-const TAG_OPTIONS = [
-  'Eco-feedback interfaces',
-  'Bio-digital architecture',
-  'Non-human interaction design (NHID)',
-  'Algorithmic conservation',
-  'Multispecies product design',
-  'Regenerative urban prototyping',
-  'Foraged and bio-based materials',
-  'More-than-human service design',
-  'Speculative multispecies products',
-  'Microbial design',
-];
+function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [nuovoTag, setNuovoTag] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+
+  const carica = async () => {
+    const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+    if (data) setLista(data as any[]);
+  };
+
+  useEffect(() => { carica(); }, []);
+
+  const aggiungi = async () => {
+    setErrore('');
+    if (!nuovoTag.trim()) { setErrore('Scrivi il testo del tag.'); return; }
+    setInCorso(true);
+    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_testo: nuovoTag, p_passcode: passcode });
+    setInCorso(false);
+    if (error) { setErrore('Errore durante il salvataggio.'); return; }
+    setNuovoTag('');
+    carica();
+  };
+
+  const elimina = async (id: string) => {
+    setLista(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.rpc('docente_elimina_tag_default', { p_id: id, p_passcode: passcode });
+    if (error) carica();
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center">
+          <h2 className="font-serif font-bold text-lg">Tag di default per i Casi Studio</h2>
+          <button onClick={onChiudi} className="text-stone-400 hover:text-stone-900 text-xl leading-none">✕</button>
+        </div>
+        <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {lista.map(t => (
+            <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
+              {t.testo}
+              <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
+            </span>
+          ))}
+          {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
+        </div>
+
+        <div className="border-t border-stone-100 pt-3 flex gap-2">
+          <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
+          <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
+            {inCorso ? '...' : 'Aggiungi'}
+          </button>
+        </div>
+        {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function TeacherPage() {
   const { passcode: passcodeAttivo } = useDocente();
@@ -23,6 +74,7 @@ export default function TeacherPage() {
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
+  const [mostraTagDefault, setMostraTagDefault] = useState(false);
 
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
@@ -40,27 +92,43 @@ export default function TeacherPage() {
 
   const matrixRef = useRef<HTMLDivElement>(null);
   const [filtroTag, setFiltroTag] = useState('');
+  const [ricercaMatrice, setRicercaMatrice] = useState('');
+  const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
+  const [erroreCasi, setErroreCasi] = useState('');
+  const [tempoCaricamentoMs, setTempoCaricamentoMs] = useState<number | null>(null);
+  const [casoEspansoCluster, setCasoEspansoCluster] = useState<any | null>(null);
+  const { larghezza: larghezzaPannelloDettaglio, iniziaTrascinamento: iniziaTrascinamentoDettaglio } =
+    usePannelloRidimensionabile('design3-matrice-dettaglio-larghezza', 440, 320, 720, 'sinistra');
+
+  // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
+  const formattaCaso = (c: any) => ({
+    id: Number(c.id),
+    gruppoNome: c.gruppo_nome,
+    gruppoNum: c.gruppo_num,
+    titolo: c.titolo,
+    descrizione: c.descrizione,
+    immagine: c.immagine,
+    tags: c.tags || [],
+    driver: normalizzaDriver(c.driver),
+    driverNote: estraiNote(c.driver),
+    x: Number(c.x),
+    y: Number(c.y),
+    scelto: Number(c.scelto) || 0,
+  });
 
   useEffect(() => {
 
     // 1. Carica i dati iniziali
     const fetchCasiIniziali = async () => {
-      const { data, error } = await supabase.from('casi_studio').select('*');
-      if (!error && data) {
-        // Mappa i campi dal formato snake_case del db al formato camelCase dell'app
-        const formattati = data.map(c => ({
-          id: Number(c.id),
-          gruppoNome: c.gruppo_nome,
-          gruppoNum: c.gruppo_num,
-          titolo: c.titolo,
-          descrizione: c.descrizione,
-          immagine: c.immagine,
-          tags: c.tags || [],
-          driver: normalizzaDriver(c.driver),
-          driverNote: estraiNote(c.driver),
-          x: Number(c.x),
-          y: Number(c.y)
-        }));
+      const inizioCaricamento = performance.now();
+
+      // Usa la cache locale del browser: riscarica solo i casi studio nuovi
+      // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
+      // insieme) così anche una connessione lenta vede i casi studio
+      // comparire man mano invece di aspettare tutto o niente.
+      const aggiornaVista = (correnti: any[]) => {
+        setErroreCasi('');
+        const formattati = correnti.map(formattaCaso);
         setCasi(formattati);
         setSelezionato((prev: any) => {
           if (prev) {
@@ -69,20 +137,54 @@ export default function TeacherPage() {
           }
           return formattati.length > 0 ? formattati[0] : null;
         });
+      };
+
+      const { righe, errore } = await caricaCasiConCache(aggiornaVista);
+      setTempoCaricamentoMs(performance.now() - inizioCaricamento);
+      if (errore) {
+        // Con molte consegne (immagini comprese) la risposta può diventare
+        // pesante: se la query fallisce (timeout, limite di dimensione...)
+        // meglio dirlo chiaramente che mostrare "nessun caso studio".
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
+        return;
       }
+      aggiornaVista(righe);
     };
-  
+
     fetchCasiIniziali();
-  
-    // 2. Ascolta i cambiamenti in tempo reale (Realtime subscription)
+
+    // 2. Ascolta i cambiamenti in tempo reale (Realtime subscription): aggiorna
+    // solo la riga toccata invece di riscaricare l'intera tabella (immagini
+    // comprese) a ogni singola modifica di uno qualsiasi dei tanti gruppi.
     const channel = supabase
       .channel('realtime-casi-studio')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload) => {
-        // Ricarica i dati o aggiorna lo stato istantaneamente quando un utente modifica/inserisce qualcosa
-        fetchCasiIniziali();
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number((payload.old as any)?.id);
+          setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          setSelezionato((prev: any) => (prev && prev.id === idEliminato ? null : prev));
+          rimuoviCasoDallaCache(idEliminato);
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esistente = prev.find(c => c.id === aggiornato.id);
+          // Un aggiornamento che non tocca l'immagine (es. "scelto", una
+          // posizione in matrice) può arrivare via realtime senza quel
+          // valore: si preserva quella già mostrata invece di farla sparire.
+          const finale = esistente && !aggiornato.immagine && esistente.immagine
+            ? { ...aggiornato, immagine: esistente.immagine }
+            : aggiornato;
+          return esistente ? prev.map(c => (c.id === finale.id ? finale : c)) : [...prev, finale];
+        });
+        setSelezionato((prev: any) => {
+          if (!prev || prev.id !== aggiornato.id) return prev;
+          return !aggiornato.immagine && prev.immagine ? { ...aggiornato, immagine: prev.immagine } : aggiornato;
+        });
+        aggiornaCacheCaso(payload.new);
       })
       .subscribe();
-  
+
     return () => {
       supabase.removeChannel(channel);
     };
@@ -97,6 +199,7 @@ export default function TeacherPage() {
       setSuccessoReset(false);
       return;
     }
+    svuotaCacheCasi();
     setCasi([]);
     setSelezionato(null);
     setAiCritica('');
@@ -138,13 +241,14 @@ export default function TeacherPage() {
   const generaCriticaAi = async (caso: any, persona: string) => {
     setLoadingAi(true);
     setAiCritica("");
-    const d = caso.driver || { desiderabilita: 50, fattibilita: 50, responsabilita: 50, vitalita: 50 };
+    const meta = Math.round(MAX_DRIVER / 2);
+    const d = caso.driver || { desiderabilita: meta, fattibilita: meta, responsabilita: meta, vitalita: meta };
     
     let promptPersona = "";
     if (persona === 'artigiano') {
-      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
+      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri (scala 0-${MAX_DRIVER}) di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
     } else if (persona === 'ingegnere') {
-      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
+      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver (scala 0-${MAX_DRIVER}) Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
     } else if (persona === 'designer80') {
       promptPersona = `Agisci come un Designer radicale anni '80 (Memphis). Analizza il caso studio (${caso.titolo}) focalizzandoti sul valore provocatorio e formale.`;
     } else if (persona === 'prodotto2000') {
@@ -170,12 +274,7 @@ export default function TeacherPage() {
     const caso = casi.find(c => c.id === id);
     const noteEsistenti = caso?.driverNote || { desiderabilita: '', fattibilita: '', responsabilita: '', vitalita: '' };
 
-    const valoriDriver = {
-      desiderabilita: Math.max(0, Math.min(100, Math.round(50 - (xClamped / 2)))),
-      fattibilita: Math.max(0, Math.min(100, Math.round(50 + (xClamped / 2)))),
-      responsabilita: Math.max(0, Math.min(100, Math.round(50 + (yClamped / 2)))),
-      vitalita: Math.max(0, Math.min(100, Math.round(50 - (yClamped / 2))))
-    };
+    const valoriDriver = driverDaCoordinate(xClamped, yClamped);
 
     // Il driver salvato può contenere anche la motivazione testuale dello
     // studente: la preserviamo, aggiornando solo il valore numerico.
@@ -209,6 +308,22 @@ export default function TeacherPage() {
     }
   };
 
+  const impostaScelto = async (caso: any, nuovoValore: number) => {
+    const precedente = caso.scelto;
+    setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: nuovoValore } : c)));
+    setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: nuovoValore } : prev));
+    const { error } = await supabase.rpc('docente_imposta_scelto', {
+      p_caso_id: caso.id,
+      p_valore: nuovoValore,
+      p_passcode: passcodeAttivo,
+    });
+    if (error) {
+      console.error('Errore nel salvataggio del contrassegno:', error);
+      setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: precedente } : c)));
+      setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: precedente } : prev));
+    }
+  };
+
   const aggiornaPosizioneDaDrop = (e: React.DragEvent, id: number) => {
     e.preventDefault();
     if (!matrixRef.current) return;
@@ -233,9 +348,63 @@ export default function TeacherPage() {
 
   const tuttiITag = Array.from(new Set(casi.flatMap(c => c.tags || []))).sort();
 
-  const casiFiltrati = filtroTag
-    ? casi.filter(c => (c.tags || []).includes(filtroTag))
-    : casi;
+  const ricercaNormalizzata = ricercaMatrice.trim().toLowerCase();
+
+  // Una ricerca di soli numeri ("4") è chiaramente un numero di gruppo, non
+  // un pezzo di titolo o nome: la si tratta come tale (uguaglianza esatta,
+  // niente titolo/nome) invece di trattarla come sottostringa da cercare
+  // ovunque, dove "4" comparirebbe anche dentro un titolo come "Sedia n.4"
+  // o un gruppo 14/24/40.
+  const ricercaSoloNumero = /^\d+$/.test(ricercaNormalizzata);
+
+  const casiFiltrati = casi
+    .filter(c => (filtroTag ? (c.tags || []).includes(filtroTag) : true))
+    .filter(c => {
+      if (!ricercaNormalizzata) return true;
+      if (ricercaSoloNumero) return String(c.gruppoNum) === ricercaNormalizzata;
+      return (
+        c.titolo?.toLowerCase().includes(ricercaNormalizzata) ||
+        c.gruppoNome?.toLowerCase().includes(ricercaNormalizzata)
+      );
+    });
+
+  // I punteggi driver vanno da 0 a 5, quindi la posizione derivata può
+  // assumere solo poche decine di valori distinti: è frequente che più casi
+  // studio cadano esattamente nello stesso punto e si nascondano del tutto
+  // l'uno sotto l'altro. Qui si individuano i gruppi di casi troppo vicini
+  // e si calcola per ciascuno un piccolo scarto (in pixel, non in punteggio)
+  // che li dispone a corona attorno al punto condiviso, senza toccare la
+  // posizione reale salvata sul database.
+  const offsetSparso = useMemo(() => {
+    const SOGLIA = 10; // unità driver (scala -100..100)
+    const visitati = new Set<number>();
+    const risultato: Record<number, { dx: number; dy: number }> = {};
+    casiFiltrati.forEach((c, i) => {
+      if (visitati.has(c.id)) return;
+      const gruppo = [c];
+      visitati.add(c.id);
+      for (let j = i + 1; j < casiFiltrati.length; j++) {
+        const altro = casiFiltrati[j];
+        if (visitati.has(altro.id)) continue;
+        const dx = c.x - altro.x;
+        const dy = c.y - altro.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= SOGLIA) {
+          gruppo.push(altro);
+          visitati.add(altro.id);
+        }
+      }
+      if (gruppo.length === 1) {
+        risultato[c.id] = { dx: 0, dy: 0 };
+      } else {
+        const raggio = 24 + Math.min(gruppo.length, 8) * 4;
+        gruppo.forEach((membro, indice) => {
+          const angolo = (Math.PI * 2 * indice) / gruppo.length - Math.PI / 2;
+          risultato[membro.id] = { dx: Math.cos(angolo) * raggio, dy: Math.sin(angolo) * raggio };
+        });
+      }
+    });
+    return risultato;
+  }, [casiFiltrati]);
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -248,7 +417,7 @@ export default function TeacherPage() {
   const clusters = getClusterAnalitici();
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col select-none">
+    <div className="app-shell-body flex-1 overflow-hidden flex flex-col select-none">
 
       <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
         <div className="flex items-center space-x-2">
@@ -264,8 +433,19 @@ export default function TeacherPage() {
           <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
             ⚙️ Controllo &amp; Reset
           </button>
+          <button onClick={() => setMostraTagDefault(true)} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
+            🏷️ Tag
+          </button>
         </div>
       </div>
+
+      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
+
+      {erroreCasi && (
+        <p role="alert" className="mx-6 mt-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 flex-shrink-0">
+          {erroreCasi}
+        </p>
+      )}
 
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
@@ -282,7 +462,7 @@ export default function TeacherPage() {
             <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
             <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            <div className="absolute top-16 left-8 z-20">
+            <div className="absolute top-16 left-8 z-20 flex items-center gap-2">
               <select
                 value={filtroTag}
                 onChange={e => setFiltroTag(e.target.value)}
@@ -293,13 +473,22 @@ export default function TeacherPage() {
                   <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
+              <label htmlFor="ricerca-matrice" className="sr-only">Cerca per titolo o gruppo</label>
+              <input
+                id="ricerca-matrice"
+                type="search"
+                value={ricercaMatrice}
+                onChange={e => setRicercaMatrice(e.target.value)}
+                placeholder="🔍 Cerca titolo o gruppo..."
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44"
+              />
             </div>
 
-            {casiFiltrati.length === 0 && (
+            {casiFiltrati.length === 0 && !erroreCasi && (
               <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
                 {casi.length === 0
                   ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
-                  : <>Nessun caso studio corrisponde al tag selezionato.</>}
+                  : <>Nessun caso studio corrisponde ai filtri applicati.</>}
               </div>
             )}
 
@@ -307,6 +496,9 @@ export default function TeacherPage() {
               const left = `${((c.x + 100) / 200) * 100}%`;
               const top = `${((-c.y + 100) / 200) * 100}%`;
               const isSelected = selezionato?.id === c.id;
+              const inEvidenza = casoHoverId === c.id;
+              const off = offsetSparso[c.id] || { dx: 0, dy: 0 };
+              const scala = isSelected || inEvidenza ? 1.05 : 1;
 
               return (
                 <div
@@ -314,12 +506,27 @@ export default function TeacherPage() {
                   draggable
                   onDragEnd={(e) => aggiornaPosizioneDaDrop(e, c.id)}
                   onClick={() => { setSelezionato(c); setAiCritica(''); }}
-                  style={{ left, top }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border ${isSelected ? 'border-stone-900 shadow-2xl scale-105 z-30' : 'border-stone-200 shadow-md hover:border-stone-400 z-10'} flex items-center space-x-2.5 max-w-[200px]`}
+                  onMouseEnter={() => setCasoHoverId(c.id)}
+                  onMouseLeave={() => setCasoHoverId(null)}
+                  style={{ left, top, transform: `translate(calc(-50% + ${off.dx}px), calc(-50% + ${off.dy}px)) scale(${scala})` }}
+                  className={`absolute cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
+                    isSelected
+                      ? 'border-stone-900 shadow-2xl z-30'
+                      : inEvidenza
+                        ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg z-20'
+                        : c.scelto > 0
+                          ? 'border-amber-300 shadow-md z-10'
+                          : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
+                  }`}
                 >
+                  {c.scelto > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-amber-300 flex items-center justify-center shadow-sm">
+                      <StellaScelto valore={c.scelto} className="text-[9px]" />
+                    </span>
+                  )}
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -331,9 +538,29 @@ export default function TeacherPage() {
                 </div>
               );
             })}
+
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap">
+              {casi.length.toLocaleString('it-IT')} {casi.length === 1 ? 'caso studio trovato' : 'casi studio trovati'}
+              {' '}&middot;{' '}
+              {tuttiITag.length.toLocaleString('it-IT')} {tuttiITag.length === 1 ? 'tema diverso' : 'temi diversi'}
+              {tempoCaricamentoMs !== null && (
+                <>
+                  {' '}&middot;{' '}
+                  caricati in {(tempoCaricamentoMs / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="w-[440px] bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
+          <div
+            onMouseDown={iniziaTrascinamentoDettaglio}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ridimensiona il pannello di dettaglio"
+            className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
+          />
+
+          <div style={{ width: larghezzaPannelloDettaglio }} className="bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
             {selezionato ? (
               <div className="space-y-5">
                 <div>
@@ -341,8 +568,17 @@ export default function TeacherPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Scheda di Visualizzazione &amp; Commento</span>
                     <span className="text-[10px] bg-stone-200 px-2.5 py-0.5 rounded-full font-medium">Gruppo {selezionato.gruppoNum}</span>
                   </div>
-                  <h2 className="text-2xl font-serif font-medium mt-1">{selezionato.titolo}</h2>
-                  <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
+                  <div className="flex justify-between items-start mt-1">
+                    <div>
+                      <h2 className="text-2xl font-serif font-medium">{selezionato.titolo}</h2>
+                      <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
+                    </div>
+                    <StellaScelto
+                      valore={selezionato.scelto}
+                      onCambia={v => impostaScelto(selezionato, v)}
+                      className="flex-shrink-0 ml-2 text-lg"
+                    />
+                  </div>
                 </div>
 
                 <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
@@ -371,7 +607,7 @@ export default function TeacherPage() {
                 )}
 
                 <div className="space-y-2 border-t border-stone-200 pt-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
                   <div className="space-y-1.5">
                     {([
                       ['desiderabilita', 'Desiderabilità'],
@@ -384,7 +620,7 @@ export default function TeacherPage() {
                         <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
                           <div className="flex justify-between">
                             <span>{etichetta}</span>
-                            <b>{selezionato.driver?.[chiave] ?? 50}</b>
+                            <b>{selezionato.driver?.[chiave] ?? Math.round(MAX_DRIVER / 2)}</b>
                           </div>
                           {nota && (
                             <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
@@ -450,8 +686,8 @@ export default function TeacherPage() {
       )}
 
       {activeTab === 'slides' && (
-        <div className="flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
-          <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
+        <div className="printable-area flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
+          <div className="print:hidden max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
               <p className="text-xs text-stone-500 mt-0.5">Ogni caso studio è impaginato come slide orizzontale indipendente. Clicca sotto per stampare o salvare in PDF.</p>
@@ -469,36 +705,60 @@ export default function TeacherPage() {
               <div className="bg-white p-12 rounded-2xl text-center text-stone-400 text-sm">Nessun caso studio disponibile per le slide.</div>
             ) : (
               casi.map((c, index) => (
-                <div key={c.id} className="bg-white aspect-[16/9] p-12 rounded-2xl shadow-lg border border-stone-300 flex flex-col justify-between page-break">
-                  <div className="flex justify-between items-center border-b border-stone-200 pb-4">
+                <div key={c.id} className="bg-white min-h-[28rem] p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
+                  <div className="flex justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
-                    <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
+                    <div className="flex items-center gap-2">
+                      <StellaScelto valore={c.scelto} onCambia={v => impostaScelto(c, v)} className="text-lg" />
+                      <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium flex items-center gap-1">
+                        <StellaScelto valore={c.scelto} />
+                        Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 items-center my-auto">
-                    <div className="space-y-4">
-                      <h2 className="text-3xl font-serif font-bold text-stone-900">{c.titolo}</h2>
-                      <p className="text-sm text-stone-600 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
+                  {/* Il testo va visto per intero anche a costo di allungare la
+                      scheda oltre un formato 16:9: niente più troncamenti né
+                      altezze massime qui. */}
+                  <div className="grid grid-cols-2 gap-8 my-6">
+                    <div className="space-y-2.5 min-w-0">
+                      <h2 className="text-2xl font-serif font-bold text-stone-900">{c.titolo}</h2>
+                      <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200 whitespace-pre-wrap">
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-stone-50 p-2 rounded-lg border">Desiderabilità: <b>{c.driver?.desiderabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Fattibilità: <b>{c.driver?.fattibilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Responsabilità: <b>{c.driver?.responsabilita}</b></div>
-                        <div className="bg-stone-50 p-2 rounded-lg border">Vitalità: <b>{c.driver?.vitalita}</b></div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {([
+                          ['desiderabilita', 'Desiderabilità'],
+                          ['fattibilita', 'Fattibilità'],
+                          ['responsabilita', 'Responsabilità'],
+                          ['vitalita', 'Vitalità'],
+                        ] as const).map(([chiave, etichetta]) => {
+                          const nota = c.driverNote?.[chiave];
+                          return (
+                            <div key={chiave} className="bg-stone-50 p-2 rounded-lg border border-stone-200 text-[11px]">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-stone-600">{etichetta}</span>
+                                <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
+                              </div>
+                              {nota && (
+                                <p className="text-[10px] text-stone-500 italic mt-0.5 border-t border-stone-200 pt-0.5">&ldquo;{nota}&rdquo;</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <div className="h-72 bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
+                    <div className="min-h-[15rem] bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
-                        <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain rounded-lg" />
+                        <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
                         <span className="text-xs text-stone-400">Nessuna immagine</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="border-t border-stone-200 pt-4 flex justify-between items-center text-[10px] text-stone-400">
+                  <div className="border-t border-stone-200 pt-3 flex justify-between items-center text-[10px] text-stone-400">
                     <span>Framework IDEO 4-Driver &mdash; RothFinder Style</span>
                     <span>Coordinate Matrice &mdash; X: {c.x}, Y: {c.y}</span>
                   </div>
@@ -521,10 +781,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-emerald-800">🚀 Cluster Innovazione &amp; Fattibilità ({clusters.innovatori.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -533,10 +793,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-blue-800">🌍 Cluster Impatto Sociale &amp; Desiderabilità ({clusters.sociali.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -545,10 +805,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-amber-800">⚙️ Cluster Strategici &amp; di Sistema ({clusters.strategici.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -557,11 +817,94 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-purple-800">💡 Cluster Esplorativi &amp; Vitali ({clusters.esplorativi.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {casoEspansoCluster && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Dettaglio esteso: ${casoEspansoCluster.titolo}`}
+          onClick={() => setCasoEspansoCluster(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="h-80 bg-stone-100 flex items-center justify-center p-6 rounded-t-3xl relative">
+              {casoEspansoCluster.immagine ? (
+                <img src={casoEspansoCluster.immagine} alt={casoEspansoCluster.titolo} className="max-w-full max-h-full object-contain" />
+              ) : (
+                <span className="text-sm text-stone-400">Nessuna immagine disponibile</span>
+              )}
+              <button
+                onClick={() => setCasoEspansoCluster(null)}
+                aria-label="Chiudi dettaglio"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center text-stone-600 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-8 space-y-5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} &middot; {casoEspansoCluster.gruppoNome}</span>
+                  <h2 className="text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
+                </div>
+              </div>
+
+              {casoEspansoCluster.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {casoEspansoCluster.tags.map((tag: string) => (
+                    <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
+                {casoEspansoCluster.descrizione || 'Nessuna descrizione inserita.'}
+              </p>
+
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <div className="space-y-2.5">
+                  {([
+                    ['desiderabilita', 'Desiderabilità'],
+                    ['fattibilita', 'Fattibilità'],
+                    ['responsabilita', 'Responsabilità'],
+                    ['vitalita', 'Vitalità'],
+                  ] as const).map(([chiave, etichetta]) => {
+                    const valore = casoEspansoCluster.driver?.[chiave] ?? 0;
+                    const nota = casoEspansoCluster.driverNote?.[chiave];
+                    return (
+                      <div key={chiave}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-stone-600 font-medium">{etichetta}</span>
+                          <span className="font-bold">{valore}</span>
+                        </div>
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-stone-900 transition-all duration-500"
+                            style={{ width: `${(valore / MAX_DRIVER) * 100}%` }}
+                          />
+                        </div>
+                        {nota && (
+                          <p className="text-[11px] text-stone-500 italic mt-1.5">&ldquo;{nota}&rdquo;</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

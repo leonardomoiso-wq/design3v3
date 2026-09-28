@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { normalizzaDriver } from '@/lib/driver';
+import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
+import StellaScelto from '@/components/StellaScelto';
 
 type Caso = {
   id: number;
@@ -13,13 +15,25 @@ type Caso = {
   immagine: string;
   tags: string[];
   driver: { desiderabilita: number; fattibilita: number; responsabilita: number; vitalita: number };
+  driverNote: NoteDriver;
   esitoRevisione: 'verde' | 'giallo' | 'rosso' | null;
+  inclusoRevisione: boolean;
+  scelto: number;
 };
+
+const ETICHETTE_DRIVER = [
+  ['desiderabilita', 'Desiderabilità'],
+  ['fattibilita', 'Fattibilità'],
+  ['responsabilita', 'Responsabilità'],
+  ['vitalita', 'Vitalità'],
+] as const;
 
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Voti = Record<Colore, number>;
+type DettaglioVoti = Record<Colore, number[]>;
 
 const VOTI_VUOTI: Voti = { verde: 0, giallo: 0, rosso: 0 };
+const DETTAGLIO_VUOTO: DettaglioVoti = { verde: [], giallo: [], rosso: [] };
 
 const SFONDO: Record<'nessuno' | Colore, string> = {
   nessuno: '#FBF9F5',
@@ -32,39 +46,62 @@ export default function ReviewPage() {
   const { passcode } = useDocente();
   const [casi, setCasi] = useState<Caso[]>([]);
   const [votiPerCaso, setVotiPerCaso] = useState<Record<number, Voti>>({});
+  const [dettaglioVotiPerCaso, setDettaglioVotiPerCaso] = useState<Record<number, DettaglioVoti>>({});
   const [casoAttivoId, setCasoAttivoId] = useState<number | null>(null);
   const [indice, setIndice] = useState(0);
   const [modalitaStampa, setModalitaStampa] = useState(false);
+  const [selezionePannelloAperto, setSelezionePannelloAperto] = useState(false);
+  const [inCorsoSelezioneScelti, setInCorsoSelezioneScelti] = useState(false);
+  const [erroreSelezioneScelti, setErroreSelezioneScelti] = useState('');
+  const [erroreCasi, setErroreCasi] = useState('');
 
   useEffect(() => {
+    const formattaCaso = (c: any) => ({
+      id: Number(c.id),
+      gruppoNome: c.gruppo_nome,
+      gruppoNum: c.gruppo_num,
+      titolo: c.titolo,
+      descrizione: c.descrizione,
+      immagine: c.immagine,
+      tags: c.tags || [],
+      driver: normalizzaDriver(c.driver),
+      driverNote: estraiNote(c.driver),
+      esitoRevisione: c.esito_revisione || null,
+      inclusoRevisione: c.incluso_revisione ?? true,
+      scelto: Number(c.scelto) || 0,
+    });
+
     const caricaCasi = async () => {
-      const { data, error } = await supabase.from('casi_studio').select('*');
-      if (!error && data) {
-        const formattati = data.map((c: any) => ({
-          id: Number(c.id),
-          gruppoNome: c.gruppo_nome,
-          gruppoNum: c.gruppo_num,
-          titolo: c.titolo,
-          descrizione: c.descrizione,
-          immagine: c.immagine,
-          tags: c.tags || [],
-          driver: normalizzaDriver(c.driver),
-          esitoRevisione: c.esito_revisione || null,
-        }));
-        setCasi(formattati);
+      // Usa la cache locale del browser: riscarica solo i casi studio nuovi
+      // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
+      // insieme) così anche una connessione lenta vede i casi studio
+      // comparire man mano invece di aspettare tutto o niente.
+      const { righe, errore } = await caricaCasiConCache(correnti => {
+        setErroreCasi('');
+        setCasi(correnti.map(formattaCaso));
+      });
+      if (errore) {
+        setErroreCasi(`Errore nel caricamento dei casi studio: ${errore}`);
+        return;
       }
+      setErroreCasi('');
+      setCasi(righe.map(formattaCaso));
     };
 
     const caricaVoti = async () => {
-      const { data, error } = await supabase.from('voti_revisione').select('caso_id, colore');
+      const { data, error } = await supabase.from('voti_revisione').select('caso_id, gruppo_num, colore');
       if (!error && data) {
         const aggregati: Record<number, Voti> = {};
+        const dettagli: Record<number, DettaglioVoti> = {};
         for (const riga of data as any[]) {
           const id = Number(riga.caso_id);
           if (!aggregati[id]) aggregati[id] = { ...VOTI_VUOTI };
+          if (!dettagli[id]) dettagli[id] = { verde: [], giallo: [], rosso: [] };
           aggregati[id][riga.colore as Colore] += 1;
+          dettagli[id][riga.colore as Colore].push(Number(riga.gruppo_num));
         }
         setVotiPerCaso(aggregati);
+        setDettaglioVotiPerCaso(dettagli);
       }
     };
 
@@ -81,7 +118,26 @@ export default function ReviewPage() {
 
     const channel = supabase
       .channel('realtime-review')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, caricaCasi)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const idEliminato = Number(payload.old?.id);
+          setCasi(prev => prev.filter(c => c.id !== idEliminato));
+          rimuoviCasoDallaCache(idEliminato);
+          return;
+        }
+        const aggiornato = formattaCaso(payload.new);
+        setCasi(prev => {
+          const esistente = prev.find(c => c.id === aggiornato.id);
+          // Un aggiornamento che non tocca l'immagine può arrivare via
+          // realtime senza quel valore: si preserva quella già mostrata
+          // invece di farla sparire.
+          const finale = esistente && !aggiornato.immagine && esistente.immagine
+            ? { ...aggiornato, immagine: esistente.immagine }
+            : aggiornato;
+          return esistente ? prev.map(c => (c.id === finale.id ? finale : c)) : [...prev, finale];
+        });
+        aggiornaCacheCaso(payload.new);
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voti_revisione' }, caricaVoti)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStato)
       .subscribe();
@@ -91,10 +147,19 @@ export default function ReviewPage() {
     };
   }, []);
 
-  const casoCorrente = casi[indice];
+  const mappaGruppi = Object.fromEntries(casi.map(c => [c.gruppoNum, c.gruppoNome])) as Record<number, string>;
+
+  const casiInclusi = casi.filter(c => c.inclusoRevisione);
+  const casoCorrente = casiInclusi[indice];
   const votiCorrente = (casoCorrente && votiPerCaso[casoCorrente.id]) || VOTI_VUOTI;
+  const dettaglioCorrente = (casoCorrente && dettaglioVotiPerCaso[casoCorrente.id]) || DETTAGLIO_VUOTO;
   const esitoCorrente = casoCorrente?.esitoRevisione || 'nessuno';
   const votazioneAperta = casoCorrente != null && casoAttivoId === casoCorrente.id;
+
+  useEffect(() => {
+    setIndice(prev => Math.max(0, Math.min(casiInclusi.length - 1, prev)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [casiInclusi.length]);
 
   const impostaCasoAttivo = async (id: number | null) => {
     const { error } = await supabase.rpc('docente_imposta_caso_attivo', { p_caso_id: id, p_passcode: passcode });
@@ -102,9 +167,37 @@ export default function ReviewPage() {
     else setCasoAttivoId(id);
   };
 
+  const toggleInclusione = async (c: Caso) => {
+    const nuovoValore = !c.inclusoRevisione;
+    setCasi(prev => prev.map(x => (x.id === c.id ? { ...x, inclusoRevisione: nuovoValore } : x)));
+    const { error } = await supabase.rpc('docente_imposta_inclusione_revisione', {
+      p_caso_id: c.id,
+      p_incluso: nuovoValore,
+      p_passcode: passcode,
+    });
+    if (error) {
+      console.error('Errore nel salvataggio della selezione:', error);
+      setCasi(prev => prev.map(x => (x.id === c.id ? { ...x, inclusoRevisione: !nuovoValore } : x)));
+    }
+  };
+
+  const selezionaDaScelti = async () => {
+    setInCorsoSelezioneScelti(true);
+    setErroreSelezioneScelti('');
+    const { error } = await supabase.rpc('docente_seleziona_revisione_da_scelti', { p_passcode: passcode });
+    setInCorsoSelezioneScelti(false);
+    if (error) {
+      console.error('Errore nella selezione dai casi scelti:', error);
+      setErroreSelezioneScelti('Errore durante il salvataggio. Riprova.');
+      return;
+    }
+    setCasi(prev => prev.map(c => ({ ...c, inclusoRevisione: c.scelto > 0 })));
+  };
+
   const vai = useCallback((delta: number) => {
-    setIndice(prev => Math.max(0, Math.min(casi.length - 1, prev + delta)));
-  }, [casi.length]);
+    setIndice(prev => Math.max(0, Math.min(casiInclusi.length - 1, prev + delta)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [casiInclusi.length]);
 
   const vaiEChiudi = (delta: number) => {
     if (votazioneAperta) impostaCasoAttivo(null);
@@ -119,6 +212,7 @@ export default function ReviewPage() {
       return;
     }
     setVotiPerCaso(prev => ({ ...prev, [casoCorrente.id]: { ...VOTI_VUOTI } }));
+    setDettaglioVotiPerCaso(prev => ({ ...prev, [casoCorrente.id]: { verde: [], giallo: [], rosso: [] } }));
   };
 
   const impostaEsito = async (colore: 'nessuno' | Colore) => {
@@ -149,7 +243,7 @@ export default function ReviewPage() {
 
   if (modalitaStampa) {
     return (
-      <div className="flex-1 overflow-y-auto p-12 bg-stone-200 space-y-12">
+      <div className="printable-area flex-1 overflow-y-auto p-12 bg-stone-200 space-y-12">
         <div className="max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm print:hidden">
           <div>
             <h2 className="text-xl font-serif font-bold">Archivio Peer Review</h2>
@@ -168,6 +262,7 @@ export default function ReviewPage() {
         <div className="space-y-8 max-w-4xl mx-auto">
           {casi.map((c, i) => {
             const voti = votiPerCaso[c.id] || VOTI_VUOTI;
+            const dettaglio = dettaglioVotiPerCaso[c.id] || DETTAGLIO_VUOTO;
             const esito = c.esitoRevisione || 'nessuno';
             return (
               <div key={c.id} className="bg-white p-10 rounded-2xl shadow-sm border border-stone-300 page-break" style={{ backgroundColor: SFONDO[esito] }}>
@@ -175,19 +270,40 @@ export default function ReviewPage() {
                   <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Peer Review &middot; Scheda {i + 1} di {casi.length}</span>
                   <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-8 items-center">
+                <div className="grid grid-cols-2 gap-8 items-start">
                   <div className="space-y-3">
                     <h2 className="text-2xl font-serif font-bold">{c.titolo}</h2>
                     <p className="text-sm text-stone-600 leading-relaxed">{c.descrizione}</p>
                   </div>
                   <div className="h-48 bg-stone-100 rounded-xl border border-stone-200 flex items-center justify-center p-3 overflow-hidden">
                     {c.immagine ? (
-                      <img src={c.immagine} alt={c.titolo} className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     ) : (
                       <span className="text-xs text-stone-400">Nessuna immagine</span>
                     )}
                   </div>
                 </div>
+
+                <div className="mt-5 pt-4 border-t border-stone-200">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ETICHETTE_DRIVER.map(([chiave, etichetta]) => {
+                      const nota = c.driverNote?.[chiave];
+                      return (
+                        <div key={chiave} className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-stone-600">{etichetta}</span>
+                            <b>{c.driver?.[chiave]}/{MAX_DRIVER}</b>
+                          </div>
+                          {nota && (
+                            <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-200 pt-1">&ldquo;{nota}&rdquo;</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex items-center space-x-6 mt-6 pt-4 border-t border-stone-200 text-sm">
                   <span className="font-medium text-stone-500 text-xs uppercase tracking-widest">Voti dei Gruppi</span>
                   <span className="flex items-center space-x-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span><b>{voti.verde}</b></span>
@@ -197,6 +313,19 @@ export default function ReviewPage() {
                     <span className="text-xs px-3 py-1 rounded-full bg-stone-900 text-white font-medium capitalize">Approvato: {esito}</span>
                   )}
                 </div>
+                {(dettaglio.verde.length + dettaglio.giallo.length + dettaglio.rosso.length) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-100 flex flex-wrap gap-1.5 text-[10px]">
+                    {dettaglio.verde.map((n, i) => (
+                      <span key={`v-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                    {dettaglio.giallo.map((n, i) => (
+                      <span key={`g-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                    {dettaglio.rosso.map((n, i) => (
+                      <span key={`r-${n}-${i}`} className="px-2 py-0.5 rounded-full border bg-red-50 border-red-200 text-red-800 font-medium">G.{n}{mappaGruppi[n] ? ` — ${mappaGruppi[n]}` : ''}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -211,22 +340,37 @@ export default function ReviewPage() {
       style={{ backgroundColor: SFONDO[esitoCorrente] }}
     >
       <div className="px-6 py-2.5 border-b border-stone-200/70 flex justify-between items-center backdrop-blur z-20 flex-shrink-0">
-        <h1 className="font-serif text-sm font-medium text-stone-500">Peer Review in Aula</h1>
-        <button onClick={() => setModalitaStampa(true)} className="text-xs bg-white border border-stone-200 px-4 py-1.5 rounded-full font-medium hover:border-stone-400 transition">
-          📄 Archivio &amp; Stampa PDF
-        </button>
+        <div className="flex items-center space-x-3 min-w-0">
+          <h1 className="font-serif text-sm font-medium text-stone-500 flex-shrink-0">Peer Review in Aula</h1>
+          {erroreCasi && (
+            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 truncate">{erroreCasi}</p>
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button onClick={() => setSelezionePannelloAperto(true)} className="text-xs bg-white border border-stone-200 px-4 py-1.5 rounded-full font-medium hover:border-stone-400 transition">
+            🎯 Seleziona Casi ({casiInclusi.length}/{casi.length})
+          </button>
+          <button onClick={() => setModalitaStampa(true)} className="text-xs bg-white border border-stone-200 px-4 py-1.5 rounded-full font-medium hover:border-stone-400 transition">
+            📄 Archivio &amp; Stampa PDF
+          </button>
+        </div>
       </div>
 
       {!casoCorrente ? (
-        <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
-          Nessun caso studio disponibile per la revisione.
+        <div className="flex-1 flex flex-col items-center justify-center text-stone-400 text-sm space-y-3">
+          <p>{erroreCasi ? erroreCasi : casi.length === 0 ? 'Nessun caso studio disponibile per la revisione.' : 'Nessun caso studio selezionato per questa revisione.'}</p>
+          {casi.length > 0 && (
+            <button onClick={() => setSelezionePannelloAperto(true)} className="text-xs bg-stone-900 text-white px-4 py-2 rounded-full font-medium hover:bg-stone-800 transition">
+              Seleziona i casi da discutere
+            </button>
+          )}
         </div>
       ) : (
         <>
-          <div className="flex-1 flex items-center justify-center p-10 overflow-hidden">
-            <div className="w-full max-w-5xl aspect-[16/9] bg-white rounded-2xl shadow-xl border border-stone-200 p-12 flex flex-col justify-between">
+          <div className="flex-1 flex items-center justify-center gap-6 p-10 overflow-hidden">
+            <div className="max-w-4xl w-full aspect-[16/9] bg-white rounded-2xl shadow-xl border border-stone-200 p-12 flex flex-col justify-between">
               <div className="flex justify-between items-center border-b border-stone-200 pb-4">
-                <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Scheda {indice + 1} di {casi.length}</span>
+                <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Scheda {indice + 1} di {casiInclusi.length}</span>
                 <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {casoCorrente.gruppoNum} &mdash; {casoCorrente.gruppoNome}</span>
               </div>
 
@@ -253,10 +397,66 @@ export default function ReviewPage() {
 
               <div className="border-t border-stone-200 pt-4 flex justify-between items-center text-[10px] text-stone-400">
                 <span>{votazioneAperta ? '🟢 Votazione aperta — i gruppi stanno votando dal proprio dispositivo' : 'Votazione chiusa per questa scheda'}</span>
-                <span>Driver medi: D {casoCorrente.driver?.desiderabilita} &middot; F {casoCorrente.driver?.fattibilita} &middot; R {casoCorrente.driver?.responsabilita} &middot; V {casoCorrente.driver?.vitalita}</span>
+              </div>
+            </div>
+
+            <div className="w-72 flex-shrink-0 self-stretch max-h-full bg-white rounded-2xl shadow-xl border border-stone-200 p-6 overflow-y-auto">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-4">Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+              <div className="space-y-4">
+                {ETICHETTE_DRIVER.map(([chiave, etichetta]) => {
+                  const valore = casoCorrente.driver?.[chiave] ?? 0;
+                  const nota = casoCorrente.driverNote?.[chiave];
+                  return (
+                    <div key={chiave}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-stone-600 font-medium">{etichetta}</span>
+                        <span className="font-bold">{valore}</span>
+                      </div>
+                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-stone-900 transition-all duration-500"
+                          style={{ width: `${(valore / MAX_DRIVER) * 100}%` }}
+                        />
+                      </div>
+                      {nota && (
+                        <p className="text-[11px] text-stone-500 italic mt-1.5">&ldquo;{nota}&rdquo;</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
+
+          {(dettaglioCorrente.verde.length + dettaglioCorrente.giallo.length + dettaglioCorrente.rosso.length) > 0 && (
+            <div className="flex-shrink-0 px-10 pb-4">
+              <div className="max-w-5xl mx-auto bg-white/70 backdrop-blur border border-stone-200 rounded-2xl p-4 grid grid-cols-3 gap-4">
+                {([
+                  ['verde', 'Verde', 'text-emerald-800', 'bg-emerald-50 border-emerald-200 text-emerald-800'],
+                  ['giallo', 'Giallo', 'text-amber-800', 'bg-amber-50 border-amber-200 text-amber-800'],
+                  ['rosso', 'Rosso', 'text-red-800', 'bg-red-50 border-red-200 text-red-800'],
+                ] as const).map(([colore, etichetta, titoloClasse, chipClasse]) => (
+                  <div key={colore} className="space-y-1.5">
+                    <h3 className={`text-[10px] font-bold uppercase tracking-widest ${titoloClasse}`}>
+                      {etichetta} &middot; chi ha votato ({dettaglioCorrente[colore].length})
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dettaglioCorrente[colore].length === 0 ? (
+                        <span className="text-[10px] text-stone-400">Nessun voto</span>
+                      ) : (
+                        dettaglioCorrente[colore].map((numero, i) => (
+                          <span key={`${numero}-${i}`} className={`text-[10px] font-medium px-2 py-1 rounded-full border ${chipClasse}`}>
+                            G.{numero}{mappaGruppi[numero] ? ` — ${mappaGruppi[numero]}` : ''}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-stone-400 text-center mt-2">Chiedi direttamente a un gruppo perché ha assegnato quel voto, per avviare il confronto in aula.</p>
+            </div>
+          )}
 
           <div className="flex-shrink-0 px-10 pb-8 flex items-center justify-between">
             <button
@@ -298,7 +498,7 @@ export default function ReviewPage() {
 
             <button
               onClick={() => vaiEChiudi(1)}
-              disabled={indice === casi.length - 1}
+              disabled={indice === casiInclusi.length - 1}
               className="bg-stone-900 text-white px-5 py-3 rounded-full text-sm font-medium disabled:opacity-30 hover:bg-stone-800 transition"
             >
               Successivo &rarr;
@@ -317,6 +517,95 @@ export default function ReviewPage() {
             ))}
           </div>
         </>
+      )}
+
+      {selezionePannelloAperto && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Seleziona casi per la Peer Review"
+          onClick={() => setSelezionePannelloAperto(false)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-stone-200 flex justify-between items-start flex-shrink-0">
+              <div>
+                <h2 className="font-serif font-bold text-lg">Seleziona Casi per la Peer Review</h2>
+                <p className="text-xs text-stone-500 mt-1">
+                  Scegli quali consegne discutere in aula. Quelli deselezionati restano salvati ma non compaiono nella sequenza delle slide.
+                </p>
+              </div>
+              <button onClick={() => setSelezionePannelloAperto(false)} aria-label="Chiudi" className="text-stone-400 hover:text-stone-900 text-xl leading-none flex-shrink-0 ml-4">✕</button>
+            </div>
+
+            {casi.some(c => c.scelto > 0) && (
+              <div className="px-6 pt-4 flex-shrink-0 flex items-center justify-between gap-3">
+                <p className="text-xs text-stone-500 flex items-center gap-1">
+                  {casi.filter(c => c.scelto > 0).length} casi contrassegnati con
+                  <StellaScelto valore={1} />
+                  nella Modalità Slide PDF.
+                </p>
+                <button
+                  onClick={selezionaDaScelti}
+                  disabled={inCorsoSelezioneScelti}
+                  className="text-xs bg-amber-400 text-amber-950 px-4 py-2 rounded-full font-medium hover:bg-amber-300 transition disabled:opacity-50 flex-shrink-0"
+                >
+                  {inCorsoSelezioneScelti ? 'Applico...' : 'Includi solo i marcati'}
+                </button>
+              </div>
+            )}
+            {erroreSelezioneScelti && (
+              <p role="alert" className="mx-6 mt-2 text-xs text-red-600 font-medium flex-shrink-0">{erroreSelezioneScelti}</p>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {casi.length === 0 ? (
+                <p className="text-xs text-stone-400 text-center py-8">Nessun caso studio disponibile.</p>
+              ) : (
+                casi.map(c => (
+                  <label
+                    key={c.id}
+                    className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer transition ${c.inclusoRevisione ? 'bg-white border-stone-200' : 'bg-stone-50 border-stone-100 opacity-60'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={c.inclusoRevisione}
+                      onChange={() => toggleInclusione(c)}
+                      className="accent-stone-900 flex-shrink-0"
+                    />
+                    <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
+                      {c.immagine ? (
+                        <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
+                      ) : (
+                        <span className="text-[9px] text-stone-400 font-bold">IMG</span>
+                      )}
+                    </div>
+                    <div className="overflow-hidden flex-1">
+                      <p className="text-sm font-medium truncate flex items-center gap-1">
+                        <StellaScelto valore={c.scelto} />
+                        <span className="truncate">{c.titolo}</span>
+                      </p>
+                      <p className="text-xs text-stone-500 truncate">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-stone-200 flex justify-between items-center flex-shrink-0">
+              <span className="text-xs text-stone-500">{casiInclusi.length} di {casi.length} selezionati</span>
+              <button
+                onClick={() => setSelezionePannelloAperto(false)}
+                className="bg-stone-900 text-white px-5 py-2.5 rounded-xl text-xs font-medium hover:bg-stone-800 transition"
+              >
+                Fatto
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
