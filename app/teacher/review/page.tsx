@@ -366,8 +366,8 @@ export default function ReviewPage() {
         </div>
       ) : (
         <>
-          <div className="flex-1 flex items-center justify-center p-10 overflow-hidden">
-            <div className="w-full max-w-5xl aspect-[16/9] bg-white rounded-2xl shadow-xl border border-stone-200 p-12 flex flex-col justify-between">
+          <div className="flex-1 flex items-center justify-center gap-6 p-10 overflow-hidden">
+            <div className="max-w-4xl w-full aspect-[16/9] bg-white rounded-2xl shadow-xl border border-stone-200 p-12 flex flex-col justify-between">
               <div className="flex justify-between items-center border-b border-stone-200 pb-4">
                 <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Scheda {indice + 1} di {casiInclusi.length}</span>
                 <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {casoCorrente.gruppoNum} &mdash; {casoCorrente.gruppoNome}</span>
@@ -396,7 +396,33 @@ export default function ReviewPage() {
 
               <div className="border-t border-stone-200 pt-4 flex justify-between items-center text-[10px] text-stone-400">
                 <span>{votazioneAperta ? '🟢 Votazione aperta — i gruppi stanno votando dal proprio dispositivo' : 'Votazione chiusa per questa scheda'}</span>
-                <span>Driver medi: D {casoCorrente.driver?.desiderabilita} &middot; F {casoCorrente.driver?.fattibilita} &middot; R {casoCorrente.driver?.responsabilita} &middot; V {casoCorrente.driver?.vitalita}</span>
+              </div>
+            </div>
+
+            <div className="w-72 flex-shrink-0 self-stretch max-h-full bg-white rounded-2xl shadow-xl border border-stone-200 p-6 overflow-y-auto">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-4">Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+              <div className="space-y-4">
+                {ETICHETTE_DRIVER.map(([chiave, etichetta]) => {
+                  const valore = casoCorrente.driver?.[chiave] ?? 0;
+                  const nota = casoCorrente.driverNote?.[chiave];
+                  return (
+                    <div key={chiave}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-stone-600 font-medium">{etichetta}</span>
+                        <span className="font-bold">{valore}</span>
+                      </div>
+                      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-stone-900 transition-all duration-500"
+                          style={{ width: `${(valore / MAX_DRIVER) * 100}%` }}
+                        />
+                      </div>
+                      {nota && (
+                        <p className="text-[11px] text-stone-500 italic mt-1.5">&ldquo;{nota}&rdquo;</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
