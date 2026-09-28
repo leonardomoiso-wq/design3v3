@@ -17,6 +17,7 @@ type Caso = {
   driverNote: NoteDriver;
   esitoRevisione: 'verde' | 'giallo' | 'rosso' | null;
   inclusoRevisione: boolean;
+  scelto: boolean;
 };
 
 const ETICHETTE_DRIVER = [
@@ -49,6 +50,8 @@ export default function ReviewPage() {
   const [indice, setIndice] = useState(0);
   const [modalitaStampa, setModalitaStampa] = useState(false);
   const [selezionePannelloAperto, setSelezionePannelloAperto] = useState(false);
+  const [inCorsoSelezioneScelti, setInCorsoSelezioneScelti] = useState(false);
+  const [erroreSelezioneScelti, setErroreSelezioneScelti] = useState('');
   const [erroreCasi, setErroreCasi] = useState('');
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function ReviewPage() {
       driverNote: estraiNote(c.driver),
       esitoRevisione: c.esito_revisione || null,
       inclusoRevisione: c.incluso_revisione ?? true,
+      scelto: c.scelto ?? false,
     });
 
     const caricaCasi = async () => {
@@ -168,6 +172,19 @@ export default function ReviewPage() {
       console.error('Errore nel salvataggio della selezione:', error);
       setCasi(prev => prev.map(x => (x.id === c.id ? { ...x, inclusoRevisione: !nuovoValore } : x)));
     }
+  };
+
+  const selezionaDaScelti = async () => {
+    setInCorsoSelezioneScelti(true);
+    setErroreSelezioneScelti('');
+    const { error } = await supabase.rpc('docente_seleziona_revisione_da_scelti', { p_passcode: passcode });
+    setInCorsoSelezioneScelti(false);
+    if (error) {
+      console.error('Errore nella selezione dai casi scelti:', error);
+      setErroreSelezioneScelti('Errore durante il salvataggio. Riprova.');
+      return;
+    }
+    setCasi(prev => prev.map(c => ({ ...c, inclusoRevisione: c.scelto })));
   };
 
   const vai = useCallback((delta: number) => {
@@ -491,6 +508,24 @@ export default function ReviewPage() {
               <button onClick={() => setSelezionePannelloAperto(false)} aria-label="Chiudi" className="text-stone-400 hover:text-stone-900 text-xl leading-none flex-shrink-0 ml-4">✕</button>
             </div>
 
+            {casi.some(c => c.scelto) && (
+              <div className="px-6 pt-4 flex-shrink-0 flex items-center justify-between gap-3">
+                <p className="text-xs text-stone-500">
+                  {casi.filter(c => c.scelto).length} casi contrassegnati &ldquo;⭐ Scelto&rdquo; nella Modalità Slide PDF.
+                </p>
+                <button
+                  onClick={selezionaDaScelti}
+                  disabled={inCorsoSelezioneScelti}
+                  className="text-xs bg-amber-400 text-amber-950 px-4 py-2 rounded-full font-medium hover:bg-amber-300 transition disabled:opacity-50 flex-shrink-0"
+                >
+                  {inCorsoSelezioneScelti ? 'Applico...' : '⭐ Includi solo i marcati'}
+                </button>
+              </div>
+            )}
+            {erroreSelezioneScelti && (
+              <p role="alert" className="mx-6 mt-2 text-xs text-red-600 font-medium flex-shrink-0">{erroreSelezioneScelti}</p>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {casi.length === 0 ? (
                 <p className="text-xs text-stone-400 text-center py-8">Nessun caso studio disponibile.</p>
@@ -514,7 +549,7 @@ export default function ReviewPage() {
                       )}
                     </div>
                     <div className="overflow-hidden flex-1">
-                      <p className="text-sm font-medium truncate">{c.titolo}</p>
+                      <p className="text-sm font-medium truncate">{c.scelto && '⭐ '}{c.titolo}</p>
                       <p className="text-xs text-stone-500 truncate">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
                     </div>
                   </label>

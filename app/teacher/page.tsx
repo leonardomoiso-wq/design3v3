@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
+import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 
 function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -95,6 +96,8 @@ export default function TeacherPage() {
   const [erroreCasi, setErroreCasi] = useState('');
   const [tempoCaricamentoMs, setTempoCaricamentoMs] = useState<number | null>(null);
   const [casoEspansoCluster, setCasoEspansoCluster] = useState<any | null>(null);
+  const { larghezza: larghezzaPannelloDettaglio, iniziaTrascinamento: iniziaTrascinamentoDettaglio } =
+    usePannelloRidimensionabile('design3-matrice-dettaglio-larghezza', 440, 320, 720, 'sinistra');
 
   // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
   const formattaCaso = (c: any) => ({
@@ -109,6 +112,7 @@ export default function TeacherPage() {
     driverNote: estraiNote(c.driver),
     x: Number(c.x),
     y: Number(c.y),
+    scelto: c.scelto ?? false,
   });
 
   useEffect(() => {
@@ -291,6 +295,22 @@ export default function TeacherPage() {
 
     if (error) {
       console.error('Errore nel salvataggio della posizione:', error);
+    }
+  };
+
+  const toggleScelto = async (caso: any) => {
+    const nuovoValore = !caso.scelto;
+    setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: nuovoValore } : c)));
+    setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: nuovoValore } : prev));
+    const { error } = await supabase.rpc('docente_imposta_scelto', {
+      p_caso_id: caso.id,
+      p_scelto: nuovoValore,
+      p_passcode: passcodeAttivo,
+    });
+    if (error) {
+      console.error('Errore nel salvataggio del contrassegno:', error);
+      setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: !nuovoValore } : c)));
+      setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: !nuovoValore } : prev));
     }
   };
 
@@ -484,9 +504,20 @@ export default function TeacherPage() {
                       ? 'border-stone-900 shadow-2xl z-30'
                       : inEvidenza
                         ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg z-20'
-                        : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
+                        : c.scelto
+                          ? 'border-amber-300 shadow-md z-10'
+                          : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
                   }`}
                 >
+                  {c.scelto && (
+                    <span
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 text-[9px] flex items-center justify-center shadow-sm"
+                      title="Contrassegnato come scelto"
+                      aria-label="Contrassegnato come scelto"
+                    >
+                      ⭐
+                    </span>
+                  )}
                   {c.immagine ? (
                     <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
                       <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
@@ -515,7 +546,15 @@ export default function TeacherPage() {
             </div>
           </div>
 
-          <div className="w-[440px] bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
+          <div
+            onMouseDown={iniziaTrascinamentoDettaglio}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ridimensiona il pannello di dettaglio"
+            className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
+          />
+
+          <div style={{ width: larghezzaPannelloDettaglio }} className="bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
             {selezionato ? (
               <div className="space-y-5">
                 <div>
@@ -523,8 +562,19 @@ export default function TeacherPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Scheda di Visualizzazione &amp; Commento</span>
                     <span className="text-[10px] bg-stone-200 px-2.5 py-0.5 rounded-full font-medium">Gruppo {selezionato.gruppoNum}</span>
                   </div>
-                  <h2 className="text-2xl font-serif font-medium mt-1">{selezionato.titolo}</h2>
-                  <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
+                  <div className="flex justify-between items-start mt-1">
+                    <div>
+                      <h2 className="text-2xl font-serif font-medium">{selezionato.titolo}</h2>
+                      <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleScelto(selezionato)}
+                      aria-pressed={selezionato.scelto}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition flex-shrink-0 ml-2 ${selezionato.scelto ? 'bg-amber-400 text-amber-950 hover:bg-amber-300' : 'bg-white border border-stone-200 text-stone-500 hover:border-stone-400'}`}
+                    >
+                      {selezionato.scelto ? '⭐ Scelto' : '☆ Scelto'}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
@@ -654,7 +704,18 @@ export default function TeacherPage() {
                 <div key={c.id} className="bg-white min-h-[28rem] p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
                   <div className="flex justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
-                    <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleScelto(c)}
+                        aria-pressed={c.scelto}
+                        className={`text-xs px-3 py-1 rounded-full font-medium transition ${c.scelto ? 'bg-amber-400 text-amber-950 hover:bg-amber-300' : 'bg-white border border-stone-200 text-stone-500 hover:border-stone-400'}`}
+                      >
+                        {c.scelto ? '⭐ Scelto' : '☆ Segna come scelto'}
+                      </button>
+                      <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">
+                        {c.scelto && '⭐ '}Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Il testo va visto per intero anche a costo di allungare la
