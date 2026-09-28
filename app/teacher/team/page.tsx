@@ -44,6 +44,9 @@ export default function TeamPannelloPage() {
   const [mostraConferma, setMostraConferma] = useState(false);
   const [confermaTesto, setConfermaTesto] = useState('');
   const [eliminazioneInCorso, setEliminazioneInCorso] = useState(false);
+  const [teamDaEliminare, setTeamDaEliminare] = useState<RigaTeam | null>(null);
+  const [erroreEliminazioneSingola, setErroreEliminazioneSingola] = useState('');
+  const [eliminazioneSingolaInCorso, setEliminazioneSingolaInCorso] = useState(false);
 
   const carica = async () => {
     setErrore('');
@@ -62,6 +65,17 @@ export default function TeamPannelloPage() {
     if (error) { setErrore(messaggioErroreTeam(error.message, 'la cancellazione')); return; }
     setMostraConferma(false);
     setConfermaTesto('');
+    await carica();
+  };
+
+  const eliminaTeamSingolo = async () => {
+    if (!teamDaEliminare) return;
+    setErroreEliminazioneSingola('');
+    setEliminazioneSingolaInCorso(true);
+    const { error } = await supabase.rpc('docente_elimina_team', { p_nome: teamDaEliminare.nome, p_passcode: passcode });
+    setEliminazioneSingolaInCorso(false);
+    if (error) { setErroreEliminazioneSingola(messaggioErroreTeam(error.message, 'la cancellazione del team')); return; }
+    setTeamDaEliminare(null);
     await carica();
   };
 
@@ -109,6 +123,7 @@ export default function TeamPannelloPage() {
                   <th className="p-3">Team</th>
                   <th className="p-3">Membri</th>
                   <th className="p-3">Creato il</th>
+                  <th className="p-3"></th>
                 </tr>
               </thead>
               <tbody>
@@ -118,6 +133,16 @@ export default function TeamPannelloPage() {
                     <td className="p-3">{r.nome}</td>
                     <td className="p-3 text-stone-500">{r.membri.length > 0 ? r.membri.join(', ') : '—'}</td>
                     <td className="p-3 text-stone-400 text-xs">{new Date(r.creato_il).toLocaleDateString('it-IT')}</td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => { setErroreEliminazioneSingola(''); setTeamDaEliminare(r); }}
+                        aria-label={`Elimina il team ${r.nome}`}
+                        title="Elimina questo team"
+                        className="text-stone-300 hover:text-red-600 transition text-sm"
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -150,6 +175,28 @@ export default function TeamPannelloPage() {
                 className="flex-1 bg-red-600 text-white hover:bg-red-700 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-40"
               >
                 {eliminazioneInCorso ? 'Cancellazione...' : 'Cancella tutti'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {teamDaEliminare && (
+        <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={() => setTeamDaEliminare(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-3" onClick={e => e.stopPropagation()}>
+            <h2 className="font-serif font-bold text-lg text-red-700">Eliminare &ldquo;{teamDaEliminare.nome}&rdquo;?</h2>
+            <p className="text-xs text-stone-500">
+              Il Gruppo {teamDaEliminare.numero} perderà l&apos;accesso condiviso e dovrà formarsi di nuovo. Le consegne già fatte nelle attività non vengono toccate.
+            </p>
+            {erroreEliminazioneSingola && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-2.5">{erroreEliminazioneSingola}</p>}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setTeamDaEliminare(null)} className="flex-1 bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl">Annulla</button>
+              <button
+                onClick={eliminaTeamSingolo}
+                disabled={eliminazioneSingolaInCorso}
+                className="flex-1 bg-red-600 text-white hover:bg-red-700 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-40"
+              >
+                {eliminazioneSingolaInCorso ? 'Elimino...' : 'Elimina team'}
               </button>
             </div>
           </div>
