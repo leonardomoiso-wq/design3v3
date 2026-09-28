@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
+import StellaScelto from '@/components/StellaScelto';
 
 type Caso = {
   id: number;
@@ -17,7 +18,7 @@ type Caso = {
   driverNote: NoteDriver;
   esitoRevisione: 'verde' | 'giallo' | 'rosso' | null;
   inclusoRevisione: boolean;
-  scelto: boolean;
+  scelto: number;
 };
 
 const ETICHETTE_DRIVER = [
@@ -67,7 +68,7 @@ export default function ReviewPage() {
       driverNote: estraiNote(c.driver),
       esitoRevisione: c.esito_revisione || null,
       inclusoRevisione: c.incluso_revisione ?? true,
-      scelto: c.scelto ?? false,
+      scelto: Number(c.scelto) || 0,
     });
 
     const caricaCasi = async () => {
@@ -190,7 +191,7 @@ export default function ReviewPage() {
       setErroreSelezioneScelti('Errore durante il salvataggio. Riprova.');
       return;
     }
-    setCasi(prev => prev.map(c => ({ ...c, inclusoRevisione: c.scelto })));
+    setCasi(prev => prev.map(c => ({ ...c, inclusoRevisione: c.scelto > 0 })));
   };
 
   const vai = useCallback((delta: number) => {
@@ -540,17 +541,19 @@ export default function ReviewPage() {
               <button onClick={() => setSelezionePannelloAperto(false)} aria-label="Chiudi" className="text-stone-400 hover:text-stone-900 text-xl leading-none flex-shrink-0 ml-4">✕</button>
             </div>
 
-            {casi.some(c => c.scelto) && (
+            {casi.some(c => c.scelto > 0) && (
               <div className="px-6 pt-4 flex-shrink-0 flex items-center justify-between gap-3">
-                <p className="text-xs text-stone-500">
-                  {casi.filter(c => c.scelto).length} casi contrassegnati &ldquo;⭐ Scelto&rdquo; nella Modalità Slide PDF.
+                <p className="text-xs text-stone-500 flex items-center gap-1">
+                  {casi.filter(c => c.scelto > 0).length} casi contrassegnati con
+                  <StellaScelto valore={1} />
+                  nella Modalità Slide PDF.
                 </p>
                 <button
                   onClick={selezionaDaScelti}
                   disabled={inCorsoSelezioneScelti}
                   className="text-xs bg-amber-400 text-amber-950 px-4 py-2 rounded-full font-medium hover:bg-amber-300 transition disabled:opacity-50 flex-shrink-0"
                 >
-                  {inCorsoSelezioneScelti ? 'Applico...' : '⭐ Includi solo i marcati'}
+                  {inCorsoSelezioneScelti ? 'Applico...' : 'Includi solo i marcati'}
                 </button>
               </div>
             )}
@@ -581,7 +584,10 @@ export default function ReviewPage() {
                       )}
                     </div>
                     <div className="overflow-hidden flex-1">
-                      <p className="text-sm font-medium truncate">{c.scelto && '⭐ '}{c.titolo}</p>
+                      <p className="text-sm font-medium truncate flex items-center gap-1">
+                        <StellaScelto valore={c.scelto} />
+                        <span className="truncate">{c.titolo}</span>
+                      </p>
                       <p className="text-xs text-stone-500 truncate">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
                     </div>
                   </label>

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
+import StellaScelto from '@/components/StellaScelto';
 
 type Caso = {
   id: number;
@@ -15,7 +16,7 @@ type Caso = {
   tags: string[];
   driver: { desiderabilita: number; fattibilita: number; responsabilita: number; vitalita: number };
   driverNote: NoteDriver;
-  scelto: boolean;
+  scelto: number;
 };
 
 const ASSI = [
@@ -125,7 +126,7 @@ export default function RadarPage() {
       tags: c.tags || [],
       driver: normalizzaDriver(c.driver),
       driverNote: estraiNote(c.driver),
-      scelto: c.scelto ?? false,
+      scelto: Number(c.scelto) || 0,
     });
 
     const carica = async () => {
@@ -342,14 +343,17 @@ export default function RadarPage() {
                     ? 'bg-amber-50 border-amber-300 shadow-sm'
                     : attivo
                       ? 'bg-white border-stone-300 shadow-sm'
-                      : c.scelto
+                      : c.scelto > 0
                         ? 'bg-transparent border-amber-200 opacity-80 hover:opacity-100'
                         : 'bg-transparent border-transparent opacity-50 hover:opacity-80'
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: attivo ? colore : '#d6d3d1' }}></span>
                 <div className="overflow-hidden">
-                  <div className="text-xs font-bold truncate text-stone-900">{c.scelto && '⭐ '}{c.titolo}</div>
+                  <div className="text-xs font-bold truncate text-stone-900 flex items-center gap-1">
+                    <StellaScelto valore={c.scelto} />
+                    <span className="truncate">{c.titolo}</span>
+                  </div>
                   <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}</div>
                 </div>
               </button>
@@ -557,13 +561,9 @@ export default function RadarPage() {
                   <span className="absolute top-2 right-2 text-[10px] bg-white/90 backdrop-blur px-2 py-1 rounded-full font-medium opacity-0 group-hover:opacity-100 transition shadow-sm">
                     🔍 Ingrandisci
                   </span>
-                  {c.scelto && (
-                    <span
-                      className="absolute top-2 left-2 w-5 h-5 rounded-full bg-amber-400 text-[10px] flex items-center justify-center shadow-sm"
-                      title="Contrassegnato come scelto"
-                      aria-label="Contrassegnato come scelto"
-                    >
-                      ⭐
+                  {c.scelto > 0 && (
+                    <span className="absolute top-2 left-2 w-5 h-5 rounded-full bg-white border border-amber-300 flex items-center justify-center shadow-sm">
+                      <StellaScelto valore={c.scelto} className="text-[10px]" />
                     </span>
                   )}
                 </div>

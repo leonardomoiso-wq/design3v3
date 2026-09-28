@@ -5,6 +5,7 @@ import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/
 import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
+import StellaScelto from '@/components/StellaScelto';
 
 function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -112,7 +113,7 @@ export default function TeacherPage() {
     driverNote: estraiNote(c.driver),
     x: Number(c.x),
     y: Number(c.y),
-    scelto: c.scelto ?? false,
+    scelto: Number(c.scelto) || 0,
   });
 
   useEffect(() => {
@@ -307,19 +308,19 @@ export default function TeacherPage() {
     }
   };
 
-  const toggleScelto = async (caso: any) => {
-    const nuovoValore = !caso.scelto;
+  const impostaScelto = async (caso: any, nuovoValore: number) => {
+    const precedente = caso.scelto;
     setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: nuovoValore } : c)));
     setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: nuovoValore } : prev));
     const { error } = await supabase.rpc('docente_imposta_scelto', {
       p_caso_id: caso.id,
-      p_scelto: nuovoValore,
+      p_valore: nuovoValore,
       p_passcode: passcodeAttivo,
     });
     if (error) {
       console.error('Errore nel salvataggio del contrassegno:', error);
-      setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: !nuovoValore } : c)));
-      setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: !nuovoValore } : prev));
+      setCasi(prev => prev.map(c => (c.id === caso.id ? { ...c, scelto: precedente } : c)));
+      setSelezionato((prev: any) => (prev?.id === caso.id ? { ...prev, scelto: precedente } : prev));
     }
   };
 
@@ -513,18 +514,14 @@ export default function TeacherPage() {
                       ? 'border-stone-900 shadow-2xl z-30'
                       : inEvidenza
                         ? 'border-amber-300 ring-2 ring-amber-200 shadow-lg z-20'
-                        : c.scelto
+                        : c.scelto > 0
                           ? 'border-amber-300 shadow-md z-10'
                           : 'border-stone-200 shadow-md hover:border-stone-400 z-10'
                   }`}
                 >
-                  {c.scelto && (
-                    <span
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 text-[9px] flex items-center justify-center shadow-sm"
-                      title="Contrassegnato come scelto"
-                      aria-label="Contrassegnato come scelto"
-                    >
-                      ⭐
+                  {c.scelto > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-amber-300 flex items-center justify-center shadow-sm">
+                      <StellaScelto valore={c.scelto} className="text-[9px]" />
                     </span>
                   )}
                   {c.immagine ? (
@@ -576,13 +573,11 @@ export default function TeacherPage() {
                       <h2 className="text-2xl font-serif font-medium">{selezionato.titolo}</h2>
                       <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
                     </div>
-                    <button
-                      onClick={() => toggleScelto(selezionato)}
-                      aria-pressed={selezionato.scelto}
-                      className={`text-xs px-3 py-1 rounded-full font-medium transition flex-shrink-0 ml-2 ${selezionato.scelto ? 'bg-amber-400 text-amber-950 hover:bg-amber-300' : 'bg-white border border-stone-200 text-stone-500 hover:border-stone-400'}`}
-                    >
-                      {selezionato.scelto ? '⭐ Scelto' : '☆ Scelto'}
-                    </button>
+                    <StellaScelto
+                      valore={selezionato.scelto}
+                      onCambia={v => impostaScelto(selezionato, v)}
+                      className="flex-shrink-0 ml-2 text-lg"
+                    />
                   </div>
                 </div>
 
@@ -714,15 +709,10 @@ export default function TeacherPage() {
                   <div className="flex justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleScelto(c)}
-                        aria-pressed={c.scelto}
-                        className={`text-xs px-3 py-1 rounded-full font-medium transition ${c.scelto ? 'bg-amber-400 text-amber-950 hover:bg-amber-300' : 'bg-white border border-stone-200 text-stone-500 hover:border-stone-400'}`}
-                      >
-                        {c.scelto ? '⭐ Scelto' : '☆ Segna come scelto'}
-                      </button>
-                      <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">
-                        {c.scelto && '⭐ '}Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}
+                      <StellaScelto valore={c.scelto} onCambia={v => impostaScelto(c, v)} className="text-lg" />
+                      <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium flex items-center gap-1">
+                        <StellaScelto valore={c.scelto} />
+                        Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}
                       </span>
                     </div>
                   </div>
