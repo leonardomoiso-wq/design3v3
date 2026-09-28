@@ -159,8 +159,14 @@ export default function RadarPage() {
         }
         const aggiornato = formattaCaso(payload.new);
         setCasi(prev => {
-          const esiste = prev.some((c: any) => c.id === aggiornato.id);
-          return esiste ? prev.map((c: any) => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+          const esistente = prev.find((c: any) => c.id === aggiornato.id);
+          // Un aggiornamento che non tocca l'immagine può arrivare via
+          // realtime senza quel valore: si preserva quella già mostrata
+          // invece di farla sparire.
+          const finale = esistente && !aggiornato.immagine && esistente.immagine
+            ? { ...aggiornato, immagine: esistente.immagine }
+            : aggiornato;
+          return esistente ? prev.map((c: any) => (c.id === finale.id ? finale : c)) : [...prev, finale];
         });
         aggiornaCacheCaso(payload.new);
       })

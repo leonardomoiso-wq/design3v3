@@ -64,6 +64,20 @@ async function leggiCache(): Promise<any[]> {
   }
 }
 
+async function leggiRigaCache(id: number): Promise<any | null> {
+  try {
+    const db = await apriDbConTimeout();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const richiesta = tx.objectStore(STORE).get(id);
+      richiesta.onsuccess = () => resolve(richiesta.result ?? null);
+      richiesta.onerror = () => reject(richiesta.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function scriviCache(righe: any[]): Promise<void> {
   if (righe.length === 0) return;
   try {
@@ -100,7 +114,19 @@ async function rimuoviDallaCache(ids: number[]): Promise<void> {
 // tiene la cache in sincrono cosi' il prossimo caricamento non deve
 // riscaricarla di nuovo.
 export async function aggiornaCacheCaso(riga: any): Promise<void> {
-  if (riga) await scriviCache([riga]);
+  if (!riga) return;
+  // L'immagine è una colonna grande (spesso "TOASTed" in Postgres): un
+  // aggiornamento che non la tocca (spuntare "scelto", spostare un punto
+  // in matrice...) può arrivare via realtime senza quel valore se la
+  // replica logica non include le colonne TOASTed invariate. Senza
+  // questo controllo, l'immagine "sparirebbe" a ogni modifica che non la
+  // riguarda: si preserva quindi quella già in cache quando la riga in
+  // arrivo non ne porta una.
+  if (!riga.immagine) {
+    const esistente = await leggiRigaCache(Number(riga.id));
+    if (esistente?.immagine) riga = { ...riga, immagine: esistente.immagine };
+  }
+  await scriviCache([riga]);
 }
 
 export async function rimuoviCasoDallaCache(id: number): Promise<void> {

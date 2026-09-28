@@ -167,10 +167,19 @@ export default function TeacherPage() {
         }
         const aggiornato = formattaCaso(payload.new);
         setCasi(prev => {
-          const esiste = prev.some(c => c.id === aggiornato.id);
-          return esiste ? prev.map(c => (c.id === aggiornato.id ? aggiornato : c)) : [...prev, aggiornato];
+          const esistente = prev.find(c => c.id === aggiornato.id);
+          // Un aggiornamento che non tocca l'immagine (es. "scelto", una
+          // posizione in matrice) può arrivare via realtime senza quel
+          // valore: si preserva quella già mostrata invece di farla sparire.
+          const finale = esistente && !aggiornato.immagine && esistente.immagine
+            ? { ...aggiornato, immagine: esistente.immagine }
+            : aggiornato;
+          return esistente ? prev.map(c => (c.id === finale.id ? finale : c)) : [...prev, finale];
         });
-        setSelezionato((prev: any) => (prev && prev.id === aggiornato.id ? aggiornato : prev));
+        setSelezionato((prev: any) => {
+          if (!prev || prev.id !== aggiornato.id) return prev;
+          return !aggiornato.immagine && prev.immagine ? { ...aggiornato, immagine: prev.immagine } : aggiornato;
+        });
         aggiornaCacheCaso(payload.new);
       })
       .subscribe();
