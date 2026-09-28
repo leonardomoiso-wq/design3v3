@@ -94,6 +94,7 @@ export default function TeacherPage() {
   const [casoHoverId, setCasoHoverId] = useState<number | null>(null);
   const [erroreCasi, setErroreCasi] = useState('');
   const [tempoCaricamentoMs, setTempoCaricamentoMs] = useState<number | null>(null);
+  const [casoEspansoCluster, setCasoEspansoCluster] = useState<any | null>(null);
 
   // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
   const formattaCaso = (c: any) => ({
@@ -720,10 +721,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-emerald-800">🚀 Cluster Innovazione &amp; Fattibilità ({clusters.innovatori.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -732,10 +733,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-blue-800">🌍 Cluster Impatto Sociale &amp; Desiderabilità ({clusters.sociali.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -744,10 +745,10 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-amber-800">⚙️ Cluster Strategici &amp; di Sistema ({clusters.strategici.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -756,11 +757,94 @@ export default function TeacherPage() {
               <h3 className="font-serif font-bold text-sm text-purple-800">💡 Cluster Esplorativi &amp; Vitali ({clusters.esplorativi.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
-                  <div key={c.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs flex justify-between items-center">
+                  <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                     <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
-                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded">X: {c.x}, Y: {c.y}</span>
-                  </div>
+                    <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
+                  </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {casoEspansoCluster && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Dettaglio esteso: ${casoEspansoCluster.titolo}`}
+          onClick={() => setCasoEspansoCluster(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="h-80 bg-stone-100 flex items-center justify-center p-6 rounded-t-3xl relative">
+              {casoEspansoCluster.immagine ? (
+                <img src={casoEspansoCluster.immagine} alt={casoEspansoCluster.titolo} className="max-w-full max-h-full object-contain" />
+              ) : (
+                <span className="text-sm text-stone-400">Nessuna immagine disponibile</span>
+              )}
+              <button
+                onClick={() => setCasoEspansoCluster(null)}
+                aria-label="Chiudi dettaglio"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center text-stone-600 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-8 space-y-5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} &middot; {casoEspansoCluster.gruppoNome}</span>
+                  <h2 className="text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
+                </div>
+              </div>
+
+              {casoEspansoCluster.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {casoEspansoCluster.tags.map((tag: string) => (
+                    <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
+                {casoEspansoCluster.descrizione || 'Nessuna descrizione inserita.'}
+              </p>
+
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <div className="space-y-2.5">
+                  {([
+                    ['desiderabilita', 'Desiderabilità'],
+                    ['fattibilita', 'Fattibilità'],
+                    ['responsabilita', 'Responsabilità'],
+                    ['vitalita', 'Vitalità'],
+                  ] as const).map(([chiave, etichetta]) => {
+                    const valore = casoEspansoCluster.driver?.[chiave] ?? 0;
+                    const nota = casoEspansoCluster.driverNote?.[chiave];
+                    return (
+                      <div key={chiave}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-stone-600 font-medium">{etichetta}</span>
+                          <span className="font-bold">{valore}</span>
+                        </div>
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-stone-900 transition-all duration-500"
+                            style={{ width: `${(valore / MAX_DRIVER) * 100}%` }}
+                          />
+                        </div>
+                        {nota && (
+                          <p className="text-[11px] text-stone-500 italic mt-1.5">&ldquo;{nota}&rdquo;</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
