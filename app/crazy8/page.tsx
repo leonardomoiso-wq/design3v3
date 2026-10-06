@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { comprimiImmagine } from '../../lib/immagine';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam } from '../../lib/team-context';
+import RichiedeCorso from '../../components/RichiedeCorso';
+import type { Corso } from '../../lib/corsi';
 
 const TUTORIAL_VISTO_KEY = 'crazy8_tutorial_visto';
 
@@ -134,6 +136,10 @@ function BloccoNuovaGenerazione({ sketchId, onAggiungi, suggerimenti, onCaricame
 }
 
 export default function Crazy8Page() {
+  return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
+}
+
+function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
   const [attivitaInfo, setAttivitaInfo] = useState<{ id: string; stato: string; richiediLogPrompt: boolean; richiediRiflessione: boolean } | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci'>('crea');
@@ -193,6 +199,7 @@ export default function Crazy8Page() {
     const { data, error } = await supabase
       .from('submission_crazy8')
       .select('*, immagini(*, generazioni_crazy8(*))')
+      .eq('corso_id', corso.id)
       .order('created_at', { ascending: false });
     if (!error && data) {
       const formattate = (data as any[]).map(s => ({
@@ -208,7 +215,7 @@ export default function Crazy8Page() {
 
   useEffect(() => {
     const caricaAttivita = async () => {
-      const { data } = await supabase.from('attivita').select('*').eq('tipo', 'crazy8_ai').maybeSingle();
+      const { data } = await supabase.from('attivita').select('*').eq('corso_id', corso.id).eq('tipo', 'crazy8_ai').maybeSingle();
       if (data) {
         setAttivitaInfo({ id: data.id, stato: data.stato, richiediLogPrompt: data.richiedi_log_prompt, richiediRiflessione: data.richiedi_riflessione });
       } else {
@@ -217,7 +224,7 @@ export default function Crazy8Page() {
     };
 
     const caricaSuggerimenti = async () => {
-      const { data } = await supabase.from('prompt_suggeriti_crazy8').select('*').order('ordine', { ascending: true });
+      const { data } = await supabase.from('prompt_suggeriti_crazy8').select('*').eq('corso_id', corso.id).order('ordine', { ascending: true });
       if (data) setSuggerimentiPrompt(data as any[]);
     };
 
@@ -232,7 +239,7 @@ export default function Crazy8Page() {
     }
 
     const channel = supabase
-      .channel('realtime-crazy8-studenti')
+      .channel(`realtime-crazy8-studenti-${corso.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)

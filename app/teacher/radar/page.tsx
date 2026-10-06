@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
+import { useDocente } from '@/lib/docente-context';
+import { ascoltaCorso } from '@/lib/realtime';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
@@ -21,12 +23,8 @@ type Caso = {
   scelto: number;
 };
 
-const ASSI = [
-  { chiave: 'desiderabilita', etichetta: 'Desiderabilità' },
-  { chiave: 'fattibilita', etichetta: 'Fattibilità' },
-  { chiave: 'responsabilita', etichetta: 'Responsabilità' },
-  { chiave: 'vitalita', etichetta: 'Vitalità' },
-] as const;
+// Numero di assi del radar: sempre 4 driver (le etichette vengono dal corso).
+const NUMERO_ASSI = 4;
 
 // Palette categorica validata (8 tonalità, ordine fisso, CVD-safe): vedi
 // il capitolo colore della skill dataviz. La precedente era scelta a
@@ -44,7 +42,7 @@ const CENTRO = RAGGIO + LABEL_OFFSET + MARGINE_ETICHETTA;
 const TAGLIA_SVG = CENTRO * 2;
 
 function puntoAsse(indice: number, valore: number) {
-  const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
+  const angolo = (Math.PI * 2 * indice) / NUMERO_ASSI - Math.PI / 2;
   const distanza = (valore / MAX_DRIVER) * RAGGIO;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
@@ -53,7 +51,7 @@ function puntoAsse(indice: number, valore: number) {
 }
 
 function puntoEtichetta(indice: number) {
-  const angolo = (Math.PI * 2 * indice) / ASSI.length - Math.PI / 2;
+  const angolo = (Math.PI * 2 * indice) / NUMERO_ASSI - Math.PI / 2;
   const distanza = RAGGIO + LABEL_OFFSET;
   return {
     x: CENTRO + distanza * Math.cos(angolo),
@@ -64,6 +62,8 @@ function puntoEtichetta(indice: number) {
 type Hover = { x: number; y: number; etichetta: string; valore: number; titolo: string; colore: string };
 
 export default function RadarPage() {
+  const { corso } = useDocente();
+  const ASSI = corso.configurazione.driver.map(d => ({ chiave: d.chiave, etichetta: d.etichetta }));
   const [casi, setCasi] = useState<Caso[]>([]);
   const [attivi, setAttivi] = useState<number[]>([]);
   const [filtroTag, setFiltroTag] = useState('');
@@ -212,7 +212,7 @@ export default function RadarPage() {
       // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
       // insieme) così anche una connessione lenta vede i casi studio
       // comparire man mano invece di aspettare tutto o niente.
-      const { righe, errore } = await caricaCasiConCache(correnti => {
+      const { righe, errore } = await caricaCasiConCache(corso.id, correnti => {
         setErroreCasi('');
         setCasi(correnti.map(formattaCaso));
       });
@@ -227,9 +227,7 @@ export default function RadarPage() {
 
     // Aggiorna solo la riga toccata invece di riscaricare l'intera tabella
     // (immagini comprese) a ogni modifica di un gruppo qualsiasi.
-    const channel = supabase
-      .channel('realtime-radar')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+    const channel = ascoltaCorso(supabase.channel(`realtime-radar-${corso.id}`), 'casi_studio', corso.id, (payload: any) => {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number(payload.old?.id);
           setCasi(prev => prev.filter((c: any) => c.id !== idEliminato));
@@ -254,6 +252,7 @@ export default function RadarPage() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const tuttiITag = useMemo(() => Array.from(new Set(casi.flatMap(c => c.tags || []))).sort(), [casi]);
@@ -816,7 +815,7 @@ export default function RadarPage() {
               </p>
 
               <div className="space-y-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {corso.configurazione.framework} (scala 0-{MAX_DRIVER})</h3>
                 <div className="space-y-2.5">
                   {ASSI.map(asse => {
                     const valore = casoEspanso.driver?.[asse.chiave] ?? 0;

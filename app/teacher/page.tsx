@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import { ascoltaCorso } from '@/lib/realtime';
+import { CONFIGURAZIONE_PREDEFINITA, etichettaDriver } from '@/lib/corsi';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
@@ -10,14 +12,14 @@ import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/co
 import { useMobile } from '@/lib/useMobile';
 import { useMappaZoom, ZOOM_MIN, ZOOM_MAX } from '@/lib/useMappaZoom';
 
-function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
+function GestioneTagDefault({ passcode, corsoId, onChiudi }: { passcode: string; corsoId: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
   const [nuovoTag, setNuovoTag] = useState('');
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
 
   const carica = async () => {
-    const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
+    const { data } = await supabase.from('tag_default_caso_studio').select('*').eq('corso_id', corsoId).order('ordine', { ascending: true });
     if (data) setLista(data as any[]);
   };
 
@@ -27,7 +29,7 @@ function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi
     setErrore('');
     if (!nuovoTag.trim()) { setErrore('Scrivi il testo del tag.'); return; }
     setInCorso(true);
-    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_testo: nuovoTag, p_passcode: passcode });
+    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_corso_id: corsoId, p_testo: nuovoTag, p_passcode: passcode });
     setInCorso(false);
     if (error) { setErrore('Errore durante il salvataggio.'); return; }
     setNuovoTag('');
@@ -151,7 +153,11 @@ const SCHEDE = [
 ] as const;
 
 export default function TeacherPage() {
-  const { passcode: passcodeAttivo } = useDocente();
+  const { passcode: passcodeAttivo, corso } = useDocente();
+  const config = corso.configurazione;
+  // I 4 driver con le etichette scelte per questo corso (pannello Corso & Form).
+  const DRIVER = config.driver.map(d => [d.chiave, d.etichetta] as const);
+  const et = (chiave: Parameters<typeof etichettaDriver>[1]) => etichettaDriver(config, chiave);
 
   const [casi, setCasi] = useState<any[]>([]);
   const [selezionato, setSelezionato] = useState<any | null>(null);
@@ -231,7 +237,7 @@ export default function TeacherPage() {
         });
       };
 
-      const { righe, errore } = await caricaCasiConCache(aggiornaVista);
+      const { righe, errore } = await caricaCasiConCache(corso.id, aggiornaVista);
       setTempoCaricamentoMs(performance.now() - inizioCaricamento);
       if (errore) {
         // Con molte consegne (immagini comprese) la risposta può diventare
@@ -248,9 +254,7 @@ export default function TeacherPage() {
     // 2. Ascolta i cambiamenti in tempo reale (Realtime subscription): aggiorna
     // solo la riga toccata invece di riscaricare l'intera tabella (immagini
     // comprese) a ogni singola modifica di uno qualsiasi dei tanti gruppi.
-    const channel = supabase
-      .channel('realtime-casi-studio')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload) => {
+    const channel = ascoltaCorso(supabase.channel(`realtime-casi-studio-${corso.id}`), 'casi_studio', corso.id, (payload) => {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number((payload.old as any)?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
@@ -280,18 +284,19 @@ export default function TeacherPage() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resettaTuttoConPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.rpc('docente_resetta_tutto', { p_passcode: passwordReset });
+    const { error } = await supabase.rpc('docente_resetta_tutto', { p_corso_id: corso.id, p_passcode: passwordReset });
     if (error) {
       console.error('Errore nel reset:', error);
       setErroreReset(true);
       setSuccessoReset(false);
       return;
     }
-    svuotaCacheCasi();
+    svuotaCacheCasi(corso.id);
     setCasi([]);
     setSelezionato(null);
     setAiCritica('');
@@ -338,9 +343,9 @@ export default function TeacherPage() {
     
     let promptPersona = "";
     if (persona === 'artigiano') {
-      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri (scala 0-${MAX_DRIVER}) di questo caso studio (${caso.titolo}): Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
+      promptPersona = `Agisci come un Artigiano Tradizionale critico. Analizza l'immagine e i parametri (scala 0-${MAX_DRIVER}) di questo caso studio (${caso.titolo}): ${et('desiderabilita')} ${d.desiderabilita}, ${et('fattibilita')} ${d.fattibilita}, ${et('responsabilita')} ${d.responsabilita}, ${et('vitalita')} ${d.vitalita}. Descrizione: ${caso.descrizione}. Fai considerazioni sulla materia e la costruzione.`;
     } else if (persona === 'ingegnere') {
-      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver (scala 0-${MAX_DRIVER}) Desiderabilità ${d.desiderabilita}, Fattibilità ${d.fattibilita}, Responsabilità ${d.responsabilita}, Vitalità ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
+      promptPersona = `Agisci come un Ingegnere di Sistema rigoroso. Analizza il caso studio (${caso.titolo}) con driver (scala 0-${MAX_DRIVER}) ${et('desiderabilita')} ${d.desiderabilita}, ${et('fattibilita')} ${d.fattibilita}, ${et('responsabilita')} ${d.responsabilita}, ${et('vitalita')} ${d.vitalita}. Focalizzati su scalabilità e flussi.`;
     } else if (persona === 'designer80') {
       promptPersona = `Agisci come un Designer radicale anni '80 (Memphis). Analizza il caso studio (${caso.titolo}) focalizzandoti sul valore provocatorio e formale.`;
     } else if (persona === 'prodotto2000') {
@@ -510,6 +515,24 @@ export default function TeacherPage() {
 
   const clusters = getClusterAnalitici();
 
+  // Con i driver IDEO restano i nomi storici dei cluster; con driver
+  // personalizzati il cluster prende il nome dei due driver che prevalgono
+  // in quel quadrante (x: slot 2 contro 1, y: slot 4 contro 3).
+  const driverStandard = config.driver.every((d, i) => d.etichetta === CONFIGURAZIONE_PREDEFINITA.driver[i].etichetta);
+  const titoliCluster = driverStandard
+    ? {
+        innovatori: 'Cluster Innovazione & Fattibilità',
+        sociali: 'Cluster Impatto Sociale & Desiderabilità',
+        strategici: 'Cluster Strategici & di Sistema',
+        esplorativi: 'Cluster Esplorativi & Vitali',
+      }
+    : {
+        innovatori: `Cluster ${et('fattibilita')} & ${et('vitalita')}`,
+        sociali: `Cluster ${et('desiderabilita')} & ${et('responsabilita')}`,
+        strategici: `Cluster ${et('fattibilita')} & ${et('responsabilita')}`,
+        esplorativi: `Cluster ${et('desiderabilita')} & ${et('vitalita')}`,
+      };
+
   // Intestazione e corpo della scheda di dettaglio: gli stessi contenuti
   // finiscono nel pannello laterale (desktop) o nello sliding panel
   // (mobile), dove l'intestazione resta visibile anche a pannello chiuso.
@@ -563,14 +586,9 @@ export default function TeacherPage() {
       )}
 
       <div className="space-y-2 border-t border-stone-200 pt-3">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {config.framework} (scala 0-{MAX_DRIVER})</h3>
         <div className="space-y-1.5">
-          {([
-            ['desiderabilita', 'Desiderabilità'],
-            ['fattibilita', 'Fattibilità'],
-            ['responsabilita', 'Responsabilità'],
-            ['vitalita', 'Vitalità'],
-          ] as const).map(([chiave, etichetta]) => {
+          {DRIVER.map(([chiave, etichetta]) => {
             const nota = selezionato.driverNote?.[chiave];
             return (
               <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
@@ -591,11 +609,11 @@ export default function TeacherPage() {
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sposta sulla Matrice<span className="max-md:hidden"> (da tastiera)</span></h3>
         <div className="grid grid-cols-3 gap-1.5 w-32 max-md:w-40 mx-auto">
           <span></span>
-          <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label="Sposta verso l'alto (più vitale)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label={`Sposta verso l'alto (più ${et('vitalita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
           <span></span>
-          <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label="Sposta a sinistra (più desiderabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
-          <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label="Sposta verso il basso (più responsabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
-          <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label="Sposta a destra (più fattibile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label={`Sposta a sinistra (più ${et('desiderabilita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label={`Sposta verso il basso (più ${et('responsabilita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label={`Sposta a destra (più ${et('fattibilita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
         </div>
         <p className="text-[10px] text-stone-400 text-center">{mobile ? 'Da touch il trascinamento non è disponibile: usa le frecce.' : 'Alternativa al trascinamento per chi usa la tastiera.'}</p>
       </div>
@@ -667,7 +685,7 @@ export default function TeacherPage() {
         azioni={SCHEDE.map(([chiave, etichetta]) => ({ chiave, etichetta, attiva: activeTab === chiave, onSeleziona: () => setActiveTab(chiave) }))}
       />
 
-      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
+      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} corsoId={corso.id} onChiudi={() => setMostraTagDefault(false)} />}
 
       {erroreCasi && (
         <p role="alert" className="mx-6 mt-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 flex-shrink-0">
@@ -707,10 +725,10 @@ export default function TeacherPage() {
             <div className="absolute inset-x-0 top-1/2 border-b border-stone-300/60 z-0"></div>
             <div className="absolute inset-y-0 left-1/2 border-r border-stone-300/60 z-0"></div>
 
-            <span className="absolute top-3 left-3 md:top-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">1. Desiderabilità</span>
-            <span className="absolute top-3 right-3 md:top-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">2. Fattibilità</span>
-            <span className="absolute bottom-10 left-3 md:bottom-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">3. Responsabilità</span>
-            <span className="absolute bottom-10 right-3 md:bottom-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">4. Vitalità</span>
+            <span className="absolute top-3 left-3 md:top-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">1. {et('desiderabilita')}</span>
+            <span className="absolute top-3 right-3 md:top-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">2. {et('fattibilita')}</span>
+            <span className="absolute bottom-10 left-3 md:bottom-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">3. {et('responsabilita')}</span>
+            <span className="absolute bottom-10 right-3 md:bottom-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">4. {et('vitalita')}</span>
 
             {casiFiltrati.map(c => {
               const left = `${((c.x + 100) / 200) * 100}%`;
@@ -882,7 +900,7 @@ export default function TeacherPage() {
               casi.map((c, index) => (
                 <div key={c.id} className="bg-white md:min-h-[28rem] print:min-h-[28rem] p-5 md:p-10 print:p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
                   <div className="flex flex-wrap gap-2 justify-between items-center border-b border-stone-200 pb-3">
-                    <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
+                    <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">{corso.nome} &middot; Scheda {index + 1} di {casi.length}</span>
                     <div className="flex items-center gap-2">
                       <StellaScelto valore={c.scelto} onCambia={v => impostaScelto(c, v)} className="text-lg" />
                       <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium flex items-center gap-1">
@@ -902,12 +920,7 @@ export default function TeacherPage() {
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
                       <div className="grid grid-cols-2 gap-1.5">
-                        {([
-                          ['desiderabilita', 'Desiderabilità'],
-                          ['fattibilita', 'Fattibilità'],
-                          ['responsabilita', 'Responsabilità'],
-                          ['vitalita', 'Vitalità'],
-                        ] as const).map(([chiave, etichetta]) => {
+                        {DRIVER.map(([chiave, etichetta]) => {
                           const nota = c.driverNote?.[chiave];
                           return (
                             <div key={chiave} className="bg-stone-50 p-2 rounded-lg border border-stone-200 text-[11px]">
@@ -934,7 +947,7 @@ export default function TeacherPage() {
                   </div>
 
                   <div className="border-t border-stone-200 pt-3 flex flex-wrap gap-1 justify-between items-center text-[10px] text-stone-400">
-                    <span>Framework IDEO 4-Driver &mdash; RothFinder Style</span>
+                    <span>Framework {config.framework}</span>
                     <span>Coordinate Matrice &mdash; X: {c.x}, Y: {c.y}</span>
                   </div>
                 </div>
@@ -953,7 +966,7 @@ export default function TeacherPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-              <h3 className="font-serif font-bold text-sm text-emerald-800">🚀 Cluster Innovazione &amp; Fattibilità ({clusters.innovatori.length})</h3>
+              <h3 className="font-serif font-bold text-sm text-emerald-800">🚀 {titoliCluster.innovatori} ({clusters.innovatori.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
@@ -965,7 +978,7 @@ export default function TeacherPage() {
             </div>
 
             <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-              <h3 className="font-serif font-bold text-sm text-blue-800">🌍 Cluster Impatto Sociale &amp; Desiderabilità ({clusters.sociali.length})</h3>
+              <h3 className="font-serif font-bold text-sm text-blue-800">🌍 {titoliCluster.sociali} ({clusters.sociali.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
@@ -977,7 +990,7 @@ export default function TeacherPage() {
             </div>
 
             <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-              <h3 className="font-serif font-bold text-sm text-amber-800">⚙️ Cluster Strategici &amp; di Sistema ({clusters.strategici.length})</h3>
+              <h3 className="font-serif font-bold text-sm text-amber-800">⚙️ {titoliCluster.strategici} ({clusters.strategici.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
@@ -989,7 +1002,7 @@ export default function TeacherPage() {
             </div>
 
             <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-              <h3 className="font-serif font-bold text-sm text-purple-800">💡 Cluster Esplorativi &amp; Vitali ({clusters.esplorativi.length})</h3>
+              <h3 className="font-serif font-bold text-sm text-purple-800">💡 {titoliCluster.esplorativi} ({clusters.esplorativi.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
@@ -1047,14 +1060,9 @@ export default function TeacherPage() {
               </p>
 
               <div className="space-y-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {config.framework} (scala 0-{MAX_DRIVER})</h3>
                 <div className="space-y-2.5">
-                  {([
-                    ['desiderabilita', 'Desiderabilità'],
-                    ['fattibilita', 'Fattibilità'],
-                    ['responsabilita', 'Responsabilità'],
-                    ['vitalita', 'Vitalità'],
-                  ] as const).map(([chiave, etichetta]) => {
+                  {DRIVER.map(([chiave, etichetta]) => {
                     const valore = casoEspansoCluster.driver?.[chiave] ?? 0;
                     const nota = casoEspansoCluster.driverNote?.[chiave];
                     return (

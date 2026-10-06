@@ -5,7 +5,7 @@ import { useDocente } from '@/lib/docente-context';
 import { CAMPI_TESTI, unisciTestiPiattaforma, accessoDirettoAbilitato, CHIAVE_ACCESSO_DIRETTO, type ChiaveTestoPiattaforma } from '@/lib/testi-piattaforma';
 
 export default function TestiPiattaformaPage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
   const [testi, setTesti] = useState<Record<ChiaveTestoPiattaforma, string> | null>(null);
   const [salvandoChiave, setSalvandoChiave] = useState<ChiaveTestoPiattaforma | null>(null);
   const [salvatoChiave, setSalvatoChiave] = useState<ChiaveTestoPiattaforma | null>(null);
@@ -14,9 +14,9 @@ export default function TestiPiattaformaPage() {
 
   const carica = async () => {
     setErrore('');
-    const { data, error } = await supabase.from('contenuto_piattaforma').select('chiave, valore');
+    const { data, error } = await supabase.from('contenuto_piattaforma').select('chiave, valore').eq('corso_id', corso.id);
     if (error) { setErrore('Errore nel caricamento dei testi.'); return; }
-    setTesti(unisciTestiPiattaforma(data as { chiave: string; valore: string }[]));
+    setTesti(unisciTestiPiattaforma(data as { chiave: string; valore: string }[], corso.nome));
   };
 
   useEffect(() => { carica(); }, []);
@@ -31,7 +31,7 @@ export default function TestiPiattaformaPage() {
     setErrore('');
     setSalvandoChiave(chiave);
     const { error } = await supabase.rpc('docente_aggiorna_testo_piattaforma', {
-      p_chiave: chiave, p_valore: testi[chiave], p_passcode: passcode,
+      p_corso_id: corso.id, p_chiave: chiave, p_valore: testi[chiave], p_passcode: passcode,
     });
     setSalvandoChiave(null);
     if (error) { setErrore('Errore durante il salvataggio. Riprova.'); return; }
@@ -46,7 +46,7 @@ export default function TestiPiattaformaPage() {
     setSalvandoToggle(true);
     setTesti(prev => prev && { ...prev, [CHIAVE_ACCESSO_DIRETTO]: nuovoValore });
     const { error } = await supabase.rpc('docente_aggiorna_testo_piattaforma', {
-      p_chiave: CHIAVE_ACCESSO_DIRETTO, p_valore: nuovoValore, p_passcode: passcode,
+      p_corso_id: corso.id, p_chiave: CHIAVE_ACCESSO_DIRETTO, p_valore: nuovoValore, p_passcode: passcode,
     });
     setSalvandoToggle(false);
     if (error) {
@@ -62,7 +62,7 @@ export default function TestiPiattaformaPage() {
           <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Storytelling</span>
           <h1 className="text-2xl font-serif font-bold mt-1">Testi della piattaforma</h1>
           <p className="text-sm text-stone-500 mt-1">
-            I testi di presentazione mostrati nella schermata iniziale e nella home, prima che le persone scelgano un&apos;attività.
+            I testi di presentazione di questo corso, mostrati agli studenti nella schermata iniziale e nella home, prima che scelgano un&apos;attività.
           </p>
         </div>
 

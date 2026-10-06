@@ -1,16 +1,18 @@
 // Testi di storytelling e introduzione alla piattaforma, editabili dal
 // pannello docente (tabella contenuto_piattaforma). Questi valori sono
-// il fallback usato finché il/la docente non li personalizza.
+// il fallback usato finché il/la docente non li personalizza. Ogni corso
+// ha i propri testi; i badge, se non personalizzati, mostrano il nome del
+// corso.
 
 export const TESTI_DEFAULT = {
-  incipit_badge: 'Laboratorio di Design 3',
+  incipit_badge: '',
   incipit_titolo: 'Prima di entrare, formate il vostro team.',
   incipit_testo:
     "Ogni attività del laboratorio — casi studio, Crazy 8, HMW — si costruisce insieme, come team. " +
     "Bastano un nome e una password scelti da voi: da qui in poi l'app vi riconoscerà, senza doverli reinserire ogni volta.",
   incipit_nota:
     'O saltate il login con "Accesso Studente diretto" qui sopra: potrete comunque partecipare alle attività, inserendo nome e codice di gruppo a mano quando richiesto.',
-  home_badge: 'Laboratorio di Design 3',
+  home_badge: '',
   home_titolo: 'Esplorare per progettare il cambiamento.',
   home_sottotitolo: 'Le attività del laboratorio, tutte da qui. Scegli quella a cui vuoi partecipare.',
   // Non un testo ma un interruttore: 'true'/'false' salvato nella stessa
@@ -37,8 +39,8 @@ export const CAMPI_TESTI: { chiave: ChiaveTestoPiattaforma; etichetta: string; r
   { chiave: 'home_sottotitolo', etichetta: 'Home — Sottotitolo', righe: 2 },
 ];
 
-export function unisciTestiPiattaforma(righe: { chiave: string; valore: string }[] | null | undefined) {
-  const testi = { ...TESTI_DEFAULT };
+export function unisciTestiPiattaforma(righe: { chiave: string; valore: string }[] | null | undefined, nomeCorso = '') {
+  const testi: Record<ChiaveTestoPiattaforma, string> = { ...TESTI_DEFAULT, incipit_badge: nomeCorso, home_badge: nomeCorso };
   (righe || []).forEach(r => {
     if (r.chiave in testi) {
       (testi as any)[r.chiave] = r.valore;

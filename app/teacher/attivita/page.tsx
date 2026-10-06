@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { moduloDi, type AttivitaRow, type StatoAttivita } from '@/lib/attivita';
 import { useDocente } from '@/lib/docente-context';
+import { ascoltaCorso } from '@/lib/realtime';
 
 const STATI: { valore: StatoAttivita; etichetta: string; descrizione: string }[] = [
   { valore: 'bozza', etichetta: 'Bozza', descrizione: 'Nascosta agli studenti' },
@@ -31,7 +32,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 }
 
 export default function AttivitaPannelloPage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
   const [nuovoAperto, setNuovoAperto] = useState(false);
   const [modificaId, setModificaId] = useState<string | null>(null);
@@ -56,21 +57,19 @@ export default function AttivitaPannelloPage() {
   };
 
   const caricaAttivita = async () => {
-    const { data, error } = await supabase.from('attivita').select('*').order('ordine', { ascending: true });
+    const { data, error } = await supabase.from('attivita').select('*').eq('corso_id', corso.id).order('ordine', { ascending: true });
     if (!error && data) setAttivita(data as AttivitaRow[]);
   };
 
   useEffect(() => {
     caricaAttivita();
 
-    const channel = supabase
-      .channel('realtime-attivita-pannello')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attivita' }, caricaAttivita)
-      .subscribe();
+    const channel = ascoltaCorso(supabase.channel(`realtime-attivita-pannello-${corso.id}`), 'attivita', corso.id, caricaAttivita).subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetForm = () => {
@@ -105,6 +104,7 @@ export default function AttivitaPannelloPage() {
     setSalvataggioInCorso(true);
     setErrore('');
     const { error } = await supabase.rpc('docente_crea_attivita', {
+      p_corso_id: corso.id,
       p_titolo: formTitolo.trim(),
       p_descrizione: formDescrizione.trim() || null,
       p_tipo: formTipo.trim(),

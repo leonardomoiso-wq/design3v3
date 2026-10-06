@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 
 export default function HmwDocentePage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
   const [activeTab, setActiveTab] = useState<'ruoli' | 'iterazioni'>('ruoli');
   const [ruoli, setRuoli] = useState<any[]>([]);
   const [iterazioni, setIterazioni] = useState<any[]>([]);
@@ -18,9 +18,9 @@ export default function HmwDocentePage() {
 
   const caricaTutto = async () => {
     const [{ data: r }, { data: iter }, { data: st }] = await Promise.all([
-      supabase.from('ruoli_prompt').select('*').order('created_at', { ascending: false }),
-      supabase.from('hmw_iterazioni').select('*').order('gruppo_num', { ascending: true }).order('versione', { ascending: true }),
-      supabase.from('hmw_stress_test').select('*'),
+      supabase.from('ruoli_prompt').select('*').eq('corso_id', corso.id).order('created_at', { ascending: false }),
+      supabase.from('hmw_iterazioni').select('*').eq('corso_id', corso.id).order('gruppo_num', { ascending: true }).order('versione', { ascending: true }),
+      supabase.from('hmw_stress_test').select('*, hmw_iterazioni!inner(corso_id)').eq('hmw_iterazioni.corso_id', corso.id),
     ]);
     if (r) setRuoli(r);
     if (iter) setIterazioni(iter);
@@ -31,7 +31,7 @@ export default function HmwDocentePage() {
     caricaTutto();
 
     const channel = supabase
-      .channel('realtime-hmw-docente')
+      .channel(`realtime-hmw-docente-${corso.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ruoli_prompt' }, caricaTutto)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hmw_iterazioni' }, caricaTutto)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hmw_stress_test' }, caricaTutto)
@@ -63,7 +63,7 @@ export default function HmwDocentePage() {
     }
     setCreazioneInCorso(true);
     const { error } = await supabase.rpc('docente_crea_ruolo', {
-      p_nome: nomeRuolo, p_descrizione: descrizioneRuolo, p_visibilita: visibilitaRuolo, p_passcode: passcode,
+      p_corso_id: corso.id, p_nome: nomeRuolo, p_descrizione: descrizioneRuolo, p_visibilita: visibilitaRuolo, p_passcode: passcode,
     });
     setCreazioneInCorso(false);
     if (error) {

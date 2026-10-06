@@ -38,7 +38,7 @@ const messaggioErroreTeam = (msg: string | undefined, azione: string) => {
 };
 
 export default function TeamPannelloPage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
   const [righe, setRighe] = useState<RigaTeam[] | null>(null);
   const [errore, setErrore] = useState('');
   const [mostraConferma, setMostraConferma] = useState(false);
@@ -50,7 +50,7 @@ export default function TeamPannelloPage() {
 
   const carica = async () => {
     setErrore('');
-    const { data, error } = await supabase.rpc('docente_lista_team', { p_passcode: passcode });
+    const { data, error } = await supabase.rpc('docente_lista_team', { p_corso_id: corso.id, p_passcode: passcode });
     if (error) { setErrore(messaggioErroreTeam(error.message, 'il caricamento dei team')); return; }
     setRighe((data as RigaTeam[]) || []);
   };
@@ -60,7 +60,7 @@ export default function TeamPannelloPage() {
   const eliminaTutti = async () => {
     setErrore('');
     setEliminazioneInCorso(true);
-    const { error } = await supabase.rpc('docente_elimina_tutti_team', { p_passcode: passcode });
+    const { error } = await supabase.rpc('docente_elimina_tutti_team', { p_corso_id: corso.id, p_passcode: passcode });
     setEliminazioneInCorso(false);
     if (error) { setErrore(messaggioErroreTeam(error.message, 'la cancellazione')); return; }
     setMostraConferma(false);
@@ -72,7 +72,7 @@ export default function TeamPannelloPage() {
     if (!teamDaEliminare) return;
     setErroreEliminazioneSingola('');
     setEliminazioneSingolaInCorso(true);
-    const { error } = await supabase.rpc('docente_elimina_team', { p_nome: teamDaEliminare.nome, p_passcode: passcode });
+    const { error } = await supabase.rpc('docente_elimina_team', { p_corso_id: corso.id, p_nome: teamDaEliminare.nome, p_passcode: passcode });
     setEliminazioneSingolaInCorso(false);
     if (error) { setErroreEliminazioneSingola(messaggioErroreTeam(error.message, 'la cancellazione del team')); return; }
     setTeamDaEliminare(null);

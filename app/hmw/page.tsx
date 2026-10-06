@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTeam } from '../../lib/team-context';
+import RichiedeCorso from '../../components/RichiedeCorso';
+import type { Corso } from '../../lib/corsi';
 
 const messaggioErrore = (codice: string) => {
   switch (codice) {
@@ -15,6 +17,10 @@ const messaggioErrore = (codice: string) => {
 };
 
 export default function HmwPage() {
+  return <RichiedeCorso>{corso => <HmwPageCorso corso={corso} />}</RichiedeCorso>;
+}
+
+function HmwPageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
   const [attivitaInfo, setAttivitaInfo] = useState<{ id: string; stato: string; richiediLogPrompt: boolean; richiediRiflessione: boolean } | null | undefined>(undefined);
   const [iterazioni, setIterazioni] = useState<any[]>([]);
@@ -54,9 +60,9 @@ export default function HmwPage() {
 
   const caricaTutto = async () => {
     const [{ data: iter }, { data: r }, { data: st }] = await Promise.all([
-      supabase.from('hmw_iterazioni').select('*').order('versione', { ascending: true }),
-      supabase.from('ruoli_prompt').select('*'),
-      supabase.from('hmw_stress_test').select('*'),
+      supabase.from('hmw_iterazioni').select('*').eq('corso_id', corso.id).order('versione', { ascending: true }),
+      supabase.from('ruoli_prompt').select('*').eq('corso_id', corso.id),
+      supabase.from('hmw_stress_test').select('*, hmw_iterazioni!inner(corso_id)').eq('hmw_iterazioni.corso_id', corso.id),
     ]);
     if (iter) setIterazioni(iter);
     if (r) setRuoli(r);
@@ -65,7 +71,7 @@ export default function HmwPage() {
 
   useEffect(() => {
     const caricaAttivita = async () => {
-      const { data } = await supabase.from('attivita').select('*').eq('tipo', 'hmw_role_prompting').maybeSingle();
+      const { data } = await supabase.from('attivita').select('*').eq('corso_id', corso.id).eq('tipo', 'hmw_role_prompting').maybeSingle();
       if (data) {
         setAttivitaInfo({ id: data.id, stato: data.stato, richiediLogPrompt: data.richiedi_log_prompt, richiediRiflessione: data.richiedi_riflessione });
       } else {
@@ -77,7 +83,7 @@ export default function HmwPage() {
     caricaTutto();
 
     const channel = supabase
-      .channel('realtime-hmw-studenti')
+      .channel(`realtime-hmw-studenti-${corso.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hmw_iterazioni' }, caricaTutto)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ruoli_prompt' }, caricaTutto)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hmw_stress_test' }, caricaTutto)
@@ -181,6 +187,7 @@ export default function HmwPage() {
     }
     setRuoloInCorso(true);
     const { error } = await supabase.rpc('proponi_ruolo', {
+      p_corso_id: corso.id,
       p_nome: nomeRuoloProposto,
       p_descrizione: descrizioneRuoloProposto,
       p_gruppo_nome: gruppoNome || null,

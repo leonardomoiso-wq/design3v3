@@ -3,18 +3,131 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
 import { useTeam, type TeamInfo } from '../lib/team-context';
-import { TESTI_DEFAULT, unisciTestiPiattaforma, accessoDirettoAbilitato } from '../lib/testi-piattaforma';
+import { unisciTestiPiattaforma, accessoDirettoAbilitato } from '../lib/testi-piattaforma';
+import { useCorso } from '../lib/corso-context';
+import { caricaCorsiPubblici, caricaCorsoPerCodice, NOME_PIATTAFORMA, type Corso } from '../lib/corsi';
+import { ascoltaCorso } from '../lib/realtime';
+import { ActionSheet, BottomSheet } from '../components/PannelliMobile';
 
+// Testi di presentazione del corso in cui si trova lo studente.
 function useTestiPiattaforma() {
-  const [testi, setTesti] = useState(TESTI_DEFAULT);
+  const { corso } = useCorso();
+  const [testi, setTesti] = useState(() => unisciTestiPiattaforma([], corso?.nome));
   useEffect(() => {
+    if (!corso) return;
     const carica = async () => {
-      const { data } = await supabase.from('contenuto_piattaforma').select('chiave, valore');
-      if (data) setTesti(unisciTestiPiattaforma(data as { chiave: string; valore: string }[]));
+      const { data } = await supabase.from('contenuto_piattaforma').select('chiave, valore').eq('corso_id', corso.id);
+      setTesti(unisciTestiPiattaforma((data || []) as { chiave: string; valore: string }[], corso.nome));
     };
     carica();
-  }, []);
+  }, [corso]);
   return testi;
+}
+
+// Marchio della piattaforma + corso attuale: toccandolo si cambia corso.
+function MarchioCorso() {
+  const { corso, lasciaCorso } = useCorso();
+  const [aperto, setAperto] = useState(false);
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="font-serif tracking-tight font-bold text-lg flex-shrink-0 max-sm:hidden">{NOME_PIATTAFORMA}</span>
+      {corso && (
+        <>
+          <button
+            onClick={() => setAperto(true)}
+            aria-haspopup="dialog"
+            title="Cambia corso"
+            className="flex items-center gap-1.5 min-w-0 pl-3 pr-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 hover:border-amber-400 transition text-sm font-medium"
+          >
+            <span className="truncate max-w-[12rem]">{corso.nome}</span>
+            <span aria-hidden="true" className="text-amber-700 text-xs">▾</span>
+          </button>
+          <ActionSheet
+            aperto={aperto}
+            onChiudi={() => setAperto(false)}
+            titolo={`Corso: ${corso.nome}`}
+            azioni={[
+              { chiave: 'cambia', etichetta: '↺ Cambia corso', descrizione: 'Torna all’elenco dei corsi', onSeleziona: lasciaCorso },
+            ]}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function SceltaCorso() {
+  const { scegliCorso } = useCorso();
+  const [corsi, setCorsi] = useState<Corso[] | null>(null);
+  const [codiceAperto, setCodiceAperto] = useState(false);
+  const [codice, setCodice] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+
+  useEffect(() => { caricaCorsiPubblici().then(setCorsi); }, []);
+
+  const entraConCodice = async () => {
+    setErrore('');
+    if (!codice.trim()) return;
+    setInCorso(true);
+    const trovato = await caricaCorsoPerCodice(codice);
+    setInCorso(false);
+    if (!trovato || trovato.archiviato) { setErrore('Nessun corso attivo con questo codice. Controllatelo con il/la docente.'); return; }
+    scegliCorso(trovato);
+  };
+
+  return (
+    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
+      <nav className="flex flex-wrap justify-between items-center gap-3 border-b border-stone-200 pb-6">
+        <span className="font-serif tracking-tight font-bold text-lg">{NOME_PIATTAFORMA}</span>
+        <a href="/teacher" className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition">
+          🔐 Accesso Docente
+        </a>
+      </nav>
+
+      <div className="flex-1 py-10 sm:py-14 space-y-8 animate-fade-in-up">
+        <div className="text-center space-y-3">
+          <h1 className="text-3xl sm:text-4xl font-serif leading-tight">In quale corso siete?</h1>
+          <p className="text-stone-600 text-sm sm:text-base max-w-lg mx-auto">Ogni corso ha i propri team, attività e consegne. Scegliete il vostro: potrete cambiarlo in qualsiasi momento.</p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto w-full">
+          {corsi === null && <p className="text-sm text-stone-400 text-center sm:col-span-2">Caricamento dei corsi...</p>}
+          {corsi?.length === 0 && (
+            <p className="text-sm text-stone-400 text-center sm:col-span-2">Nessun corso in elenco: entrate con il codice che vi ha dato il/la docente.</p>
+          )}
+          {corsi?.map(c => (
+            <button
+              key={c.id}
+              onClick={() => scegliCorso(c)}
+              className="text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            >
+              <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold font-mono">{c.codice}</span>
+              <h2 className="text-xl font-serif font-bold mt-1">{c.nome}</h2>
+              {c.descrizione && <p className="text-sm text-stone-500 mt-1">{c.descrizione}</p>}
+              <span className="inline-block mt-4 text-xs font-medium text-stone-900">Entra nel corso →</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <button onClick={() => { setErrore(''); setCodiceAperto(true); }} className="text-sm text-stone-600 underline underline-offset-4 hover:text-stone-900">
+            Avete un codice corso?
+          </button>
+        </div>
+      </div>
+
+      <BottomSheet aperto={codiceAperto} onChiudi={() => setCodiceAperto(false)} etichetta="Entra con il codice del corso" titolo="Entra con il codice" larghezzaDesktop="md:max-w-sm">
+        <form onSubmit={e => { e.preventDefault(); entraConCodice(); }} className="space-y-3">
+          <input value={codice} onChange={e => setCodice(e.target.value)} placeholder="es. design-3" autoFocus aria-label="Codice del corso" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 font-mono focus:outline-none focus:ring-2 focus:ring-stone-900" />
+          {errore && <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-2.5">{errore}</p>}
+          <button type="submit" disabled={inCorso || !codice.trim()} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
+            {inCorso ? 'Cerco...' : 'Entra'}
+          </button>
+        </form>
+      </BottomSheet>
+    </main>
+  );
 }
 
 const messaggioErroreTeam = (codice: string) => {
@@ -23,7 +136,8 @@ const messaggioErroreTeam = (codice: string) => {
     case 'password_troppo_corta': return 'La password deve avere almeno 4 caratteri.';
     case 'domanda_mancante': return 'Scegliete una domanda segreta.';
     case 'risposta_mancante': return 'Scrivete la risposta alla domanda segreta.';
-    case 'nome_gia_usato': return 'Questo nome team è già stato scelto da un altro gruppo.';
+    case 'nome_gia_usato': return 'Questo nome team è già stato scelto da un altro gruppo del corso.';
+    case 'corso_non_trovato': return 'Il corso non è più attivo. Sceglietene un altro.';
     case 'credenziali_errate': return 'Nome team o password errati.';
     case 'team_non_trovato': return 'Nessun team trovato con questo nome.';
     case 'risposta_errata': return 'Risposta segreta errata.';
@@ -56,9 +170,9 @@ function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => v
   const testi = useTestiPiattaforma();
   const accessoDirettoOn = accessoDirettoAbilitato(testi);
   return (
-    <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
+    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
-        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
+        <MarchioCorso />
         <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
       </nav>
 
@@ -95,6 +209,8 @@ const DOMANDE_SUGGERITE = [
 ];
 
 function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team: TeamInfo) => void; onSalta: () => void; onIndietro: () => void }) {
+  const { corso } = useCorso();
+  const corsoId = corso?.id;
   const testi = useTestiPiattaforma();
   const accessoDirettoOn = accessoDirettoAbilitato(testi);
   const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
@@ -127,7 +243,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
     }
     setInCorso(true);
     if (scheda === 'accedi') {
-      const { data, error } = await supabase.rpc('login_team', { p_nome: nome, p_password: password });
+      const { data, error } = await supabase.rpc('login_team', { p_corso_id: corsoId, p_nome: nome, p_password: password });
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || 'credenziali_errate')); return; }
       const riga = data[0];
@@ -139,7 +255,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
         return;
       }
       const { data, error } = await supabase.rpc('crea_team', {
-        p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
+        p_corso_id: corsoId, p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
         p_membri: membri.map(m => m.trim()).filter(Boolean),
       });
       setInCorso(false);
@@ -154,7 +270,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
     setDomandaRecuperata(null);
     if (!nomeRecupero.trim()) { setErroreRecupero('Inserite il nome del vostro team.'); return; }
     setRecuperoInCorso(true);
-    const { data, error } = await supabase.rpc('recupera_domanda_team', { p_nome: nomeRecupero });
+    const { data, error } = await supabase.rpc('recupera_domanda_team', { p_corso_id: corsoId, p_nome: nomeRecupero });
     setRecuperoInCorso(false);
     if (error || !data) { setErroreRecupero(messaggioErroreTeam(error?.message || 'team_non_trovato')); return; }
     setDomandaRecuperata(data as string);
@@ -168,7 +284,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
     }
     setRecuperoInCorso(true);
     const { error } = await supabase.rpc('reimposta_password_team', {
-      p_nome: nomeRecupero, p_risposta_segreta: rispostaRecupero, p_nuova_password: nuovaPassword,
+      p_corso_id: corsoId, p_nome: nomeRecupero, p_risposta_segreta: rispostaRecupero, p_nuova_password: nuovaPassword,
     });
     setRecuperoInCorso(false);
     if (error) { setErroreRecupero(messaggioErroreTeam(error.message)); return; }
@@ -182,11 +298,11 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
   };
 
   return (
-    <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
+    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
         <div className="flex items-center gap-3">
           <button onClick={onIndietro} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Indietro</button>
-          <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
+          <MarchioCorso />
         </div>
         <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
       </nav>
@@ -337,6 +453,8 @@ function PannelloMembri({ team, onChiudi, onAggiornati }: { team: TeamInfo; onCh
 }
 
 function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo | null; onLogout: () => void; onTeamAggiornato: (team: TeamInfo) => void }) {
+  const { corso } = useCorso();
+  const corsoId = corso!.id;
   const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
   const [mostraMembri, setMostraMembri] = useState(false);
   const testi = useTestiPiattaforma();
@@ -346,6 +464,7 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
       const { data, error } = await supabase
         .from('attivita')
         .select('*')
+        .eq('corso_id', corsoId)
         .in('stato', ['attiva', 'prossimamente'])
         .order('ordine', { ascending: true });
       if (!error && data) setAttivita(data as AttivitaRow[]);
@@ -353,21 +472,18 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
 
     carica();
 
-    const channel = supabase
-      .channel('realtime-attivita-home')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attivita' }, carica)
-      .subscribe();
+    const channel = ascoltaCorso(supabase.channel(`realtime-attivita-home-${corsoId}`), 'attivita', corsoId, carica).subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [corsoId]);
 
   return (
-    <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
-        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
-        <div className="flex items-center gap-3">
+    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
+      <nav className="flex flex-wrap justify-between items-center gap-3 border-b border-stone-200 pb-6">
+        <MarchioCorso />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {team ? (
             <>
               <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
@@ -477,19 +593,27 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
       </div>
 
       <footer className="text-center text-xs text-stone-400 border-t border-stone-200 pt-6">
-        Design 3
+        {NOME_PIATTAFORMA}
       </footer>
     </main>
   );
 }
 
 export default function LandingPage() {
+  const { corso, pronto: corsoPronto } = useCorso();
   const { team, pronto, accedi, logout } = useTeam();
   const [fase, setFase] = useState<'incipit' | 'accesso'>('incipit');
   const [saltato, setSaltato] = useState(false);
 
-  if (!pronto) {
+  // Cambiando corso si riparte dall'inizio del percorso di accesso.
+  useEffect(() => { setFase('incipit'); setSaltato(false); }, [corso?.id]);
+
+  if (!corsoPronto || !pronto) {
     return <main className="min-h-screen bg-[#FBF9F5]" />;
+  }
+
+  if (!corso) {
+    return <SceltaCorso />;
   }
 
   if (!team && !saltato) {

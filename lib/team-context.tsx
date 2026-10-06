@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useCorso } from './corso-context';
 
 // Identità di team condivisa in tutta l'app (non solo sotto una singola
 // area, a differenza di docente-context.tsx che vive sotto /teacher):
@@ -8,9 +9,10 @@ import { createContext, useContext, useEffect, useState } from 'react';
 // attività. La password resta in chiaro in localStorage (stesso livello
 // di sicurezza "basso ma sufficiente" già scelto per il passcode docente):
 // serve solo a precompilare i campi, non è una vera sessione autenticata
-// lato server.
+// lato server. Ogni corso ha i propri team: la sessione è salvata per
+// corso, così cambiando corso non ci si ritrova "dentro" un team altrui.
 
-const CHIAVE_SESSIONE = 'design3_team_sessione';
+const chiaveSessione = (corsoId: string) => `edu_team_sessione_${corsoId}`;
 
 export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[] };
 
@@ -24,27 +26,35 @@ type TeamContextValue = {
 const TeamContext = createContext<TeamContextValue | null>(null);
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
+  const { corso, pronto: corsoPronto } = useCorso();
+  const corsoId = corso?.id ?? null;
   const [team, setTeam] = useState<TeamInfo | null>(null);
   const [pronto, setPronto] = useState(false);
 
   useEffect(() => {
-    try {
-      const salvato = localStorage.getItem(CHIAVE_SESSIONE);
-      if (salvato) setTeam(JSON.parse(salvato));
-    } catch {
-      // storage non disponibile: si riparte semplicemente senza sessione salvata
+    if (!corsoPronto) return;
+    setTeam(null);
+    if (corsoId) {
+      try {
+        const salvato = localStorage.getItem(chiaveSessione(corsoId));
+        if (salvato) setTeam(JSON.parse(salvato));
+      } catch {
+        // storage non disponibile: si riparte semplicemente senza sessione salvata
+      }
     }
     setPronto(true);
-  }, []);
+  }, [corsoId, corsoPronto]);
 
   const accedi = (nuovoTeam: TeamInfo) => {
     setTeam(nuovoTeam);
-    try { localStorage.setItem(CHIAVE_SESSIONE, JSON.stringify(nuovoTeam)); } catch { /* non bloccante */ }
+    if (!corsoId) return;
+    try { localStorage.setItem(chiaveSessione(corsoId), JSON.stringify(nuovoTeam)); } catch { /* non bloccante */ }
   };
 
   const logout = () => {
     setTeam(null);
-    try { localStorage.removeItem(CHIAVE_SESSIONE); } catch { /* non bloccante */ }
+    if (!corsoId) return;
+    try { localStorage.removeItem(chiaveSessione(corsoId)); } catch { /* non bloccante */ }
   };
 
   return <TeamContext.Provider value={{ team, pronto, accedi, logout }}>{children}</TeamContext.Provider>;

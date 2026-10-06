@@ -1,6 +1,8 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useCorso } from '../../lib/corso-context';
+import { NOME_PIATTAFORMA } from '../../lib/brand';
 import { supabase } from '@/lib/supabase';
 import type { StatoAttivita } from '@/lib/attivita';
 
@@ -23,13 +25,19 @@ function ManualiContenuto() {
   const dallUrl = params.get('attivita') as IdAttivita | null;
   const [scheda, setScheda] = useState<IdAttivita>(dallUrl && SCHEDE.some(s => s.id === dallUrl) ? dallUrl : 'teambuilding');
   const [statoPerTipo, setStatoPerTipo] = useState<Record<string, StatoAttivita> | null>(null);
+  // Con un corso scelto si sbloccano i manuali delle sue attività attive;
+  // senza corso (es. docente) si mostrano quelli attivi in almeno un corso.
+  const { corso } = useCorso();
+  const corsoId = corso?.id ?? null;
 
   useEffect(() => {
     const carica = async () => {
-      const { data, error } = await supabase.from('attivita').select('tipo, stato');
+      let query = supabase.from('attivita').select('tipo, stato');
+      if (corsoId) query = query.eq('corso_id', corsoId);
+      const { data, error } = await query;
       if (!error && data) {
         const mappa: Record<string, StatoAttivita> = {};
-        (data as { tipo: string; stato: StatoAttivita }[]).forEach(a => { mappa[a.tipo] = a.stato; });
+        (data as { tipo: string; stato: StatoAttivita }[]).forEach(a => { if (mappa[a.tipo] !== 'attiva') mappa[a.tipo] = a.stato; });
         setStatoPerTipo(mappa);
       }
     };
@@ -37,14 +45,14 @@ function ManualiContenuto() {
     carica();
 
     const channel = supabase
-      .channel('realtime-attivita-manuali')
+      .channel(`realtime-attivita-manuali-${corsoId ?? 'tutti'}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attivita' }, carica)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [corsoId]);
 
   const schedeSbloccate = SCHEDE.filter(s => s.id === 'teambuilding' || statoPerTipo?.[s.id] === 'attiva');
   const schedaEffettiva = schedeSbloccate.some(s => s.id === scheda) ? scheda : 'teambuilding';
@@ -53,7 +61,7 @@ function ManualiContenuto() {
     <main className="min-h-screen px-6 py-10 max-w-4xl mx-auto space-y-8">
       <div className="flex justify-between items-center border-b border-stone-200 pb-4">
         <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
-        <span className="font-serif tracking-tight font-bold text-lg">Design 3</span>
+        <span className="font-serif tracking-tight font-bold text-lg">{corso ? corso.nome : NOME_PIATTAFORMA}</span>
       </div>
 
       <div className="space-y-2">
@@ -143,7 +151,7 @@ function ManualiContenuto() {
               </div>
               <p className="text-sm text-stone-600">
                 Con il team già loggato, il passo &quot;Il Gruppo&quot; è già compilato: si parte direttamente da <b>Il Caso Studio</b> (titolo,
-                immagine, descrizione), poi <b>Temi</b> (i tag pertinenti, curati dal/dalla docente), <b>Valutazione</b> (i 4 driver IDEO da
+                immagine, descrizione), poi <b>Temi</b> (i tag pertinenti, curati dal/dalla docente), <b>Valutazione</b> (i 4 driver scelti dal/dalla docente per il corso, da
                 0 a 5, ciascuno con una motivazione scritta) e <b>Riepilogo</b> prima dell&apos;invio definitivo. La scheda resta modificabile
                 o cancellabile in seguito dalla sezione &quot;Elenco &amp; Modifiche&quot; — riaprendola col vostro team non vi verrà richiesto
                 nessun codice.
@@ -251,7 +259,7 @@ function ManualiContenuto() {
       )}
 
       <footer className="text-center text-xs text-stone-400 border-t border-stone-200 pt-6">
-        Design 3
+        {NOME_PIATTAFORMA}
       </footer>
     </main>
   );

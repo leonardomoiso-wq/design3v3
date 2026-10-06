@@ -6,43 +6,12 @@ import { comprimiImmagine } from '../../lib/immagine';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '../../lib/cacheCasi';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam } from '../../lib/team-context';
+import { ascoltaCorso } from '../../lib/realtime';
+import RichiedeCorso from '../../components/RichiedeCorso';
+import type { Corso } from '../../lib/corsi';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
-// Fallback usato solo se la tabella tag_default_caso_studio non è
-// ancora raggiungibile (migrazione non eseguita): il/la docente cura
-// la lista vera da /teacher.
-const TAG_OPTIONS_FALLBACK = [
-  'Eco-feedback interfaces',
-  'Bio-digital architecture',
-  'Non-human interaction design (NHID)',
-  'Algorithmic conservation',
-  'Multispecies product design',
-  'Regenerative urban prototyping',
-  'Foraged and bio-based materials',
-  'More-than-human service design',
-  'Speculative multispecies products',
-  'Microbial design',
-];
-
-const DRIVER_INFO: Record<string, { etichetta: string; domanda: string }> = {
-  desiderabilita: {
-    etichetta: 'Desiderabilità',
-    domanda: 'Le persone (o le altre specie coinvolte) desiderano davvero questa soluzione? Risponde a un bisogno reale e sentito?',
-  },
-  fattibilita: {
-    etichetta: 'Fattibilità',
-    domanda: 'È realizzabile con le tecnologie, i materiali e le competenze che avete a disposizione oggi?',
-  },
-  responsabilita: {
-    etichetta: 'Responsabilità',
-    domanda: 'Avete considerato gli impatti etici, sociali e ambientali — anche su chi non ha voce in capitolo?',
-  },
-  vitalita: {
-    etichetta: 'Vitalità',
-    domanda: 'Può reggersi nel tempo? È sostenibile a livello economico, ecologico e sociale, non solo nel breve periodo?',
-  },
-};
 
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Step = 'gruppo' | 'contenuti' | 'tag' | 'driver' | 'riepilogo';
@@ -56,7 +25,13 @@ const STEPS_BASE: { id: Step; label: string }[] = [
 ];
 
 export default function StudentPage() {
+  return <RichiedeCorso>{corso => <StudentPageCorso corso={corso} />}</RichiedeCorso>;
+}
+
+function StudentPageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
+  // Etichette e domande guida dei 4 driver scelte dal/dalla docente per il corso.
+  const DRIVER_INFO = Object.fromEntries(corso.configurazione.driver.map(d => [d.chiave, d])) as Record<string, { etichetta: string; domanda: string }>;
   const [activeTab, setActiveTab] = useState<'crea' | 'gestisci' | 'vota'>('crea');
   const [casi, setCasi] = useState<any[]>([]);
   const [erroreCasi, setErroreCasi] = useState('');
@@ -72,7 +47,7 @@ export default function StudentPage() {
   const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
-  const [tagOptions, setTagOptions] = useState<string[]>(TAG_OPTIONS_FALLBACK);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
   const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
   const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
   const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
@@ -95,11 +70,12 @@ export default function StudentPage() {
 
   useEffect(() => {
     const caricaTag = async () => {
-      const { data } = await supabase.from('tag_default_caso_studio').select('*').order('ordine', { ascending: true });
-      if (data && data.length > 0) setTagOptions((data as any[]).map(t => t.testo));
+      const { data, error } = await supabase.from('tag_default_caso_studio').select('*').eq('corso_id', corso.id).order('ordine', { ascending: true });
+      // Un corso senza tag predefiniti mostra solo il campo "tag personalizzato".
+      if (!error && data) setTagOptions((data as any[]).map(t => t.testo));
     };
     caricaTag();
-  }, []);
+  }, [corso.id]);
 
   const [filtroGruppo, setFiltroGruppo] = useState('');
 
@@ -142,9 +118,7 @@ export default function StudentPage() {
     // (immagini comprese) ogni volta che un gruppo qualsiasi tra i tanti
     // salva una modifica: con molte consegne era diventato un carico enorme
     // ripetuto sul browser di ogni singolo studente collegato.
-    const channel = supabase
-      .channel('realtime-casi-studio-studenti')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+    const canale = ascoltaCorso(supabase.channel(`realtime-casi-studio-studenti-${corso.id}`), 'casi_studio', corso.id, (payload: any) => {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number(payload.old?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
@@ -163,17 +137,17 @@ export default function StudentPage() {
           return esistente ? prev.map(c => (c.id === finale.id ? finale : c)) : [...prev, finale];
         });
         aggiornaCacheCaso(payload.new);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStatoRevisione)
-      .subscribe();
+      });
+    const channel = ascoltaCorso(canale, 'revisione_stato', corso.id, caricaStatoRevisione).subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const caricaStatoRevisione = async () => {
-    const { data, error } = await supabase.from('revisione_stato').select('caso_attivo_id').eq('id', true).single();
+    const { data, error } = await supabase.from('revisione_stato').select('caso_attivo_id').eq('corso_id', corso.id).maybeSingle();
     if (!error && data) {
       setCasoAttivoId(data.caso_attivo_id !== null ? Number(data.caso_attivo_id) : null);
     }
@@ -184,7 +158,7 @@ export default function StudentPage() {
     // o modificati dall'ultima visita, e a piccoli blocchi (non tutti insieme)
     // così anche una connessione lenta vede i casi studio comparire man mano
     // invece di aspettare tutto o niente.
-    const { righe, errore } = await caricaCasiConCache(correnti => {
+    const { righe, errore } = await caricaCasiConCache(corso.id, correnti => {
       setErroreCasi('');
       setCasi(correnti.map(formattaCaso));
     });
@@ -268,6 +242,7 @@ export default function StudentPage() {
           p_y: y,
         })
       : await supabase.rpc('crea_caso_studio', {
+          p_corso_id: corso.id,
           p_gruppo_nome: gruppoNome,
           p_gruppo_num: Number(gruppoNum),
           p_titolo: titolo,
@@ -687,7 +662,10 @@ export default function StudentPage() {
 
             {stepEffettivo === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il caso studio sui 4 driver di innovazione, da 0 a {MAX_DRIVER}, e aggiungete un commento per ciascuno. Non esiste una combinazione "giusta": riflettete onestamente su ogni domanda.</p>
+                <p className="text-sm text-stone-500">Ponderate il caso studio sui 4 driver ({corso.configurazione.framework}), da 0 a {MAX_DRIVER}, e aggiungete un commento per ciascuno. Non esiste una combinazione &ldquo;giusta&rdquo;: riflettete onestamente su ogni domanda.</p>
+                {corso.configurazione.istruzioni && (
+                  <p className="text-sm text-stone-700 bg-amber-50 border border-amber-200 rounded-xl p-3 whitespace-pre-line">{corso.configurazione.istruzioni}</p>
+                )}
                 {([
                   ['desiderabilita', desiderabilita, setDesiderabilita],
                   ['fattibilita', fattibilita, setFattibilita],

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
+import { ascoltaCorso } from '@/lib/realtime';
 import StellaScelto from '@/components/StellaScelto';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
@@ -23,12 +24,6 @@ type Caso = {
   scelto: number;
 };
 
-const ETICHETTE_DRIVER = [
-  ['desiderabilita', 'Desiderabilità'],
-  ['fattibilita', 'Fattibilità'],
-  ['responsabilita', 'Responsabilità'],
-  ['vitalita', 'Vitalità'],
-] as const;
 
 type Colore = 'verde' | 'giallo' | 'rosso';
 type Voti = Record<Colore, number>;
@@ -45,7 +40,9 @@ const SFONDO: Record<'nessuno' | Colore, string> = {
 };
 
 export default function ReviewPage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
+  // Etichette dei 4 driver scelte per questo corso.
+  const ETICHETTE_DRIVER = corso.configurazione.driver.map(d => [d.chiave, d.etichetta] as const);
   const [casi, setCasi] = useState<Caso[]>([]);
   const [votiPerCaso, setVotiPerCaso] = useState<Record<number, Voti>>({});
   const [dettaglioVotiPerCaso, setDettaglioVotiPerCaso] = useState<Record<number, DettaglioVoti>>({});
@@ -88,7 +85,7 @@ export default function ReviewPage() {
       // o modificati dall'ultima visita, e a piccoli blocchi (non tutti
       // insieme) così anche una connessione lenta vede i casi studio
       // comparire man mano invece di aspettare tutto o niente.
-      const { righe, errore } = await caricaCasiConCache(correnti => {
+      const { righe, errore } = await caricaCasiConCache(corso.id, correnti => {
         setErroreCasi('');
         setCasi(correnti.map(formattaCaso));
       });
@@ -101,7 +98,11 @@ export default function ReviewPage() {
     };
 
     const caricaVoti = async () => {
-      const { data, error } = await supabase.from('voti_revisione').select('caso_id, gruppo_num, colore');
+      // Solo i voti sui casi di questo corso (join con casi_studio).
+      const { data, error } = await supabase
+        .from('voti_revisione')
+        .select('caso_id, gruppo_num, colore, casi_studio!inner(corso_id)')
+        .eq('casi_studio.corso_id', corso.id);
       if (!error && data) {
         const aggregati: Record<number, Voti> = {};
         const dettagli: Record<number, DettaglioVoti> = {};
@@ -118,7 +119,7 @@ export default function ReviewPage() {
     };
 
     const caricaStato = async () => {
-      const { data, error } = await supabase.from('revisione_stato').select('caso_attivo_id').eq('id', true).single();
+      const { data, error } = await supabase.from('revisione_stato').select('caso_attivo_id').eq('corso_id', corso.id).maybeSingle();
       if (!error && data) {
         setCasoAttivoId(data.caso_attivo_id !== null ? Number(data.caso_attivo_id) : null);
       }
@@ -128,9 +129,7 @@ export default function ReviewPage() {
     caricaVoti();
     caricaStato();
 
-    const channel = supabase
-      .channel('realtime-review')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'casi_studio' }, (payload: any) => {
+    const canale = ascoltaCorso(supabase.channel(`realtime-review-${corso.id}`), 'casi_studio', corso.id, (payload: any) => {
         if (payload.eventType === 'DELETE') {
           const idEliminato = Number(payload.old?.id);
           setCasi(prev => prev.filter(c => c.id !== idEliminato));
@@ -150,13 +149,13 @@ export default function ReviewPage() {
         });
         aggiornaCacheCaso(payload.new);
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'voti_revisione' }, caricaVoti)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'revisione_stato' }, caricaStato)
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voti_revisione' }, caricaVoti);
+    const channel = ascoltaCorso(canale, 'revisione_stato', corso.id, caricaStato).subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mappaGruppi = Object.fromEntries(casi.map(c => [c.gruppoNum, c.gruppoNome])) as Record<number, string>;
@@ -174,7 +173,7 @@ export default function ReviewPage() {
   }, [casiInclusi.length]);
 
   const impostaCasoAttivo = async (id: number | null) => {
-    const { error } = await supabase.rpc('docente_imposta_caso_attivo', { p_caso_id: id, p_passcode: passcode });
+    const { error } = await supabase.rpc('docente_imposta_caso_attivo', { p_corso_id: corso.id, p_caso_id: id, p_passcode: passcode });
     if (error) console.error('Errore nel cambio di stato votazione:', error);
     else setCasoAttivoId(id);
   };
@@ -196,7 +195,7 @@ export default function ReviewPage() {
   const selezionaDaScelti = async () => {
     setInCorsoSelezioneScelti(true);
     setErroreSelezioneScelti('');
-    const { error } = await supabase.rpc('docente_seleziona_revisione_da_scelti', { p_passcode: passcode });
+    const { error } = await supabase.rpc('docente_seleziona_revisione_da_scelti', { p_corso_id: corso.id, p_passcode: passcode });
     setInCorsoSelezioneScelti(false);
     if (error) {
       console.error('Errore nella selezione dai casi scelti:', error);
@@ -297,7 +296,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-stone-200">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Ponderazione Driver {corso.configurazione.framework} (scala 0-{MAX_DRIVER})</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-2">
                     {ETICHETTE_DRIVER.map(([chiave, etichetta]) => {
                       const nota = c.driverNote?.[chiave];
@@ -540,7 +539,7 @@ export default function ReviewPage() {
                 {chiHaVotato}
               </div>
               <div className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {corso.configurazione.framework} (scala 0-{MAX_DRIVER})</h3>
                 {barreDriver}
               </div>
             </div>
@@ -558,7 +557,7 @@ export default function ReviewPage() {
 
             <aside className="w-72 xl:w-80 flex-shrink-0 min-h-0 flex flex-col gap-4 overflow-y-auto">
               <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-6">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-4">Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-4">Driver {corso.configurazione.framework} (scala 0-{MAX_DRIVER})</h3>
                 {barreDriver}
               </div>
               <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-6">

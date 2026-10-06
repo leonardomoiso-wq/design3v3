@@ -158,7 +158,7 @@ function TimelineSottoambito({ submission, onImageClick, dark }: { submission: a
   );
 }
 
-function GestionePromptSuggeriti({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
+function GestionePromptSuggeriti({ passcode, corsoId, onChiudi }: { passcode: string; corsoId: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
   const [etichetta, setEtichetta] = useState('');
   const [testo, setTesto] = useState('');
@@ -167,7 +167,7 @@ function GestionePromptSuggeriti({ passcode, onChiudi }: { passcode: string; onC
   const [inCorso, setInCorso] = useState(false);
 
   const carica = async () => {
-    const { data } = await supabase.from('prompt_suggeriti_crazy8').select('*').order('ordine', { ascending: true });
+    const { data } = await supabase.from('prompt_suggeriti_crazy8').select('*').eq('corso_id', corsoId).order('ordine', { ascending: true });
     if (data) setLista(data as any[]);
   };
 
@@ -181,7 +181,7 @@ function GestionePromptSuggeriti({ passcode, onChiudi }: { passcode: string; onC
     setInCorso(true);
     const { error } = modificaId
       ? await supabase.rpc('docente_aggiorna_prompt_suggerito', { p_id: modificaId, p_etichetta: etichetta, p_testo_prompt: testo, p_passcode: passcode })
-      : await supabase.rpc('docente_aggiungi_prompt_suggerito', { p_etichetta: etichetta, p_testo_prompt: testo, p_passcode: passcode });
+      : await supabase.rpc('docente_aggiungi_prompt_suggerito', { p_corso_id: corsoId, p_etichetta: etichetta, p_testo_prompt: testo, p_passcode: passcode });
     setInCorso(false);
     if (error) { setErrore('Errore durante il salvataggio.'); return; }
     resetForm();
@@ -269,7 +269,7 @@ function FotoConCommenti({
 }
 
 export default function Crazy8DocentePage() {
-  const { passcode } = useDocente();
+  const { passcode, corso } = useDocente();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selezionataId, setSelezionataId] = useState<string | null>(null);
   const [commenti, setCommenti] = useState<Record<string, any[]>>({});
@@ -286,7 +286,7 @@ export default function Crazy8DocentePage() {
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
 
   const caricaSubmissions = async () => {
-    const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').eq('corso_id', corso.id).order('created_at', { ascending: false });
     if (!error && data) {
       const formattate = (data as any[]).map(s => ({
         ...s,
@@ -301,7 +301,12 @@ export default function Crazy8DocentePage() {
   };
 
   const caricaCommenti = async () => {
-    const { data, error } = await supabase.from('commenti').select('*').order('created_at', { ascending: true });
+    // Solo i commenti sulle immagini delle consegne di questo corso.
+    const { data, error } = await supabase
+      .from('commenti')
+      .select('*, immagini!inner(submission_crazy8!inner(corso_id))')
+      .eq('immagini.submission_crazy8.corso_id', corso.id)
+      .order('created_at', { ascending: true });
     if (!error && data) {
       const raggruppati: Record<string, any[]> = {};
       for (const c of data as any[]) {
@@ -317,7 +322,7 @@ export default function Crazy8DocentePage() {
     caricaCommenti();
 
     const channel = supabase
-      .channel('realtime-crazy8-docente')
+      .channel(`realtime-crazy8-docente-${corso.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)
@@ -613,7 +618,7 @@ export default function Crazy8DocentePage() {
           onChiudi={() => setLightbox(null)}
         />
       )}
-      {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} onChiudi={() => setMostraPromptSuggeriti(false)} />}
+      {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} corsoId={corso.id} onChiudi={() => setMostraPromptSuggeriti(false)} />}
     </div>
   );
 }

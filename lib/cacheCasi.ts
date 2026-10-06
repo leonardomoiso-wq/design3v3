@@ -7,6 +7,11 @@ import { supabase } from './supabase';
 // soltanto le righe nuove o cambiate da allora; le altre vengono lette
 // dalla cache del browser. Richiede la colonna updated_at aggiunta dalla
 // migrazione 20260927_updated_at_casi_studio.sql.
+//
+// La cache contiene righe di più corsi (chi passa da un corso all'altro):
+// ogni operazione considera solo le righe del corso richiesto. Le righe
+// salvate prima dell'introduzione dei corsi (senza corso_id) sono
+// considerate scadute e vengono scartate.
 
 const DB_NOME = 'design3v3-cache';
 const STORE = 'casi_studio';
@@ -135,18 +140,9 @@ export async function rimuoviCasoDallaCache(id: number): Promise<void> {
 
 // Da chiamare dopo un reset completo (docente_resetta_tutto): la cache
 // locale non deve continuare a mostrare casi ormai cancellati sul server.
-export async function svuotaCacheCasi(): Promise<void> {
-  try {
-    const db = await apriDbConTimeout();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    // idem
-  }
+export async function svuotaCacheCasi(corsoId: string): Promise<void> {
+  const cache = await leggiCache();
+  await rimuoviDallaCache(cache.filter(r => r.corso_id === corsoId || !r.corso_id).map(r => Number(r.id)));
 }
 
 // Un fetch che non risponde mai (rete instabile, tabella troppo pesante)
@@ -181,6 +177,7 @@ function messaggioErrore(error: any, timeoutMs: number = TIMEOUT_MS): string {
 const DIMENSIONE_BLOCCO = 4;
 
 async function scaricaAcBlocchi(
+  corsoId: string,
   ids: (number | string)[],
   correntiIniziali: any[],
   onProgresso?: (righeCorrenti: any[]) => void
@@ -190,7 +187,7 @@ async function scaricaAcBlocchi(
   for (let i = 0; i < ids.length; i += DIMENSIONE_BLOCCO) {
     const blocco = ids.slice(i, i + DIMENSIONE_BLOCCO);
     const { data, error } = await eseguiConTimeout(
-      signal => supabase.from('casi_studio').select('*').in('id', blocco).abortSignal(signal),
+      signal => supabase.from('casi_studio').select('*').eq('corso_id', corsoId).in('id', blocco).abortSignal(signal),
       TIMEOUT_BLOCCO_MS
     );
     if (error) {
@@ -220,15 +217,19 @@ async function scaricaAcBlocchi(
 // richiamato via via che nuovi blocchi arrivano, con l'elenco più
 // aggiornato disponibile in quel momento.
 export async function caricaCasiConCache(
+  corsoId: string,
   onProgresso?: (righeCorrenti: any[]) => void
 ): Promise<{ righe: any[]; errore: string | null }> {
   // La cache locale (IndexedDB) non deve mai bloccare il caricamento: se
   // per qualsiasi motivo non risponde, si procede semplicemente senza.
-  const cache = await leggiCache();
+  const tutta = await leggiCache();
+  const scadute = tutta.filter(r => !r.corso_id).map(r => Number(r.id));
+  if (scadute.length > 0) await rimuoviDallaCache(scadute);
+  const cache = tutta.filter(r => r.corso_id === corsoId);
   const cacheMap = new Map(cache.map(r => [Number(r.id), r]));
 
   const { data: elenco, error: erroreElenco } = await eseguiConTimeout(signal =>
-    supabase.from('casi_studio').select('id, updated_at').abortSignal(signal)
+    supabase.from('casi_studio').select('id, updated_at').eq('corso_id', corsoId).abortSignal(signal)
   );
 
   if (erroreElenco) {
@@ -244,12 +245,12 @@ export async function caricaCasiConCache(
     // (quella query è fallita), quindi si scarica prima un elenco leggero
     // di soli id e poi si procede comunque a blocchi.
     const { data: soliId, error: erroreSoliId } = await eseguiConTimeout(signal =>
-      supabase.from('casi_studio').select('id').abortSignal(signal)
+      supabase.from('casi_studio').select('id').eq('corso_id', corsoId).abortSignal(signal)
     );
     if (erroreSoliId) {
       return { righe: [], errore: messaggioErrore(erroreSoliId) };
     }
-    return await scaricaAcBlocchi((soliId || []).map((r: any) => r.id), [], onProgresso);
+    return await scaricaAcBlocchi(corsoId, (soliId || []).map((r: any) => r.id), [], onProgresso);
   }
   if (!elenco) return { righe: cache, errore: null };
 
@@ -268,5 +269,5 @@ export async function caricaCasiConCache(
   if (daScaricare.length === 0) return { righe: correntiIniziali, errore: null };
 
   onProgresso?.(correntiIniziali);
-  return await scaricaAcBlocchi(daScaricare, correntiIniziali, onProgresso);
+  return await scaricaAcBlocchi(corsoId, daScaricare, correntiIniziali, onProgresso);
 }
