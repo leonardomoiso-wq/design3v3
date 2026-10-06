@@ -8,6 +8,7 @@ import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
+import { useMappaZoom, ZOOM_MIN, ZOOM_MAX } from '@/lib/useMappaZoom';
 
 function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -64,6 +65,84 @@ function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi
   );
 }
 
+// Pulsanti di zoom e minimappa della matrice, sovrapposti alla vista.
+function ControlliMappa({ mappa, casi, selezionato, mobile }: {
+  mappa: ReturnType<typeof useMappaZoom>;
+  casi: any[];
+  selezionato: any | null;
+  mobile: boolean;
+}) {
+  const { vista } = mappa;
+  const minimappaRef = useRef<HTMLDivElement>(null);
+  const trascinaMinimappa = useRef(false);
+  const fraz = (c: any) => ({ fx: (c.x + 100) / 200, fy: (-c.y + 100) / 200 });
+
+  const centraDaMinimappa = (e: React.PointerEvent, conAnimazione: boolean) => {
+    const r = minimappaRef.current?.getBoundingClientRect();
+    if (!r) return;
+    mappa.centraSu((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, undefined, conAnimazione);
+  };
+
+  const pulsante = 'w-9 h-9 flex items-center justify-center text-base text-stone-700 hover:bg-stone-100 disabled:opacity-30 disabled:hover:bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900';
+
+  return (
+    <>
+      <div data-no-pan className={`absolute right-3 md:right-8 z-20 flex flex-col bg-white/95 backdrop-blur border border-stone-200 rounded-2xl shadow-sm overflow-hidden divide-y divide-stone-100 ${mobile ? 'top-[4.5rem]' : 'top-16'}`}>
+        <button onClick={() => mappa.zoomDi(1.5, undefined, true)} disabled={vista.zoom >= ZOOM_MAX} aria-label="Ingrandisci" className={pulsante}>+</button>
+        <span className="text-[9px] font-bold text-stone-500 text-center py-1 tabular-nums" aria-live="polite">×{vista.zoom.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</span>
+        <button onClick={() => mappa.zoomDi(1 / 1.5, undefined, true)} disabled={vista.zoom <= ZOOM_MIN} aria-label="Riduci" className={pulsante}>−</button>
+        <button onClick={mappa.reimposta} disabled={vista.zoom <= ZOOM_MIN} aria-label="Mostra tutta la matrice" title="Mostra tutta la matrice" className={`${pulsante} text-sm`}>⤢</button>
+        <button
+          onClick={() => { if (selezionato) { const { fx, fy } = fraz(selezionato); mappa.centraSu(fx, fy, Math.max(vista.zoom, 3)); } }}
+          disabled={!selezionato}
+          aria-label="Centra sul caso studio selezionato"
+          title="Centra sul caso studio selezionato"
+          className={`${pulsante} text-sm`}
+        >
+          ◎
+        </button>
+      </div>
+
+      {/* Minimappa: compare quando si è ingranditi, mostra dove si trova la
+          porzione visibile e si può toccare/trascinare per spostarsi. */}
+      {vista.zoom > 1.01 && (
+        <div
+          ref={minimappaRef}
+          data-no-pan
+          role="presentation"
+          onPointerDown={e => { trascinaMinimappa.current = true; e.currentTarget.setPointerCapture(e.pointerId); centraDaMinimappa(e, true); }}
+          onPointerMove={e => { if (trascinaMinimappa.current) centraDaMinimappa(e, false); }}
+          onPointerUp={() => { trascinaMinimappa.current = false; }}
+          onPointerCancel={() => { trascinaMinimappa.current = false; }}
+          className="absolute right-3 md:right-8 bottom-10 md:bottom-12 z-20 w-24 h-24 md:w-32 md:h-32 bg-white/95 backdrop-blur border border-stone-300 rounded-xl shadow-md overflow-hidden touch-none cursor-pointer animate-fade-in"
+        >
+          <div className="absolute inset-x-0 top-1/2 border-b border-stone-200" />
+          <div className="absolute inset-y-0 left-1/2 border-r border-stone-200" />
+          {casi.map(c => {
+            const { fx, fy } = fraz(c);
+            return (
+              <span
+                key={c.id}
+                className={`absolute rounded-full -translate-x-1/2 -translate-y-1/2 ${selezionato?.id === c.id ? 'w-2 h-2 bg-stone-900' : c.scelto > 0 ? 'w-1.5 h-1.5 bg-amber-400' : 'w-1.5 h-1.5 bg-stone-400'}`}
+                style={{ left: `${fx * 100}%`, top: `${fy * 100}%` }}
+              />
+            );
+          })}
+          <div
+            className="absolute border-2 border-stone-900 rounded-sm bg-stone-900/5 pointer-events-none"
+            style={{
+              left: `${(-vista.x / vista.zoom) * 100}%`,
+              top: `${(-vista.y / vista.zoom) * 100}%`,
+              width: `${100 / vista.zoom}%`,
+              height: `${100 / vista.zoom}%`,
+            }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 const SCHEDE = [
   ['matrice', 'Matrice Globale'],
   ['analitica', '📊 Cluster Analitici'],
@@ -110,6 +189,8 @@ export default function TeacherPage() {
   const [statoPannello, setStatoPannello] = useState<StatoPannello>('peek');
   const [menuSchedeAperto, setMenuSchedeAperto] = useState(false);
   const ALTEZZA_PEEK = 84;
+  const mappa = useMappaZoom(activeTab === 'matrice');
+  const { vista } = mappa;
 
   // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
   const formattaCaso = (c: any) => ({
@@ -385,9 +466,11 @@ export default function TeacherPage() {
   // l'uno sotto l'altro. Qui si individuano i gruppi di casi troppo vicini
   // e si calcola per ciascuno un piccolo scarto (in pixel, non in punteggio)
   // che li dispone a corona attorno al punto condiviso, senza toccare la
-  // posizione reale salvata sul database.
+  // posizione reale salvata sul database. La soglia si riduce con lo zoom,
+  // come i raggruppamenti di una mappa: ingrandendo, i casi vicini ma non
+  // identici si separano da soli.
   const offsetSparso = useMemo(() => {
-    const SOGLIA = 10; // unità driver (scala -100..100)
+    const SOGLIA = 10 / vista.zoom; // unità driver (scala -100..100)
     const visitati = new Set<number>();
     const risultato: Record<number, { dx: number; dy: number }> = {};
     casiFiltrati.forEach((c, i) => {
@@ -415,7 +498,7 @@ export default function TeacherPage() {
       }
     });
     return risultato;
-  }, [casiFiltrati]);
+  }, [casiFiltrati, vista.zoom]);
 
   const getClusterAnalitici = () => {
     const innovatori = casi.filter(c => c.x >= 0 && c.y >= 0);
@@ -595,48 +678,39 @@ export default function TeacherPage() {
       {activeTab === 'matrice' && (
         <div className="flex-1 flex relative overflow-hidden">
           <div
-            ref={matrixRef}
+            ref={mappa.viewportRef}
+            {...mappa.gestori}
+            tabIndex={0}
+            role="application"
+            aria-roledescription="mappa"
+            aria-label="Matrice dei casi studio: trascina per spostarti, rotella o pizzico per lo zoom, tasti + − 0 e frecce"
             onDragOver={e => e.preventDefault()}
             style={mobile ? { marginBottom: ALTEZZA_PEEK } : undefined}
-            className="flex-1 relative bg-[#FCFBF9] md:border-r border-stone-200 flex items-center justify-center overflow-hidden"
+            className="flex-1 relative bg-stone-100 md:border-r border-stone-200 overflow-hidden touch-none cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900"
           >
+            {/* Il "mondo" della matrice: si allarga con lo zoom e si sposta
+                con la vista, mentre le schede restano della stessa
+                dimensione sullo schermo (come i segnaposto di una mappa). */}
+            <div
+              ref={matrixRef}
+              className="absolute bg-[#FCFBF9]"
+              style={{
+                left: `${vista.x * 100}%`,
+                top: `${vista.y * 100}%`,
+                width: `${vista.zoom * 100}%`,
+                height: `${vista.zoom * 100}%`,
+                backgroundImage: 'linear-gradient(to right, rgba(120,113,108,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(120,113,108,0.08) 1px, transparent 1px)',
+                backgroundSize: '12.5% 12.5%',
+                transition: mappa.animata ? 'left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease' : 'none',
+              }}
+            >
             <div className="absolute inset-x-0 top-1/2 border-b border-stone-300/60 z-0"></div>
             <div className="absolute inset-y-0 left-1/2 border-r border-stone-300/60 z-0"></div>
 
-            <span className="absolute top-3 left-3 md:top-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">1. Desiderabilità</span>
-            <span className="absolute top-3 right-3 md:top-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">2. Fattibilità</span>
-            <span className="absolute bottom-10 left-3 md:bottom-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
-            <span className="absolute bottom-10 right-3 md:bottom-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
-
-            <div className="absolute top-9 inset-x-3 md:inset-x-auto md:top-16 md:left-8 z-20 flex items-center gap-2">
-              <select
-                value={filtroTag}
-                onChange={e => setFiltroTag(e.target.value)}
-                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 max-md:max-w-[45%]"
-              >
-                <option value="">Tutti i tag ({casi.length})</option>
-                {tuttiITag.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              <label htmlFor="ricerca-matrice" className="sr-only">Cerca per titolo o gruppo</label>
-              <input
-                id="ricerca-matrice"
-                type="search"
-                value={ricercaMatrice}
-                onChange={e => setRicercaMatrice(e.target.value)}
-                placeholder="🔍 Cerca titolo o gruppo..."
-                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44 max-md:flex-1 max-md:min-w-0"
-              />
-            </div>
-
-            {casiFiltrati.length === 0 && !erroreCasi && (
-              <div className="absolute z-10 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
-                {casi.length === 0
-                  ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
-                  : <>Nessun caso studio corrisponde ai filtri applicati.</>}
-              </div>
-            )}
+            <span className="absolute top-3 left-3 md:top-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">1. Desiderabilità</span>
+            <span className="absolute top-3 right-3 md:top-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">2. Fattibilità</span>
+            <span className="absolute bottom-10 left-3 md:bottom-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">3. Responsabilità</span>
+            <span className="absolute bottom-10 right-3 md:bottom-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0 pointer-events-none">4. Vitalità</span>
 
             {casiFiltrati.map(c => {
               const left = `${((c.x + 100) / 200) * 100}%`;
@@ -649,9 +723,13 @@ export default function TeacherPage() {
               return (
                 <div
                   key={c.id}
-                  draggable
+                  data-caso={c.id}
+                  draggable={!mobile}
                   onDragEnd={(e) => aggiornaPosizioneDaDrop(e, c.id)}
-                  onClick={() => { setSelezionato(c); setAiCritica(''); if (mobile) setStatoPannello('medio'); }}
+                  onClick={() => {
+                    if (mappa.eraSpostamento()) return;
+                    setSelezionato(c); setAiCritica(''); if (mobile) setStatoPannello('medio');
+                  }}
                   onMouseEnter={() => setCasoHoverId(c.id)}
                   onMouseLeave={() => setCasoHoverId(null)}
                   style={{ left, top, transform: `translate(calc(-50% + ${off.dx}px), calc(-50% + ${off.dy}px)) scale(${scala})` }}
@@ -686,6 +764,45 @@ export default function TeacherPage() {
                 </div>
               );
             })}
+
+            </div>
+
+            <div className="absolute top-9 inset-x-3 md:inset-x-auto md:top-16 md:left-8 z-20 flex items-center gap-2">
+              <select
+                value={filtroTag}
+                onChange={e => setFiltroTag(e.target.value)}
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 max-md:max-w-[45%]"
+              >
+                <option value="">Tutti i tag ({casi.length})</option>
+                {tuttiITag.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+              <label htmlFor="ricerca-matrice" className="sr-only">Cerca per titolo o gruppo</label>
+              <input
+                id="ricerca-matrice"
+                type="search"
+                value={ricercaMatrice}
+                onChange={e => setRicercaMatrice(e.target.value)}
+                placeholder="🔍 Cerca titolo o gruppo..."
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44 max-md:flex-1 max-md:min-w-0"
+              />
+            </div>
+
+            {casiFiltrati.length === 0 && !erroreCasi && (
+              <div className="absolute z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-stone-400 text-xs bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-stone-200 shadow-sm">
+                {casi.length === 0
+                  ? <>Nessun caso studio registrato. Vai su &quot;Area Studenti&quot; per inserire le consegne.</>
+                  : <>Nessun caso studio corrisponde ai filtri applicati.</>}
+              </div>
+            )}
+
+            <ControlliMappa
+              mappa={mappa}
+              casi={casiFiltrati}
+              selezionato={selezionato}
+              mobile={mobile}
+            />
 
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap max-md:max-w-[calc(100%-1.5rem)] max-md:truncate">
               {casi.length.toLocaleString('it-IT')} {casi.length === 1 ? 'caso studio trovato' : 'casi studio trovati'}
@@ -735,7 +852,7 @@ export default function TeacherPage() {
                 )}
 
                 <div className="border-t border-stone-200 pt-3 mt-4 text-[10px] text-stone-400 text-center">
-                  Trascina le schede sulla matrice per riposizionarle liberamente.
+                  Trascina le schede per riposizionarle, lo sfondo per spostarti; rotella o doppio clic per lo zoom.
                 </div>
               </div>
             </>
