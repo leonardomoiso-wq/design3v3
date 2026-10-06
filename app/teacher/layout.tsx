@@ -104,7 +104,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <h1 className="font-serif text-base font-medium truncate">Area Docente</h1>
           </div>
 
-          <nav className="hidden xl:flex items-center space-x-2">
+          <nav className="hidden min-[1440px]:flex items-center space-x-2">
             {SEZIONI.map(s => (
               <Link key={s.href} href={s.href} className={linkClasse(s.href)}>{s.etichetta}</Link>
             ))}
@@ -119,7 +119,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <button
             onClick={() => setMenuAperto(true)}
             aria-haspopup="dialog"
-            className="xl:hidden flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-stone-900 text-white min-w-0"
+            className="min-[1440px]:hidden flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-stone-900 text-white min-w-0"
           >
             <span className="truncate max-w-[9rem]">{SEZIONI.find(s => s.href === pathname)?.etichetta ?? 'Menu'}</span>
             <span aria-hidden="true">☰</span>
