@@ -5,6 +5,8 @@ import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
+import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
+import { useMobile } from '@/lib/useMobile';
 
 type Caso = {
   id: number;
@@ -82,7 +84,6 @@ export default function RadarPage() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [trascinando, setTrascinando] = useState(false);
-  const puntoIniziale = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
   const ZOOM_MIN = 0.6;
   const ZOOM_MAX = 3;
@@ -96,24 +97,101 @@ export default function RadarPage() {
     setPan({ x: 0, y: 0 });
   };
 
-  const onWheelRadar = (e: React.WheelEvent) => {
-    e.preventDefault();
-    applicaZoom(e.deltaY > 0 ? -0.15 : 0.15);
+  // Spostamento e zoom del radar con mouse, dito o due dita (pizzico).
+  // Pointer events invece dei soli eventi mouse, così funziona anche da
+  // smartphone; un trascinamento non deve poi aprire la scheda del
+  // progetto sotto il dito.
+  const radarRef = useRef<HTMLDivElement>(null);
+  const puntatori = useRef(new Map<number, { x: number; y: number }>());
+  const gestoRadar = useRef<{ inizio: { x: number; y: number }; distanza: number | null; spostato: boolean } | null>(null);
+  const eraSpostamento = useRef(false);
+
+  useEffect(() => {
+    const el = radarRef.current;
+    if (!el) return;
+    // Listener non passivo: con onWheel di React preventDefault non basta
+    // a bloccare lo scroll della pagina.
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applicaZoom(e.deltaY > 0 ? -0.15 : 0.15);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const p = puntatori.current;
+      const g = gestoRadar.current;
+      if (!g || !p.has(e.pointerId)) return;
+      const prima = p.get(e.pointerId)!;
+      p.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (p.size === 1) {
+        if (!g.spostato && Math.hypot(e.clientX - g.inizio.x, e.clientY - g.inizio.y) < 6) return;
+        g.spostato = true;
+        setPan(v => ({ x: v.x + e.clientX - prima.x, y: v.y + e.clientY - prima.y }));
+        return;
+      }
+      const [a, b] = Array.from(p.values());
+      const distanza = Math.hypot(a.x - b.x, a.y - b.y);
+      g.spostato = true;
+      if (g.distanza) {
+        const fattore = distanza / g.distanza;
+        setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z * fattore)));
+      }
+      g.distanza = distanza;
+    };
+    const onUp = (e: PointerEvent) => {
+      const p = puntatori.current;
+      if (!p.has(e.pointerId)) return;
+      p.delete(e.pointerId);
+      const g = gestoRadar.current;
+      if (p.size === 0) {
+        if (g) eraSpostamento.current = g.spostato;
+        gestoRadar.current = null;
+        setTrascinando(false);
+      } else if (g) {
+        g.inizio = Array.from(p.values())[0];
+        g.distanza = null;
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onPointerDownRadar = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    puntatori.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!gestoRadar.current) {
+      eraSpostamento.current = false;
+      gestoRadar.current = { inizio: { x: e.clientX, y: e.clientY }, distanza: null, spostato: false };
+      setTrascinando(true);
+    } else {
+      gestoRadar.current.distanza = null;
+    }
   };
 
-  const onMouseDownRadar = (e: React.MouseEvent) => {
-    setTrascinando(true);
-    puntoIniziale.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  const apriScheda = (c: Caso) => {
+    if (eraSpostamento.current) return;
+    setCasoEspanso(c);
   };
 
-  const onMouseMoveRadar = (e: React.MouseEvent) => {
-    if (!trascinando) return;
-    const dx = e.clientX - puntoIniziale.current.x;
-    const dy = e.clientY - puntoIniziale.current.y;
-    setPan({ x: puntoIniziale.current.panX + dx, y: puntoIniziale.current.panY + dy });
-  };
-
-  const onMouseUpRadar = () => setTrascinando(false);
+  // Da smartphone: elenco progetti, ordinamento e filtri si aprono dal
+  // basso, il dettaglio dei progetti attivi è un pannello scorrevole.
+  const mobile = useMobile();
+  const [statoPannello, setStatoPannello] = useState<StatoPannello>('peek');
+  const [elencoAperto, setElencoAperto] = useState(false);
+  const [ordinaAperto, setOrdinaAperto] = useState(false);
+  const [filtriAperti, setFiltriAperti] = useState(false);
+  const ALTEZZA_PEEK = 84;
 
   useEffect(() => {
     const formattaCaso = (c: any) => ({
@@ -176,14 +254,6 @@ export default function RadarPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCasoEspanso(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const tuttiITag = useMemo(() => Array.from(new Set(casi.flatMap(c => c.tags || []))).sort(), [casi]);
@@ -258,56 +328,10 @@ export default function RadarPage() {
     cardRefs.current[casoHoverId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [casoHoverId]);
 
-  return (
-    <div className="flex-1 overflow-hidden flex flex-col">
-      <div className="px-6 py-2.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <div className="flex items-center space-x-3 min-w-0">
-          <h1 className="font-serif text-sm font-medium text-stone-500 flex-shrink-0">Analisi Radar Multicriterio</h1>
-          {erroreCasi && (
-            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 truncate">{erroreCasi}</p>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
-          <select
-            id="radar-filtro-tag"
-            value={filtroTag}
-            onChange={e => setFiltroTag(e.target.value)}
-            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
-          >
-            <option value="">Tutti i tag</option>
-            {tuttiITag.map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
-          <label className="sr-only" htmlFor="radar-filtro-driver">Ordina per driver</label>
-          <select
-            id="radar-filtro-driver"
-            value={filtroDriver}
-            onChange={e => setFiltroDriver(e.target.value as any)}
-            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
-          >
-            <option value="nessuno">Nessun ordinamento</option>
-            {ASSI.map(a => (
-              <option key={a.chiave} value={a.chiave}>Top 5 &middot; {a.etichetta}</option>
-            ))}
-          </select>
-          <label className="sr-only" htmlFor="radar-limite-attivi">Numero massimo di casi studio da confrontare insieme</label>
-          <select
-            id="radar-limite-attivi"
-            value={limiteAttivi}
-            onChange={e => cambiaLimiteAttivi(Number(e.target.value))}
-            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
-          >
-            {Array.from({ length: LIMITE_ATTIVI_MAX - LIMITE_ATTIVI_MIN + 1 }, (_, i) => LIMITE_ATTIVI_MIN + i).map(n => (
-              <option key={n} value={n}>Confronta fino a {n}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+  const ordinamentoCorrente = filtroDriver === 'nessuno' ? 'Ordina' : `Top 5 · ${ASSI.find(a => a.chiave === filtroDriver)?.etichetta}`;
 
-      <div className="flex-1 flex overflow-hidden">
-        <div style={{ width: larghezzaElenco }} className="border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
+  const elencoProgetti = (
+    <>
           <label htmlFor="radar-ricerca" className="sr-only">Cerca per titolo o gruppo</label>
           <input
             id="radar-ricerca"
@@ -359,24 +383,145 @@ export default function RadarPage() {
               </button>
             );
           })}
+    </>
+  );
+
+  const schedeAttive = (
+    <>
+          {casiAttivi.map(c => {
+            const colore = coloreDi(c.id);
+            const inEvidenza = casoHoverId === c.id;
+            return (
+              <button
+                key={c.id}
+                ref={el => { cardRefs.current[c.id] = el; }}
+                onClick={() => setCasoEspanso(c)}
+                onMouseEnter={() => setCasoHoverId(c.id)}
+                onMouseLeave={() => setCasoHoverId(null)}
+                className={`w-full text-left bg-white rounded-2xl border shadow-sm overflow-hidden transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group ${inEvidenza ? 'border-amber-300 ring-2 ring-amber-200' : 'border-stone-200 hover:border-stone-400'}`}
+              >
+                <div className="h-28 bg-stone-100 flex items-center justify-center p-3 relative" style={{ borderBottom: `3px solid ${colore}` }}>
+                  {c.immagine ? (
+                    <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <span className="text-[10px] text-stone-400">Nessuna immagine</span>
+                  )}
+                  <span className="absolute top-2 right-2 text-[10px] bg-white/90 backdrop-blur px-2 py-1 rounded-full font-medium opacity-0 group-hover:opacity-100 transition shadow-sm">
+                    🔍 Ingrandisci
+                  </span>
+                  {c.scelto > 0 && (
+                    <span className="absolute top-2 left-2 w-5 h-5 rounded-full bg-white border border-amber-300 flex items-center justify-center shadow-sm">
+                      <StellaScelto valore={c.scelto} className="text-[10px]" />
+                    </span>
+                  )}
+                </div>
+                <div className="p-3.5 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-sm font-serif font-bold">{c.titolo}</h3>
+                    <span className="text-[10px] bg-stone-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">G.{c.gruppoNum}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                    {ASSI.map(asse => (
+                      <div key={asse.chiave} className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 flex justify-between">
+                        <span className="text-stone-500">{asse.etichetta}</span>
+                        <b>{c.driver?.[asse.chiave] ?? 0}</b>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+    </>
+  );
+
+  return (
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="px-4 md:px-6 py-2.5 border-b border-stone-200 flex justify-between items-center gap-2 bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
+        <div className="flex items-center space-x-3 min-w-0 max-md:hidden">
+          <h1 className="font-serif text-sm font-medium text-stone-500 flex-shrink-0">Analisi Radar Multicriterio</h1>
+          {erroreCasi && (
+            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 truncate">{erroreCasi}</p>
+          )}
         </div>
+        {mobile ? (
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <button onClick={() => setElencoAperto(true)} aria-haspopup="dialog" className="px-3.5 py-2 rounded-full text-xs font-medium bg-stone-900 text-white flex-shrink-0">
+              📋 Progetti <span className="opacity-70">{attivi.length}/{limiteAttivi}</span>
+            </button>
+            <button onClick={() => setOrdinaAperto(true)} aria-haspopup="dialog" className={`px-3.5 py-2 rounded-full text-xs font-medium border min-w-0 truncate ${filtroDriver !== 'nessuno' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-stone-200 text-stone-700'}`}>
+              ↕ {ordinamentoCorrente}
+            </button>
+            <button onClick={() => setFiltriAperti(true)} aria-haspopup="dialog" aria-label="Filtri" className={`ml-auto px-3 py-2 rounded-full text-xs font-medium border flex-shrink-0 ${filtroTag ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-stone-200 text-stone-700'}`}>
+              ⚙️{filtroTag ? ' 1' : ''}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-2">
+          <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
+          <select
+            id="radar-filtro-tag"
+            value={filtroTag}
+            onChange={e => setFiltroTag(e.target.value)}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            <option value="">Tutti i tag</option>
+            {tuttiITag.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+          <label className="sr-only" htmlFor="radar-filtro-driver">Ordina per driver</label>
+          <select
+            id="radar-filtro-driver"
+            value={filtroDriver}
+            onChange={e => setFiltroDriver(e.target.value as any)}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            <option value="nessuno">Nessun ordinamento</option>
+            {ASSI.map(a => (
+              <option key={a.chiave} value={a.chiave}>Top 5 &middot; {a.etichetta}</option>
+            ))}
+          </select>
+          <label className="sr-only" htmlFor="radar-limite-attivi">Numero massimo di casi studio da confrontare insieme</label>
+          <select
+            id="radar-limite-attivi"
+            value={limiteAttivi}
+            onChange={e => cambiaLimiteAttivi(Number(e.target.value))}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            {Array.from({ length: LIMITE_ATTIVI_MAX - LIMITE_ATTIVI_MIN + 1 }, (_, i) => LIMITE_ATTIVI_MIN + i).map(n => (
+              <option key={n} value={n}>Confronta fino a {n}</option>
+            ))}
+          </select>
+          </div>
+        )}
+      </div>
+      {mobile && erroreCasi && (
+        <p role="alert" className="mx-4 mt-2 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-3 py-2">{erroreCasi}</p>
+      )}
+
+      <div className="flex-1 flex overflow-hidden">
+        {!mobile && (
+          <>
+            <div style={{ width: larghezzaElenco }} className="border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
+              {elencoProgetti}
+            </div>
+
+            <div
+              onMouseDown={iniziaTrascinamentoElenco}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Ridimensiona il pannello dell'elenco progetti"
+              className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
+            />
+          </>
+        )}
 
         <div
-          onMouseDown={iniziaTrascinamentoElenco}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Ridimensiona il pannello dell'elenco progetti"
-          className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
-        />
-
-        <div
-          className="flex-1 flex items-center justify-center p-6 overflow-hidden relative select-none"
-          onWheel={onWheelRadar}
-          onMouseDown={onMouseDownRadar}
-          onMouseMove={onMouseMoveRadar}
-          onMouseUp={onMouseUpRadar}
-          onMouseLeave={onMouseUpRadar}
-          style={{ cursor: trascinando ? 'grabbing' : 'grab' }}
+          ref={radarRef}
+          className="flex-1 flex items-center justify-center p-2 md:p-6 overflow-hidden relative select-none touch-none"
+          onPointerDown={onPointerDownRadar}
+          style={{ cursor: trascinando ? 'grabbing' : 'grab', marginBottom: mobile ? ALTEZZA_PEEK : undefined }}
         >
           <svg
             viewBox={`0 0 ${TAGLIA_SVG} ${TAGLIA_SVG}`}
@@ -441,7 +586,7 @@ export default function RadarPage() {
                     style={{ transition: 'fill-opacity 0.15s ease, stroke-width 0.15s ease', cursor: 'pointer' }}
                     onMouseEnter={() => setCasoHoverId(c.id)}
                     onMouseLeave={() => setCasoHoverId(null)}
-                    onClick={() => setCasoEspanso(c)}
+                    onClick={() => apriScheda(c)}
                   />
                   {punti.map((p, i) => {
                     const isHover = hover?.titolo === c.titolo && hover?.etichetta === p.asse.etichetta;
@@ -463,7 +608,7 @@ export default function RadarPage() {
                           setHover(null);
                           setCasoHoverId(null);
                         }}
-                        onClick={() => setCasoEspanso(c)}
+                        onClick={() => apriScheda(c)}
                       >
                         <title>{`${c.titolo} — ${p.asse.etichetta}: ${c.driver?.[p.asse.chiave] ?? 0} (clicca per aprire la scheda)`}</title>
                       </circle>
@@ -494,7 +639,7 @@ export default function RadarPage() {
             )}
           </svg>
 
-          <div className="absolute bottom-5 right-5 flex flex-col bg-white border border-stone-200 rounded-2xl shadow-lg overflow-hidden z-10">
+          <div className="absolute bottom-3 right-3 md:bottom-5 md:right-5 flex flex-col bg-white border border-stone-200 rounded-2xl shadow-lg overflow-hidden z-10">
             <button
               onClick={() => applicaZoom(0.2)}
               aria-label="Aumenta zoom"
@@ -522,84 +667,120 @@ export default function RadarPage() {
             </button>
           </div>
 
-          <div className="absolute bottom-5 left-5 text-[10px] text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-stone-200 pointer-events-none">
-            Trascina per spostarti &middot; rotellina per zoomare &middot; clicca un punto per i dettagli
+          <div className="absolute bottom-3 left-3 md:bottom-5 md:left-5 max-md:right-16 text-[10px] text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-stone-200 pointer-events-none">
+            {mobile
+              ? <>Trascina &middot; pizzica per lo zoom &middot; tocca un punto</>
+              : <>Trascina per spostarti &middot; rotellina per zoomare &middot; clicca un punto per i dettagli</>}
           </div>
         </div>
 
-        <div
-          onMouseDown={iniziaTrascinamentoDettaglio}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Ridimensiona il pannello di dettaglio"
-          className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
-        />
+        {mobile ? (
+          <SlidingPanel
+            stato={statoPannello}
+            onCambiaStato={setStatoPannello}
+            etichetta="Dettaglio dei progetti attivi"
+            altezzaPeek={ALTEZZA_PEEK}
+            intestazione={
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-serif font-bold">Progetti attivi ({casiAttivi.length})</h2>
+                  <p className="text-[11px] text-stone-500 truncate">{casiAttivi.length ? casiAttivi.map(c => c.titolo).join(' · ') : 'Nessun progetto sul radar'}</p>
+                </div>
+                <div className="flex -space-x-1 flex-shrink-0" aria-hidden="true">
+                  {casiAttivi.slice(0, 6).map(c => (
+                    <span key={c.id} className="w-4 h-4 rounded-full border-2 border-[#FBF9F5]" style={{ backgroundColor: coloreDi(c.id) }} />
+                  ))}
+                </div>
+              </div>
+            }
+          >
+            <div className="space-y-3 pt-1">
+              {casiAttivi.length === 0 && (
+                <p className="text-xs text-stone-400 text-center py-4">Apri &ldquo;Progetti&rdquo; per sceglierne uno o più da confrontare.</p>
+              )}
+              {schedeAttive}
+            </div>
+          </SlidingPanel>
+        ) : (
+          <>
+            <div
+              onMouseDown={iniziaTrascinamentoDettaglio}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Ridimensiona il pannello di dettaglio"
+              className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
+            />
 
-        <div style={{ width: larghezzaDettaglio }} className="border-l border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-3 flex-shrink-0">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Dettaglio Progetti Attivi</h2>
-          {casiAttivi.length === 0 && (
-            <p className="text-xs text-stone-400 px-1">Seleziona uno o più progetti dall&apos;elenco per confrontarli.</p>
-          )}
-          {casiAttivi.map(c => {
-            const colore = coloreDi(c.id);
-            const inEvidenza = casoHoverId === c.id;
-            return (
-              <button
-                key={c.id}
-                ref={el => { cardRefs.current[c.id] = el; }}
-                onClick={() => setCasoEspanso(c)}
-                onMouseEnter={() => setCasoHoverId(c.id)}
-                onMouseLeave={() => setCasoHoverId(null)}
-                className={`w-full text-left bg-white rounded-2xl border shadow-sm overflow-hidden transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 group ${inEvidenza ? 'border-amber-300 ring-2 ring-amber-200' : 'border-stone-200 hover:border-stone-400'}`}
-              >
-                <div className="h-28 bg-stone-100 flex items-center justify-center p-3 relative" style={{ borderBottom: `3px solid ${colore}` }}>
-                  {c.immagine ? (
-                    <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <span className="text-[10px] text-stone-400">Nessuna immagine</span>
-                  )}
-                  <span className="absolute top-2 right-2 text-[10px] bg-white/90 backdrop-blur px-2 py-1 rounded-full font-medium opacity-0 group-hover:opacity-100 transition shadow-sm">
-                    🔍 Ingrandisci
-                  </span>
-                  {c.scelto > 0 && (
-                    <span className="absolute top-2 left-2 w-5 h-5 rounded-full bg-white border border-amber-300 flex items-center justify-center shadow-sm">
-                      <StellaScelto valore={c.scelto} className="text-[10px]" />
-                    </span>
-                  )}
-                </div>
-                <div className="p-3.5 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-sm font-serif font-bold">{c.titolo}</h3>
-                    <span className="text-[10px] bg-stone-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">G.{c.gruppoNum}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                    {ASSI.map(asse => (
-                      <div key={asse.chiave} className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 flex justify-between">
-                        <span className="text-stone-500">{asse.etichetta}</span>
-                        <b>{c.driver?.[asse.chiave] ?? 0}</b>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+            <div style={{ width: larghezzaDettaglio }} className="border-l border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-3 flex-shrink-0">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 px-1 pb-1">Dettaglio Progetti Attivi</h2>
+              {casiAttivi.length === 0 && (
+                <p className="text-xs text-stone-400 px-1">Seleziona uno o più progetti dall&apos;elenco per confrontarli.</p>
+              )}
+              {schedeAttive}
+            </div>
+          </>
+        )}
       </div>
 
-      {casoEspanso && (
-        <div
-          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Dettaglio esteso: ${casoEspanso.titolo}`}
-          onClick={() => setCasoEspanso(null)}
-        >
-          <div
-            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
+      {/* Mobile: elenco progetti (selezione multipla, resta aperto mentre si
+          sceglie), ordinamento (scelta singola) e filtri. */}
+      <BottomSheet aperto={mobile && elencoAperto} onChiudi={() => setElencoAperto(false)} etichetta="Progetti da confrontare sul radar" titolo="Progetti da confrontare" classePannello="px-5 pb-5 pt-1 space-y-2">
+        {elencoProgetti}
+        <button onClick={() => setElencoAperto(false)} className="sticky bottom-0 w-full bg-stone-900 text-white py-3 rounded-2xl text-sm font-medium mt-2 shadow-lg">
+          Mostra sul radar ({attivi.length})
+        </button>
+      </BottomSheet>
+
+      <ActionSheet
+        aperto={mobile && ordinaAperto}
+        onChiudi={() => setOrdinaAperto(false)}
+        titolo="Ordina i progetti"
+        azioni={[
+          { chiave: 'nessuno', etichetta: 'Nessun ordinamento', attiva: filtroDriver === 'nessuno', onSeleziona: () => setFiltroDriver('nessuno') },
+          ...ASSI.map(a => ({ chiave: a.chiave, etichetta: `Top 5 · ${a.etichetta}`, descrizione: `I cinque progetti con ${a.etichetta.toLowerCase()} più alta`, attiva: filtroDriver === a.chiave, onSeleziona: () => setFiltroDriver(a.chiave) })),
+        ]}
+      />
+
+      <BottomSheet aperto={mobile && filtriAperti} onChiudi={() => setFiltriAperti(false)} etichetta="Filtri del radar" titolo="Filtri">
+        <div className="space-y-3 [&_select]:w-full [&_select]:py-3 [&_select]:text-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Tag tematico</p>
+          <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
+          <select
+            id="radar-filtro-tag"
+            value={filtroTag}
+            onChange={e => setFiltroTag(e.target.value)}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
           >
-            <div className="h-80 bg-stone-100 flex items-center justify-center p-6 rounded-t-3xl relative">
+            <option value="">Tutti i tag</option>
+            {tuttiITag.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 pt-1">Progetti confrontabili insieme</p>
+          <label className="sr-only" htmlFor="radar-limite-attivi">Numero massimo di casi studio da confrontare insieme</label>
+          <select
+            id="radar-limite-attivi"
+            value={limiteAttivi}
+            onChange={e => cambiaLimiteAttivi(Number(e.target.value))}
+            className="text-xs border border-stone-200 rounded-full px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            {Array.from({ length: LIMITE_ATTIVI_MAX - LIMITE_ATTIVI_MIN + 1 }, (_, i) => LIMITE_ATTIVI_MIN + i).map(n => (
+              <option key={n} value={n}>Confronta fino a {n}</option>
+            ))}
+          </select>
+        </div>
+        <button onClick={() => setFiltriAperti(false)} className="w-full bg-stone-900 text-white py-3 rounded-2xl text-sm font-medium">Fatto</button>
+      </BottomSheet>
+
+      {casoEspanso && (
+        <BottomSheet
+          aperto
+          onChiudi={() => setCasoEspanso(null)}
+          etichetta={`Dettaglio esteso: ${casoEspanso.titolo}`}
+          larghezzaDesktop="md:max-w-3xl md:rounded-3xl"
+          classePannello=""
+        >
+            <div className="h-56 md:h-80 bg-stone-100 flex items-center justify-center p-4 md:p-6 md:rounded-t-3xl relative">
               {casoEspanso.immagine ? (
                 <img src={casoEspanso.immagine} alt={casoEspanso.titolo} className="max-w-full max-h-full object-contain" />
               ) : (
@@ -614,11 +795,11 @@ export default function RadarPage() {
               </button>
             </div>
 
-            <div className="p-8 space-y-5">
+            <div className="p-5 md:p-8 space-y-5">
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}</span>
-                  <h2 className="text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>
+                  <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>
                 </div>
               </div>
 
@@ -661,8 +842,7 @@ export default function RadarPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+        </BottomSheet>
       )}
     </div>
   );
