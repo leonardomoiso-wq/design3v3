@@ -3,8 +3,20 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { DocenteContext } from '@/lib/docente-context';
+import { ActionSheet } from '@/components/PannelliMobile';
 
 const CHIAVE_SESSIONE = 'design3_docente_passcode';
+
+const SEZIONI = [
+  { href: '/teacher', etichetta: 'Dashboard & Matrice' },
+  { href: '/teacher/radar', etichetta: '🕸️ Radar Multicriterio' },
+  { href: '/teacher/review', etichetta: '🗳️ Peer Review in Aula' },
+  { href: '/teacher/attivita', etichetta: '⚙️ Attività' },
+  { href: '/teacher/team', etichetta: '👥 Team' },
+  { href: '/teacher/crazy8', etichetta: '🎨 Crazy 8' },
+  { href: '/teacher/hmw', etichetta: '🎭 HMW' },
+  { href: '/teacher/testi', etichetta: '📝 Testi' },
+];
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,6 +24,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const [passcode, setPasscode] = useState('');
   const [passLogin, setPassLogin] = useState('');
   const [erroreLogin, setErroreLogin] = useState(false);
+  const [menuAperto, setMenuAperto] = useState(false);
 
   useEffect(() => {
     const salvato = sessionStorage.getItem(CHIAVE_SESSIONE);
@@ -84,28 +97,45 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   return (
     <DocenteContext.Provider value={{ passcode, logout }}>
       <div className="app-shell h-screen w-screen overflow-hidden flex flex-col bg-[#FBF9F5] text-stone-950">
-        <header className="px-6 py-3.5 border-b border-stone-200 flex justify-between items-center bg-[#FBF9F5]/90 backdrop-blur z-30 flex-shrink-0">
-          <div className="flex items-center space-x-4">
-            <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
+        <header className="px-4 md:px-6 py-3 md:py-3.5 border-b border-stone-200 flex justify-between items-center gap-3 bg-[#FBF9F5]/90 backdrop-blur z-30 flex-shrink-0">
+          <div className="flex items-center space-x-3 md:space-x-4 min-w-0">
+            <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium flex-shrink-0">&larr; Home</a>
             <span className="text-stone-300">/</span>
-            <h1 className="font-serif text-base font-medium">Area Docente</h1>
+            <h1 className="font-serif text-base font-medium truncate">Area Docente</h1>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Link href="/teacher" className={linkClasse('/teacher')}>Dashboard &amp; Matrice</Link>
-            <Link href="/teacher/radar" className={linkClasse('/teacher/radar')}>🕸️ Radar Multicriterio</Link>
-            <Link href="/teacher/review" className={linkClasse('/teacher/review')}>🗳️ Peer Review in Aula</Link>
-            <Link href="/teacher/attivita" className={linkClasse('/teacher/attivita')}>⚙️ Attività</Link>
-            <Link href="/teacher/team" className={linkClasse('/teacher/team')}>👥 Team</Link>
-            <Link href="/teacher/crazy8" className={linkClasse('/teacher/crazy8')}>🎨 Crazy 8</Link>
-            <Link href="/teacher/hmw" className={linkClasse('/teacher/hmw')}>🎭 HMW</Link>
-            <Link href="/teacher/testi" className={linkClasse('/teacher/testi')}>📝 Testi</Link>
+          <nav className="hidden xl:flex items-center space-x-2">
+            {SEZIONI.map(s => (
+              <Link key={s.href} href={s.href} className={linkClasse(s.href)}>{s.etichetta}</Link>
+            ))}
             <a href="/manuali" className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">📚 Manuali</a>
             <button onClick={logout} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-500 hover:border-red-300 hover:text-red-600">
               Esci
             </button>
-          </div>
+          </nav>
+
+          {/* Da smartphone e tablet le otto sezioni non stanno in una riga: un solo
+              pulsante con la sezione corrente apre l'elenco dal basso. */}
+          <button
+            onClick={() => setMenuAperto(true)}
+            aria-haspopup="dialog"
+            className="xl:hidden flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-stone-900 text-white min-w-0"
+          >
+            <span className="truncate max-w-[9rem]">{SEZIONI.find(s => s.href === pathname)?.etichetta ?? 'Menu'}</span>
+            <span aria-hidden="true">☰</span>
+          </button>
         </header>
+
+        <ActionSheet
+          aperto={menuAperto}
+          onChiudi={() => setMenuAperto(false)}
+          titolo="Sezioni dell'area docente"
+          azioni={[
+            ...SEZIONI.map(s => ({ chiave: s.href, etichetta: s.etichetta, href: s.href, attiva: pathname === s.href })),
+            { chiave: 'manuali', etichetta: '📚 Manuali', href: '/manuali' },
+            { chiave: 'esci', etichetta: 'Esci', pericolo: true, onSeleziona: logout },
+          ]}
+        />
 
         <div className="app-shell-body flex-1 overflow-hidden flex flex-col">
           {children}

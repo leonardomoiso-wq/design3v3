@@ -114,3 +114,22 @@ h1, h2, h3, h4 {
     break-after: auto;
   }
 }
+/* Pannelli dal basso (bottom sheet / action sheet) su mobile. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up { animation: sheet-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (min-width: 768px) {
+  .md\:animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up, .md\:animate-scale-in { animation-duration: 0.01ms !important; }
+}
+
+/* Su mobile 100vh include la barra del browser e taglia il fondo della
+   pagina: dove supportato si usa l'altezza dinamica del viewport. */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}

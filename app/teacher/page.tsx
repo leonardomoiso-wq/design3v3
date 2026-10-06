@@ -6,6 +6,8 @@ import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
+import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
+import { useMobile } from '@/lib/useMobile';
 
 function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -38,35 +40,36 @@ function GestioneTagDefault({ passcode, onChiudi }: { passcode: string; onChiudi
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center">
-          <h2 className="font-serif font-bold text-lg">Tag di default per i Casi Studio</h2>
-          <button onClick={onChiudi} className="text-stone-400 hover:text-stone-900 text-xl leading-none">✕</button>
-        </div>
-        <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
+    <BottomSheet aperto onChiudi={onChiudi} etichetta="Tag di default per i Casi Studio" titolo="Tag di default per i Casi Studio">
+      <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
 
-        <div className="flex flex-wrap gap-1.5">
-          {lista.map(t => (
-            <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
-              {t.testo}
-              <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
-            </span>
-          ))}
-          {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
-        </div>
-
-        <div className="border-t border-stone-100 pt-3 flex gap-2">
-          <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
-          <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
-            {inCorso ? '...' : 'Aggiungi'}
-          </button>
-        </div>
-        {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
+      <div className="flex flex-wrap gap-1.5">
+        {lista.map(t => (
+          <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
+            {t.testo}
+            <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
+          </span>
+        ))}
+        {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
       </div>
-    </div>
+
+      <div className="border-t border-stone-100 pt-3 flex gap-2">
+        <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
+        <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
+          {inCorso ? '...' : 'Aggiungi'}
+        </button>
+      </div>
+      {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
+    </BottomSheet>
   );
 }
+
+const SCHEDE = [
+  ['matrice', 'Matrice Globale'],
+  ['analitica', '📊 Cluster Analitici'],
+  ['slides', '🖥️ Modalità Slide PDF'],
+  ['controllo', '⚙️ Controllo & Reset'],
+] as const;
 
 export default function TeacherPage() {
   const { passcode: passcodeAttivo } = useDocente();
@@ -99,6 +102,14 @@ export default function TeacherPage() {
   const [casoEspansoCluster, setCasoEspansoCluster] = useState<any | null>(null);
   const { larghezza: larghezzaPannelloDettaglio, iniziaTrascinamento: iniziaTrascinamentoDettaglio } =
     usePannelloRidimensionabile('design3-matrice-dettaglio-larghezza', 440, 320, 720, 'sinistra');
+
+  // Da smartphone il pannello laterale di dettaglio diventa un pannello
+  // scorrevole dal basso (peek / medio / pieno) e le schede della pagina
+  // si scelgono da un action sheet invece che da una fila di pulsanti.
+  const mobile = useMobile();
+  const [statoPannello, setStatoPannello] = useState<StatoPannello>('peek');
+  const [menuSchedeAperto, setMenuSchedeAperto] = useState(false);
+  const ALTEZZA_PEEK = 84;
 
   // Mappa i campi dal formato snake_case del db al formato camelCase dell'app.
   const formattaCaso = (c: any) => ({
@@ -416,28 +427,162 @@ export default function TeacherPage() {
 
   const clusters = getClusterAnalitici();
 
+  // Intestazione e corpo della scheda di dettaglio: gli stessi contenuti
+  // finiscono nel pannello laterale (desktop) o nello sliding panel
+  // (mobile), dove l'intestazione resta visibile anche a pannello chiuso.
+  const intestazioneDettaglio = selezionato ? (
+    <div>
+      <div className="flex justify-between items-center max-md:hidden">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Scheda di Visualizzazione &amp; Commento</span>
+        <span className="text-[10px] bg-stone-200 px-2.5 py-0.5 rounded-full font-medium">Gruppo {selezionato.gruppoNum}</span>
+      </div>
+      <div className="flex justify-between items-start md:mt-1">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-2xl font-serif font-medium truncate md:whitespace-normal">{selezionato.titolo}</h2>
+          <p className="text-xs text-stone-500 truncate"><span className="md:hidden">Gruppo {selezionato.gruppoNum} &middot; </span>{selezionato.gruppoNome}</p>
+        </div>
+        <StellaScelto
+          valore={selezionato.scelto}
+          onCambia={v => impostaScelto(selezionato, v)}
+          className="flex-shrink-0 ml-2 text-lg"
+        />
+      </div>
+    </div>
+  ) : (
+    <p className="text-xs text-stone-500 md:hidden">Nessun caso studio selezionato</p>
+  );
+
+  const corpoDettaglio = selezionato && (
+    <div className="space-y-5">
+      <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
+        {selezionato.immagine ? (
+          <img src={selezionato.immagine} alt={selezionato.titolo} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+        ) : (
+          <span className="text-xs text-stone-400">Nessuna immagine disponibile</span>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Descrizione del Caso Studio</h3>
+        <p className="text-xs text-stone-700 leading-relaxed bg-white p-4 rounded-xl border border-stone-200 max-h-36 overflow-y-auto">
+          {selezionato.descrizione || "Nessuna descrizione inserita."}
+        </p>
+      </div>
+
+      {selezionato.tags && selezionato.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selezionato.tags.map((tag: string) => (
+            <span key={tag} className="text-[10px] bg-white border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-2 border-t border-stone-200 pt-3">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
+        <div className="space-y-1.5">
+          {([
+            ['desiderabilita', 'Desiderabilità'],
+            ['fattibilita', 'Fattibilità'],
+            ['responsabilita', 'Responsabilità'],
+            ['vitalita', 'Vitalità'],
+          ] as const).map(([chiave, etichetta]) => {
+            const nota = selezionato.driverNote?.[chiave];
+            return (
+              <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
+                <div className="flex justify-between">
+                  <span>{etichetta}</span>
+                  <b>{selezionato.driver?.[chiave] ?? Math.round(MAX_DRIVER / 2)}</b>
+                </div>
+                {nota && (
+                  <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2 border-t border-stone-200 pt-3">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sposta sulla Matrice<span className="max-md:hidden"> (da tastiera)</span></h3>
+        <div className="grid grid-cols-3 gap-1.5 w-32 max-md:w-40 mx-auto">
+          <span></span>
+          <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label="Sposta verso l'alto (più vitale)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
+          <span></span>
+          <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label="Sposta a sinistra (più desiderabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label="Sposta verso il basso (più responsabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
+          <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label="Sposta a destra (più fattibile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
+        </div>
+        <p className="text-[10px] text-stone-400 text-center">{mobile ? 'Da touch il trascinamento non è disponibile: usa le frecce.' : 'Alternativa al trascinamento per chi usa la tastiera.'}</p>
+      </div>
+
+      <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+        <h3 className="text-xs font-serif font-bold text-stone-900">🤖 Analisi Critica / Punti di Vista AI</h3>
+        <select 
+          value={personaSelezionata} 
+          onChange={e => setPersonaSelezionata(e.target.value)}
+          className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:border-stone-900"
+        >
+          <option value="artigiano">L&apos;Artigiano Tradizionale</option>
+          <option value="ingegnere">L&apos;Ingegnere di Sistema</option>
+          <option value="designer80">Il Designer Anni &apos;80 (Memphis)</option>
+          <option value="prodotto2000">Il Product Manager Anni 2000</option>
+        </select>
+
+        <button 
+          onClick={() => generaCriticaAi(selezionato, personaSelezionata)}
+          disabled={loadingAi}
+          className="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-medium hover:bg-stone-800 transition"
+        >
+          {loadingAi ? 'Elaborazione punto di vista...' : 'Genera Analisi Critica ✨'}
+        </button>
+
+        {aiCritica && (
+          <div className="text-[11px] text-stone-700 bg-stone-50 p-3.5 rounded-xl border border-stone-200 leading-relaxed italic">
+            &quot;{aiCritica}&quot;
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="app-shell-body flex-1 overflow-hidden flex flex-col select-none">
 
-      <div className="px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
-        <div className="flex items-center space-x-2">
-          <button onClick={() => setActiveTab('matrice')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'matrice' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
-            Matrice Globale
-          </button>
-          <button onClick={() => setActiveTab('analitica')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'analitica' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
-            📊 Cluster Analitici
-          </button>
-          <button onClick={() => setActiveTab('slides')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'slides' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
-            🖥️ Modalità Slide PDF
-          </button>
-          <button onClick={() => setActiveTab('controllo')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'controllo' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
-            ⚙️ Controllo &amp; Reset
-          </button>
+      <div className="px-4 md:px-6 py-2.5 border-b border-stone-200 flex justify-end items-center bg-[#FBF9F5]/90 backdrop-blur z-20 flex-shrink-0">
+        <div className="hidden md:flex items-center space-x-2">
+          {SCHEDE.map(([chiave, etichetta]) => (
+            <button key={chiave} onClick={() => setActiveTab(chiave)} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === chiave ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700'}`}>
+              {etichetta}
+            </button>
+          ))}
           <button onClick={() => setMostraTagDefault(true)} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">
             🏷️ Tag
           </button>
         </div>
+
+        <div className="md:hidden flex items-center justify-between gap-2 w-full">
+          <button
+            onClick={() => setMenuSchedeAperto(true)}
+            aria-haspopup="dialog"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white border border-stone-200 text-stone-800 min-w-0"
+          >
+            <span className="truncate">{SCHEDE.find(([chiave]) => chiave === activeTab)?.[1]}</span>
+            <span aria-hidden="true" className="text-stone-400">▾</span>
+          </button>
+          <button onClick={() => setMostraTagDefault(true)} className="px-3.5 py-2 rounded-full text-xs font-medium bg-white border border-stone-200 text-stone-700 flex-shrink-0">
+            🏷️ Tag
+          </button>
+        </div>
       </div>
+
+      <ActionSheet
+        aperto={menuSchedeAperto}
+        onChiudi={() => setMenuSchedeAperto(false)}
+        titolo="Vista della dashboard"
+        azioni={SCHEDE.map(([chiave, etichetta]) => ({ chiave, etichetta, attiva: activeTab === chiave, onSeleziona: () => setActiveTab(chiave) }))}
+      />
 
       {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} onChiudi={() => setMostraTagDefault(false)} />}
 
@@ -452,21 +597,22 @@ export default function TeacherPage() {
           <div
             ref={matrixRef}
             onDragOver={e => e.preventDefault()}
-            className="flex-1 relative bg-[#FCFBF9] border-r border-stone-200 flex items-center justify-center overflow-hidden"
+            style={mobile ? { marginBottom: ALTEZZA_PEEK } : undefined}
+            className="flex-1 relative bg-[#FCFBF9] md:border-r border-stone-200 flex items-center justify-center overflow-hidden"
           >
             <div className="absolute inset-x-0 top-1/2 border-b border-stone-300/60 z-0"></div>
             <div className="absolute inset-y-0 left-1/2 border-r border-stone-300/60 z-0"></div>
 
-            <span className="absolute top-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">1. Desiderabilità</span>
-            <span className="absolute top-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">2. Fattibilità</span>
-            <span className="absolute bottom-6 left-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
-            <span className="absolute bottom-6 right-8 text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
+            <span className="absolute top-3 left-3 md:top-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">1. Desiderabilità</span>
+            <span className="absolute top-3 right-3 md:top-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">2. Fattibilità</span>
+            <span className="absolute bottom-10 left-3 md:bottom-6 md:left-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">3. Responsabilità</span>
+            <span className="absolute bottom-10 right-3 md:bottom-6 md:right-8 text-[9px] md:text-[11px] font-bold uppercase tracking-widest text-stone-400 z-0">4. Vitalità</span>
 
-            <div className="absolute top-16 left-8 z-20 flex items-center gap-2">
+            <div className="absolute top-9 inset-x-3 md:inset-x-auto md:top-16 md:left-8 z-20 flex items-center gap-2">
               <select
                 value={filtroTag}
                 onChange={e => setFiltroTag(e.target.value)}
-                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900"
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 max-md:max-w-[45%]"
               >
                 <option value="">Tutti i tag ({casi.length})</option>
                 {tuttiITag.map(tag => (
@@ -480,7 +626,7 @@ export default function TeacherPage() {
                 value={ricercaMatrice}
                 onChange={e => setRicercaMatrice(e.target.value)}
                 placeholder="🔍 Cerca titolo o gruppo..."
-                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44"
+                className="text-[11px] border border-stone-300 rounded-full px-3 py-1.5 bg-white/90 backdrop-blur shadow-sm focus:outline-none focus:border-stone-900 w-44 max-md:flex-1 max-md:min-w-0"
               />
             </div>
 
@@ -505,11 +651,11 @@ export default function TeacherPage() {
                   key={c.id}
                   draggable
                   onDragEnd={(e) => aggiornaPosizioneDaDrop(e, c.id)}
-                  onClick={() => { setSelezionato(c); setAiCritica(''); }}
+                  onClick={() => { setSelezionato(c); setAiCritica(''); if (mobile) setStatoPannello('medio'); }}
                   onMouseEnter={() => setCasoHoverId(c.id)}
                   onMouseLeave={() => setCasoHoverId(null)}
                   style={{ left, top, transform: `translate(calc(-50% + ${off.dx}px), calc(-50% + ${off.dy}px)) scale(${scala})` }}
-                  className={`absolute cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] ${
+                  className={`absolute cursor-grab active:cursor-grabbing transition-all duration-150 p-2.5 rounded-2xl bg-white border flex items-center space-x-2.5 max-w-[200px] max-md:p-1.5 max-md:space-x-0 ${
                     isSelected
                       ? 'border-stone-900 shadow-2xl z-30'
                       : inEvidenza
@@ -525,13 +671,15 @@ export default function TeacherPage() {
                     </span>
                   )}
                   {c.immagine ? (
-                    <div className="w-9 h-9 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
+                    <div className="w-9 h-9 max-md:w-8 max-md:h-8 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
+                      <img src={c.immagine} alt={c.titolo} title={mobile ? `${c.titolo} · G.${c.gruppoNum}` : undefined} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
-                    <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
+                    <div className="w-9 h-9 max-md:w-8 max-md:h-8 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
                   )}
-                  <div className="overflow-hidden">
+                  {/* Da smartphone la scheda in matrice si riduce alla sola
+                      miniatura: titolo e gruppo sono nel pannello dal basso. */}
+                  <div className="overflow-hidden max-md:hidden">
                     <div className="text-xs font-bold truncate text-stone-900">{c.titolo}</div>
                     <div className="text-[9px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}</div>
                   </div>
@@ -539,7 +687,7 @@ export default function TeacherPage() {
               );
             })}
 
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap">
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap max-md:max-w-[calc(100%-1.5rem)] max-md:truncate">
               {casi.length.toLocaleString('it-IT')} {casi.length === 1 ? 'caso studio trovato' : 'casi studio trovati'}
               {' '}&middot;{' '}
               {tuttiITag.length.toLocaleString('it-IT')} {tuttiITag.length === 1 ? 'tema diverso' : 'temi diversi'}
@@ -552,142 +700,52 @@ export default function TeacherPage() {
             </div>
           </div>
 
-          <div
-            onMouseDown={iniziaTrascinamentoDettaglio}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Ridimensiona il pannello di dettaglio"
-            className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
-          />
+          {mobile ? (
+            <SlidingPanel
+              stato={statoPannello}
+              onCambiaStato={setStatoPannello}
+              etichetta="Scheda del caso studio selezionato"
+              altezzaPeek={ALTEZZA_PEEK}
+              intestazione={intestazioneDettaglio}
+            >
+              {selezionato ? corpoDettaglio : (
+                <p className="text-xs text-stone-400 text-center py-6">Tocca un caso studio sulla matrice per aprire la scheda di commento.</p>
+              )}
+            </SlidingPanel>
+          ) : (
+            <>
+              <div
+                onMouseDown={iniziaTrascinamentoDettaglio}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Ridimensiona il pannello di dettaglio"
+                className="w-1.5 cursor-col-resize bg-stone-200/60 hover:bg-stone-400 active:bg-stone-500 transition-colors flex-shrink-0 z-20"
+              />
 
-          <div style={{ width: larghezzaPannelloDettaglio }} className="bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
-            {selezionato ? (
-              <div className="space-y-5">
-                <div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Scheda di Visualizzazione &amp; Commento</span>
-                    <span className="text-[10px] bg-stone-200 px-2.5 py-0.5 rounded-full font-medium">Gruppo {selezionato.gruppoNum}</span>
+              <div style={{ width: larghezzaPannelloDettaglio }} className="bg-[#FBF9F5] border-l border-stone-200 p-6 flex flex-col justify-between overflow-y-auto z-20 flex-shrink-0">
+                {selezionato ? (
+                  <div className="space-y-5">
+                    {intestazioneDettaglio}
+                    {corpoDettaglio}
                   </div>
-                  <div className="flex justify-between items-start mt-1">
-                    <div>
-                      <h2 className="text-2xl font-serif font-medium">{selezionato.titolo}</h2>
-                      <p className="text-xs text-stone-500">{selezionato.gruppoNome}</p>
-                    </div>
-                    <StellaScelto
-                      valore={selezionato.scelto}
-                      onCambia={v => impostaScelto(selezionato, v)}
-                      className="flex-shrink-0 ml-2 text-lg"
-                    />
-                  </div>
-                </div>
-
-                <div className="w-full h-52 rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden shadow-inner flex items-center justify-center p-3">
-                  {selezionato.immagine ? (
-                    <img src={selezionato.immagine} alt={selezionato.titolo} className="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
-                  ) : (
-                    <span className="text-xs text-stone-400">Nessuna immagine disponibile</span>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Descrizione del Caso Studio</h3>
-                  <p className="text-xs text-stone-700 leading-relaxed bg-white p-4 rounded-xl border border-stone-200 max-h-36 overflow-y-auto">
-                    {selezionato.descrizione || "Nessuna descrizione inserita."}
-                  </p>
-                </div>
-
-                {selezionato.tags && selezionato.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {selezionato.tags.map((tag: string) => (
-                      <span key={tag} className="text-[10px] bg-white border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">
-                        {tag}
-                      </span>
-                    ))}
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-xs text-stone-400 text-center px-4">
+                    Seleziona o trascina un caso studio sulla matrice per aprire la scheda di commento.
                   </div>
                 )}
 
-                <div className="space-y-2 border-t border-stone-200 pt-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Ponderazione Driver IDEO (scala 0-{MAX_DRIVER})</h3>
-                  <div className="space-y-1.5">
-                    {([
-                      ['desiderabilita', 'Desiderabilità'],
-                      ['fattibilita', 'Fattibilità'],
-                      ['responsabilita', 'Responsabilità'],
-                      ['vitalita', 'Vitalità'],
-                    ] as const).map(([chiave, etichetta]) => {
-                      const nota = selezionato.driverNote?.[chiave];
-                      return (
-                        <div key={chiave} className="bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
-                          <div className="flex justify-between">
-                            <span>{etichetta}</span>
-                            <b>{selezionato.driver?.[chiave] ?? Math.round(MAX_DRIVER / 2)}</b>
-                          </div>
-                          {nota && (
-                            <p className="text-[11px] text-stone-500 italic mt-1 border-t border-stone-100 pt-1">&ldquo;{nota}&rdquo;</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-2 border-t border-stone-200 pt-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Sposta sulla Matrice (da tastiera)</h3>
-                  <div className="grid grid-cols-3 gap-1.5 w-32 mx-auto">
-                    <span></span>
-                    <button onClick={() => spostaConTastiera(selezionato.id, 0, 10)} aria-label="Sposta verso l'alto (più vitale)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↑</button>
-                    <span></span>
-                    <button onClick={() => spostaConTastiera(selezionato.id, -10, 0)} aria-label="Sposta a sinistra (più desiderabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">←</button>
-                    <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label="Sposta verso il basso (più responsabile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
-                    <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label="Sposta a destra (più fattibile)" className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
-                  </div>
-                  <p className="text-[10px] text-stone-400 text-center">Alternativa al trascinamento per chi usa la tastiera.</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-                  <h3 className="text-xs font-serif font-bold text-stone-900">🤖 Analisi Critica / Punti di Vista AI</h3>
-                  <select 
-                    value={personaSelezionata} 
-                    onChange={e => setPersonaSelezionata(e.target.value)}
-                    className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:border-stone-900"
-                  >
-                    <option value="artigiano">L&apos;Artigiano Tradizionale</option>
-                    <option value="ingegnere">L&apos;Ingegnere di Sistema</option>
-                    <option value="designer80">Il Designer Anni &apos;80 (Memphis)</option>
-                    <option value="prodotto2000">Il Product Manager Anni 2000</option>
-                  </select>
-
-                  <button 
-                    onClick={() => generaCriticaAi(selezionato, personaSelezionata)}
-                    disabled={loadingAi}
-                    className="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-medium hover:bg-stone-800 transition"
-                  >
-                    {loadingAi ? 'Elaborazione punto di vista...' : 'Genera Analisi Critica ✨'}
-                  </button>
-
-                  {aiCritica && (
-                    <div className="text-[11px] text-stone-700 bg-stone-50 p-3.5 rounded-xl border border-stone-200 leading-relaxed italic">
-                      &quot;{aiCritica}&quot;
-                    </div>
-                  )}
+                <div className="border-t border-stone-200 pt-3 mt-4 text-[10px] text-stone-400 text-center">
+                  Trascina le schede sulla matrice per riposizionarle liberamente.
                 </div>
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-xs text-stone-400 text-center px-4">
-                Seleziona o trascina un caso studio sulla matrice per aprire la scheda di commento.
-              </div>
-            )}
-
-            <div className="border-t border-stone-200 pt-3 mt-4 text-[10px] text-stone-400 text-center">
-              Trascina le schede sulla matrice per riposizionarle liberamente.
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
 
       {activeTab === 'slides' && (
-        <div className="printable-area flex-1 p-12 overflow-y-auto bg-stone-200 space-y-12">
-          <div className="print:hidden max-w-4xl mx-auto flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm">
+        <div className="printable-area flex-1 p-4 md:p-12 overflow-y-auto bg-stone-200 space-y-6 md:space-y-12">
+          <div className="print:hidden max-w-4xl mx-auto flex flex-col md:flex-row gap-4 md:justify-between md:items-center bg-white p-5 md:p-6 rounded-2xl shadow-sm">
             <div>
               <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
               <p className="text-xs text-stone-500 mt-0.5">Ogni caso studio è impaginato come slide orizzontale indipendente. Clicca sotto per stampare o salvare in PDF.</p>
@@ -700,13 +758,13 @@ export default function TeacherPage() {
             </button>
           </div>
 
-          <div className="space-y-12 max-w-4xl mx-auto">
+          <div className="space-y-6 md:space-y-12 max-w-4xl mx-auto">
             {casi.length === 0 ? (
               <div className="bg-white p-12 rounded-2xl text-center text-stone-400 text-sm">Nessun caso studio disponibile per le slide.</div>
             ) : (
               casi.map((c, index) => (
-                <div key={c.id} className="bg-white min-h-[28rem] p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
-                  <div className="flex justify-between items-center border-b border-stone-200 pb-3">
+                <div key={c.id} className="bg-white md:min-h-[28rem] print:min-h-[28rem] p-5 md:p-10 print:p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
+                  <div className="flex flex-wrap gap-2 justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Laboratorio di Design 3 &middot; Scheda {index + 1} di {casi.length}</span>
                     <div className="flex items-center gap-2">
                       <StellaScelto valore={c.scelto} onCambia={v => impostaScelto(c, v)} className="text-lg" />
@@ -720,7 +778,7 @@ export default function TeacherPage() {
                   {/* Il testo va visto per intero anche a costo di allungare la
                       scheda oltre un formato 16:9: niente più troncamenti né
                       altezze massime qui. */}
-                  <div className="grid grid-cols-2 gap-8 my-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-5 md:gap-8 my-6">
                     <div className="space-y-2.5 min-w-0">
                       <h2 className="text-2xl font-serif font-bold text-stone-900">{c.titolo}</h2>
                       <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200 whitespace-pre-wrap">
@@ -749,7 +807,7 @@ export default function TeacherPage() {
                       </div>
                     </div>
 
-                    <div className="min-h-[15rem] bg-stone-100 rounded-2xl border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
+                    <div className="min-h-[12rem] md:min-h-[15rem] bg-stone-100 rounded-2xl max-md:order-first print:order-none border border-stone-200 flex items-center justify-center p-4 overflow-hidden">
                       {c.immagine ? (
                         <img src={c.immagine} alt={c.titolo} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain rounded-lg" />
                       ) : (
@@ -758,7 +816,7 @@ export default function TeacherPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-stone-200 pt-3 flex justify-between items-center text-[10px] text-stone-400">
+                  <div className="border-t border-stone-200 pt-3 flex flex-wrap gap-1 justify-between items-center text-[10px] text-stone-400">
                     <span>Framework IDEO 4-Driver &mdash; RothFinder Style</span>
                     <span>Coordinate Matrice &mdash; X: {c.x}, Y: {c.y}</span>
                   </div>
@@ -770,14 +828,14 @@ export default function TeacherPage() {
       )}
 
       {activeTab === 'analitica' && (
-        <div className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto w-full space-y-6">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-6xl mx-auto w-full space-y-6">
           <div>
             <h2 className="text-2xl font-serif">Analitica e Cluster dei Casi Studio</h2>
             <p className="text-stone-500 text-xs mt-1">Raggruppamento automatico dei progetti in base alle affinità di posizionamento strategico.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
               <h3 className="font-serif font-bold text-sm text-emerald-800">🚀 Cluster Innovazione &amp; Fattibilità ({clusters.innovatori.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
@@ -789,7 +847,7 @@ export default function TeacherPage() {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
               <h3 className="font-serif font-bold text-sm text-blue-800">🌍 Cluster Impatto Sociale &amp; Desiderabilità ({clusters.sociali.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
@@ -801,7 +859,7 @@ export default function TeacherPage() {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
               <h3 className="font-serif font-bold text-sm text-amber-800">⚙️ Cluster Strategici &amp; di Sistema ({clusters.strategici.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
@@ -813,7 +871,7 @@ export default function TeacherPage() {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
               <h3 className="font-serif font-bold text-sm text-purple-800">💡 Cluster Esplorativi &amp; Vitali ({clusters.esplorativi.length})</h3>
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
@@ -829,18 +887,14 @@ export default function TeacherPage() {
       )}
 
       {casoEspansoCluster && (
-        <div
-          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Dettaglio esteso: ${casoEspansoCluster.titolo}`}
-          onClick={() => setCasoEspansoCluster(null)}
+        <BottomSheet
+          aperto
+          onChiudi={() => setCasoEspansoCluster(null)}
+          etichetta={`Dettaglio esteso: ${casoEspansoCluster.titolo}`}
+          larghezzaDesktop="md:max-w-3xl md:rounded-3xl"
+          classePannello=""
         >
-          <div
-            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="h-80 bg-stone-100 flex items-center justify-center p-6 rounded-t-3xl relative">
+            <div className="h-56 md:h-80 bg-stone-100 flex items-center justify-center p-4 md:p-6 md:rounded-t-3xl relative">
               {casoEspansoCluster.immagine ? (
                 <img src={casoEspansoCluster.immagine} alt={casoEspansoCluster.titolo} className="max-w-full max-h-full object-contain" />
               ) : (
@@ -855,11 +909,11 @@ export default function TeacherPage() {
               </button>
             </div>
 
-            <div className="p-8 space-y-5">
+            <div className="p-5 md:p-8 space-y-5">
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} &middot; {casoEspansoCluster.gruppoNome}</span>
-                  <h2 className="text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
+                  <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
                 </div>
               </div>
 
@@ -907,12 +961,11 @@ export default function TeacherPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+        </BottomSheet>
       )}
 
       {activeTab === 'controllo' && (
-        <div className="flex-1 p-8 overflow-y-auto max-w-xl mx-auto w-full space-y-6">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-xl mx-auto w-full space-y-6">
           {successoReimposta && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm flex items-start justify-between space-x-3">
               <div>
@@ -923,7 +976,7 @@ export default function TeacherPage() {
             </div>
           )}
 
-          <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
+          <div className="bg-white p-5 md:p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
             <div>
               <h2 className="text-2xl font-serif text-center">Pannello di Controllo &amp; Sicurezza</h2>
               <p className="text-stone-500 text-xs mt-1 text-center">Gestisci il reset protetto del database locale.</p>
@@ -963,7 +1016,7 @@ export default function TeacherPage() {
             </form>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+          <div className="bg-white p-5 md:p-8 rounded-2xl border border-stone-200 shadow-sm space-y-4">
             <div>
               <h2 className="text-lg font-serif font-bold">Gestione Codici di Gruppo</h2>
               <p className="text-stone-500 text-xs mt-1">I codici non sono mai leggibili (nemmeno da qui): se un gruppo lo dimentica, imposta qui uno nuovo e comunicaglielo.</p>
@@ -994,14 +1047,12 @@ export default function TeacherPage() {
       )}
 
       {casoDaReimpostare && (
-        <div
-          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Reimposta codice: ${casoDaReimpostare.titolo}`}
-          onClick={() => setCasoDaReimpostare(null)}
+        <BottomSheet
+          aperto
+          onChiudi={() => setCasoDaReimpostare(null)}
+          etichetta={`Reimposta codice: ${casoDaReimpostare.titolo}`}
+          larghezzaDesktop="md:max-w-sm"
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div>
               <h2 className="font-serif font-bold text-lg">Nuovo codice di gruppo</h2>
               <p className="text-xs text-stone-500 mt-1">
@@ -1043,8 +1094,7 @@ export default function TeacherPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </BottomSheet>
       )}
 
     </div>
