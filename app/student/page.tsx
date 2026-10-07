@@ -10,6 +10,8 @@ import { ascoltaCorso } from '../../lib/realtime';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
 import { MetaCaso, FonteCaso, metaDaRiga, type Provenienza } from '../../components/MetaCaso';
+import TagRaggruppati from '../../components/TagRaggruppati';
+import { caricaTagCorso, testiTag, TAG_VUOTI, type TagCorso, type TagDefault } from '../../lib/tag';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -51,7 +53,8 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
   const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
   const [tagPersonalizzato, setTagPersonalizzato] = useState('');
-  const [tagOptions, setTagOptions] = useState<string[]>([]);
+  const [tagCorso, setTagCorso] = useState<TagCorso>(TAG_VUOTI);
+  const tagOptions = testiTag(tagCorso);
   const [desiderabilita, setDesiderabilita] = useState(DRIVER_DEFAULT);
   const [fattibilita, setFattibilita] = useState(DRIVER_DEFAULT);
   const [responsabilita, setResponsabilita] = useState(DRIVER_DEFAULT);
@@ -74,9 +77,10 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
   useEffect(() => {
     const caricaTag = async () => {
-      const { data, error } = await supabase.from('tag_default_caso_studio').select('*').eq('corso_id', corso.id).order('ordine', { ascending: true });
-      // Un corso senza tag predefiniti mostra solo il campo "tag personalizzato".
-      if (!error && data) setTagOptions((data as any[]).map(t => t.testo));
+      // Tag predefiniti raggruppati per categoria (impostati dal/dalla docente).
+      // Un corso senza tag mostra solo il campo "tag personalizzato".
+      const { dati, errore } = await caricaTagCorso(corso.id);
+      if (!errore) setTagCorso(dati);
     };
     caricaTag();
   }, [corso.id]);
@@ -175,10 +179,14 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
     setCasi(righe.map(formattaCaso));
   };
 
-  const toggleTag = (tag: string) => {
-    setTagsSelezionati(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
+  // In una categoria a "una sola voce" scegliere un tag sostituisce
+  // quello già scelto nella stessa categoria.
+  const toggleTag = (tag: string, esclusiviCon: TagDefault[] = []) => {
+    setTagsSelezionati(prev => {
+      if (prev.includes(tag)) return prev.filter(t => t !== tag);
+      const daTogliere = new Set(esclusiviCon.map(t => t.testo));
+      return [...prev.filter(t => !daTogliere.has(t)), tag];
+    });
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -410,7 +418,12 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
   const annoCorrente = new Date().getFullYear();
   const annoValido = /^\d{4}$/.test(anno.trim()) && Number(anno) >= 1000 && Number(anno) <= annoCorrente + 1;
   const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '' && annoValido && provenienza !== '' && fonte.trim() !== '';
-  const tagsValidi = tagsSelezionati.length > 0 || tagPersonalizzato.trim() !== '';
+  // Ogni categoria obbligatoria deve avere almeno una voce scelta, e in
+  // tutto serve almeno un tag (predefinito o personalizzato).
+  const categorieMancanti = tagCorso.categorie.filter(
+    c => c.obbligatoria && c.tag.length > 0 && !c.tag.some(t => tagsSelezionati.includes(t.testo))
+  );
+  const tagsValidi = categorieMancanti.length === 0 && (tagsSelezionati.length > 0 || tagPersonalizzato.trim() !== '');
   const valutazioneValida = (['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const)
     .every(chiave => note[chiave].trim() !== '');
 
@@ -683,27 +696,57 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
                 <div>
                   <label htmlFor="descrizione" className="block text-xs font-medium uppercase text-stone-500 mb-1">Descrizione Critica</label>
-                  <textarea id="descrizione" rows={4} required value={descrizione} onChange={e => setDescrizione(e.target.value)} placeholder="Analizza il contesto, le leve di cambiamento e il valore generato..." className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"></textarea>
+                  <p id="descrizione-guida" className="text-xs text-stone-600 mb-2 leading-relaxed">
+                    Descrivete il caso studio e spiegate <b className="text-stone-900">perché è (o non è) innovazione</b>: cosa cambia rispetto a ciò che esisteva prima, per chi, e con quali limiti.
+                  </p>
+                  <textarea id="descrizione" rows={6} required aria-describedby="descrizione-guida" value={descrizione} onChange={e => setDescrizione(e.target.value)} placeholder={"Cos'è e come funziona...\n\nPerché è (o non è) innovazione..."} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"></textarea>
                 </div>
               </div>
             )}
 
             {stepEffettivo === 'tag' && (
               <div className="space-y-4">
-                <p className="text-sm text-stone-500">A quali temi si collega il caso studio? Assegnate almeno una tag tra quelle che ritenete opportune, o aggiungetene una vostra.</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {tagOptions.map(tag => (
-                    <label key={tag} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${tagsSelezionati.includes(tag) ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
-                      <input
-                        type="checkbox"
-                        checked={tagsSelezionati.includes(tag)}
-                        onChange={() => toggleTag(tag)}
-                        className="accent-stone-900"
-                      />
-                      <span>{tag}</span>
-                    </label>
-                  ))}
-                </div>
+                <p className="text-sm text-stone-500">Come classificate il caso studio? Scegliete le voci per ogni categoria{tagCorso.categorie.some(c => c.obbligatoria) ? ' (quelle con * sono obbligatorie)' : ''}, o aggiungete un tag vostro.</p>
+                {[
+                  ...tagCorso.categorie.filter(c => c.tag.length > 0),
+                  ...(tagCorso.senzaCategoria.length > 0
+                    ? [{ id: 'altri', nome: tagCorso.categorie.length > 0 ? 'Altri temi' : 'Temi', selezione: 'multipla' as const, obbligatoria: false, tag: tagCorso.senzaCategoria }]
+                    : []),
+                ].map(categoria => {
+                  const singola = categoria.selezione === 'singola';
+                  const mancante = categorieMancanti.some(c => c.id === categoria.id);
+                  return (
+                    <fieldset key={categoria.id} className="space-y-2">
+                      <legend className="flex flex-wrap items-baseline gap-x-2 text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
+                        <span>{categoria.nome}{categoria.obbligatoria && <span className="text-red-600" aria-hidden="true"> *</span>}</span>
+                        <span className="text-[10px] font-normal normal-case tracking-normal text-stone-400">
+                          {singola ? 'una sola voce' : 'una o più voci'}{categoria.obbligatoria ? ' · obbligatoria' : ''}
+                        </span>
+                      </legend>
+                      <div className="grid grid-cols-2 gap-2" role={singola ? 'radiogroup' : 'group'} aria-label={categoria.nome}>
+                        {categoria.tag.map(t => {
+                          const scelto = tagsSelezionati.includes(t.testo);
+                          return (
+                            <label key={t.id} className={`flex items-center space-x-2 text-xs p-2.5 rounded-xl border cursor-pointer transition ${scelto ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50/50 border-stone-200 text-stone-700 hover:border-stone-400'}`}>
+                              <input
+                                type={singola ? 'radio' : 'checkbox'}
+                                name={singola ? `categoria-${categoria.id}` : undefined}
+                                checked={scelto}
+                                onChange={() => toggleTag(t.testo, singola ? categoria.tag : [])}
+                                onClick={() => { if (singola && scelto) toggleTag(t.testo); }}
+                                className="accent-stone-900"
+                              />
+                              <span>{t.testo}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {mancante && tagsSelezionati.length + (tagPersonalizzato.trim() ? 1 : 0) > 0 && (
+                        <p className="text-[11px] text-red-600">Scegliete almeno una voce in &ldquo;{categoria.nome}&rdquo;.</p>
+                      )}
+                    </fieldset>
+                  );
+                })}
                 <div>
                   <label htmlFor="tag-personalizzato" className="sr-only">Tag personalizzato</label>
                   <input
@@ -796,13 +839,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   {descrizione || 'Nessuna descrizione inserita.'}
                 </p>
 
-                {(tagsSelezionati.length > 0 || tagPersonalizzato.trim()) && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...tagsSelezionati, ...(tagPersonalizzato.trim() ? [tagPersonalizzato.trim()] : [])].map(tag => (
-                      <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
-                    ))}
-                  </div>
-                )}
+                <TagRaggruppati tags={[...tagsSelezionati, ...(tagPersonalizzato.trim() ? [tagPersonalizzato.trim()] : [])]} tagCorso={tagCorso} />
 
                 <div className="space-y-2">
                   {([

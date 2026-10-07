@@ -8,65 +8,14 @@ import { CONFIGURAZIONE_PREDEFINITA, etichettaDriver } from '@/lib/corsi';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
+import GestioneTag from '@/components/GestioneTag';
+import TagRaggruppati from '@/components/TagRaggruppati';
+import { caricaTagCorso, TAG_VUOTI, type TagCorso } from '@/lib/tag';
 import { MetaCaso, FonteCaso, metaDaRiga, testoMeta } from '@/components/MetaCaso';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
 import { useMappaZoom, ZOOM_MIN, ZOOM_MAX } from '@/lib/useMappaZoom';
 
-function GestioneTagDefault({ passcode, corsoId, onChiudi }: { passcode: string; corsoId: string; onChiudi: () => void }) {
-  const [lista, setLista] = useState<any[]>([]);
-  const [nuovoTag, setNuovoTag] = useState('');
-  const [errore, setErrore] = useState('');
-  const [inCorso, setInCorso] = useState(false);
-
-  const carica = async () => {
-    const { data } = await supabase.from('tag_default_caso_studio').select('*').eq('corso_id', corsoId).order('ordine', { ascending: true });
-    if (data) setLista(data as any[]);
-  };
-
-  useEffect(() => { carica(); }, []);
-
-  const aggiungi = async () => {
-    setErrore('');
-    if (!nuovoTag.trim()) { setErrore('Scrivi il testo del tag.'); return; }
-    setInCorso(true);
-    const { error } = await supabase.rpc('docente_aggiungi_tag_default', { p_corso_id: corsoId, p_testo: nuovoTag, p_passcode: passcode });
-    setInCorso(false);
-    if (error) { setErrore('Errore durante il salvataggio.'); return; }
-    setNuovoTag('');
-    carica();
-  };
-
-  const elimina = async (id: string) => {
-    setLista(prev => prev.filter(t => t.id !== id));
-    const { error } = await supabase.rpc('docente_elimina_tag_default', { p_id: id, p_passcode: passcode });
-    if (error) carica();
-  };
-
-  return (
-    <BottomSheet aperto onChiudi={onChiudi} etichetta="Tag di default per i Casi Studio" titolo="Tag di default per i Casi Studio">
-      <p className="text-xs text-stone-500">I temi che gli studenti possono scegliere nel passo &quot;Temi&quot; della consegna.</p>
-
-      <div className="flex flex-wrap gap-1.5">
-        {lista.map(t => (
-          <span key={t.id} className="inline-flex items-center gap-1.5 text-[11px] bg-stone-50 border border-stone-200 rounded-full pl-3 pr-1.5 py-1">
-            {t.testo}
-            <button onClick={() => elimina(t.id)} aria-label={`Elimina ${t.testo}`} className="text-stone-300 hover:text-red-600">✕</button>
-          </span>
-        ))}
-        {lista.length === 0 && <p className="text-xs text-stone-400">Nessun tag ancora.</p>}
-      </div>
-
-      <div className="border-t border-stone-100 pt-3 flex gap-2">
-        <input value={nuovoTag} onChange={e => setNuovoTag(e.target.value)} placeholder="Nuovo tag..." onKeyDown={e => { if (e.key === 'Enter') aggiungi(); }} className="flex-1 border border-stone-200 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-stone-900" />
-        <button onClick={aggiungi} disabled={inCorso} className="text-xs bg-stone-900 text-white px-4 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-50">
-          {inCorso ? '...' : 'Aggiungi'}
-        </button>
-      </div>
-      {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
-    </BottomSheet>
-  );
-}
 
 // Pulsanti di zoom e minimappa della matrice, sovrapposti alla vista.
 function ControlliMappa({ mappa, casi, selezionato, mobile }: {
@@ -164,6 +113,15 @@ export default function TeacherPage() {
   const [selezionato, setSelezionato] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'matrice' | 'analitica' | 'controllo' | 'slides'>('matrice');
   const [mostraTagDefault, setMostraTagDefault] = useState(false);
+  // Categorie di tag del corso: servono a mostrare i tag dei casi studio
+  // raggruppati per layer (dettaglio, cluster, slide). Si ricaricano alla
+  // chiusura della finestra Tag.
+  const [tagCorso, setTagCorso] = useState<TagCorso>(TAG_VUOTI);
+  useEffect(() => {
+    if (mostraTagDefault) return;
+    caricaTagCorso(corso.id).then(r => { if (!r.errore) setTagCorso(r.dati); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mostraTagDefault]);
 
   const [personaSelezionata, setPersonaSelezionata] = useState('artigiano');
   const [aiCritica, setAiCritica] = useState('');
@@ -579,15 +537,7 @@ export default function TeacherPage() {
         <FonteCaso fonte={selezionato.fonte} />
       </div>
 
-      {selezionato.tags && selezionato.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selezionato.tags.map((tag: string) => (
-            <span key={tag} className="text-[10px] bg-white border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <TagRaggruppati tags={selezionato.tags} tagCorso={tagCorso} />
 
       <div className="space-y-2 border-t border-stone-200 pt-3">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {config.framework} (scala 0-{MAX_DRIVER})</h3>
@@ -689,7 +639,7 @@ export default function TeacherPage() {
         azioni={SCHEDE.map(([chiave, etichetta]) => ({ chiave, etichetta, attiva: activeTab === chiave, onSeleziona: () => setActiveTab(chiave) }))}
       />
 
-      {mostraTagDefault && <GestioneTagDefault passcode={passcodeAttivo} corsoId={corso.id} onChiudi={() => setMostraTagDefault(false)} />}
+      {mostraTagDefault && <GestioneTag passcode={passcodeAttivo} corsoId={corso.id} onChiudi={() => setMostraTagDefault(false)} />}
 
       {erroreCasi && (
         <p role="alert" className="mx-6 mt-3 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 flex-shrink-0">
@@ -928,6 +878,7 @@ export default function TeacherPage() {
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
                       <FonteCaso fonte={c.fonte} />
+                      <TagRaggruppati tags={c.tags} tagCorso={tagCorso} />
                       <div className="grid grid-cols-2 gap-1.5">
                         {DRIVER.map(([chiave, etichetta]) => {
                           const nota = c.driverNote?.[chiave];
@@ -1057,13 +1008,7 @@ export default function TeacherPage() {
                 </div>
               </div>
 
-              {casoEspansoCluster.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {casoEspansoCluster.tags.map((tag: string) => (
-                    <span key={tag} className="text-[10px] bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-full text-stone-600 font-medium">{tag}</span>
-                  ))}
-                </div>
-              )}
+              <TagRaggruppati tags={casoEspansoCluster.tags || []} tagCorso={tagCorso} />
 
               <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
                 {casoEspansoCluster.descrizione || 'Nessuna descrizione inserita.'}
