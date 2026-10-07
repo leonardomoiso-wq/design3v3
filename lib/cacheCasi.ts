@@ -1,0 +1,273 @@
+import { supabase } from './supabase';
+
+// Cache locale (IndexedDB) dei casi_studio: evita di riscaricare le
+// immagini (spesso centinaia di KB ciascuna) di casi gia' visti in una
+// visita precedente. A ogni caricamento si interroga solo un elenco
+// leggero (id + updated_at, senza immagini) e si riscaricano per intero
+// soltanto le righe nuove o cambiate da allora; le altre vengono lette
+// dalla cache del browser. Richiede la colonna updated_at aggiunta dalla
+// migrazione 20260927_updated_at_casi_studio.sql.
+//
+// La cache contiene righe di più corsi (chi passa da un corso all'altro):
+// ogni operazione considera solo le righe del corso richiesto. Le righe
+// salvate prima dell'introduzione dei corsi (senza corso_id) sono
+// considerate scadute e vengono scartate.
+
+const DB_NOME = 'design3v3-cache';
+const STORE = 'casi_studio';
+const DB_VERSIONE = 1;
+
+function apriDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('indexeddb_non_disponibile'));
+      return;
+    }
+    const richiesta = indexedDB.open(DB_NOME, DB_VERSIONE);
+    richiesta.onupgradeneeded = () => {
+      if (!richiesta.result.objectStoreNames.contains(STORE)) {
+        richiesta.result.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    richiesta.onsuccess = () => resolve(richiesta.result);
+    richiesta.onerror = () => reject(richiesta.error);
+    // "onblocked" (un'altra scheda con una versione diversa del DB aperta) e
+    // qualsiasi altro caso limite in cui indexedDB.open non chiama mai
+    // onsuccess/onerror non devono bloccare per sempre il caricamento dei
+    // casi studio: dopo un timeout si rinuncia alla cache per questo giro.
+    richiesta.onblocked = () => reject(new Error('indexeddb_bloccato'));
+  });
+}
+
+function conTimeout<T>(promessa: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promessa.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+function apriDbConTimeout(): Promise<IDBDatabase> {
+  return conTimeout(apriDb(), 2000);
+}
+
+async function leggiCache(): Promise<any[]> {
+  try {
+    const db = await apriDbConTimeout();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const richiesta = tx.objectStore(STORE).getAll();
+      richiesta.onsuccess = () => resolve(richiesta.result || []);
+      richiesta.onerror = () => reject(richiesta.error);
+    });
+  } catch {
+    // Safari in navigazione privata, quota esaurita, browser molto vecchi...
+    // in questi casi si procede semplicemente senza cache.
+    return [];
+  }
+}
+
+async function leggiRigaCache(id: number): Promise<any | null> {
+  try {
+    const db = await apriDbConTimeout();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const richiesta = tx.objectStore(STORE).get(id);
+      richiesta.onsuccess = () => resolve(richiesta.result ?? null);
+      richiesta.onerror = () => reject(richiesta.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function scriviCache(righe: any[]): Promise<void> {
+  if (righe.length === 0) return;
+  try {
+    const db = await apriDbConTimeout();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      righe.forEach(r => store.put(r));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // Non blocca l'app: al prossimo caricamento si ritenterà da zero.
+  }
+}
+
+async function rimuoviDallaCache(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    const db = await apriDbConTimeout();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      ids.forEach(id => store.delete(id));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // idem
+  }
+}
+
+// Da chiamare quando un evento realtime porta gia' la riga aggiornata:
+// tiene la cache in sincrono cosi' il prossimo caricamento non deve
+// riscaricarla di nuovo.
+export async function aggiornaCacheCaso(riga: any): Promise<void> {
+  if (!riga) return;
+  // L'immagine è una colonna grande (spesso "TOASTed" in Postgres): un
+  // aggiornamento che non la tocca (spuntare "scelto", spostare un punto
+  // in matrice...) può arrivare via realtime senza quel valore se la
+  // replica logica non include le colonne TOASTed invariate. Senza
+  // questo controllo, l'immagine "sparirebbe" a ogni modifica che non la
+  // riguarda: si preserva quindi quella già in cache quando la riga in
+  // arrivo non ne porta una.
+  if (!riga.immagine) {
+    const esistente = await leggiRigaCache(Number(riga.id));
+    if (esistente?.immagine) riga = { ...riga, immagine: esistente.immagine };
+  }
+  await scriviCache([riga]);
+}
+
+export async function rimuoviCasoDallaCache(id: number): Promise<void> {
+  await rimuoviDallaCache([id]);
+}
+
+// Da chiamare dopo un reset completo (docente_resetta_tutto): la cache
+// locale non deve continuare a mostrare casi ormai cancellati sul server.
+export async function svuotaCacheCasi(corsoId: string): Promise<void> {
+  const cache = await leggiCache();
+  await rimuoviDallaCache(cache.filter(r => r.corso_id === corsoId || !r.corso_id).map(r => Number(r.id)));
+}
+
+// Un fetch che non risponde mai (rete instabile, tabella troppo pesante)
+// non deve tenere la pagina in caricamento all'infinito senza dire nulla:
+// dopo il timeout la richiesta viene annullata e trattata come un errore
+// chiaro, mostrabile all'utente. Le query "leggere" (solo id/date, senza
+// immagini) usano un timeout breve; i blocchi con le immagini vere e
+// proprie ne usano uno più lungo, perché su una connessione lenta anche
+// poche immagini possono metterci più di 20 secondi a scaricarsi.
+const TIMEOUT_MS = 20000;
+const TIMEOUT_BLOCCO_MS = 45000;
+
+function eseguiConTimeout<T>(costruisciQuery: (signal: AbortSignal) => PromiseLike<T>, ms: number = TIMEOUT_MS): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return Promise.resolve(costruisciQuery(controller.signal)).finally(() => clearTimeout(timer));
+}
+
+function messaggioErrore(error: any, timeoutMs: number = TIMEOUT_MS): string {
+  if (error?.name === 'AbortError' || /abort/i.test(error?.message || '')) {
+    return `Il caricamento è troppo lento (timeout dopo ${timeoutMs / 1000}s). Controlla la connessione e riprova.`;
+  }
+  return error?.message || 'Errore sconosciuto';
+}
+
+// Con una connessione lenta, scaricare tutte le immagini nuove/cambiate in
+// un'unica richiesta enorme può far scadere il timeout prima che arrivi
+// qualsiasi cosa: si scarica invece un piccolo gruppo di righe alla volta,
+// così ogni singola richiesta resta più leggera (va a buon fine anche su
+// una connessione lenta) e chi guarda vede i casi studio comparire un po'
+// alla volta invece di aspettare tutto o niente.
+const DIMENSIONE_BLOCCO = 4;
+
+async function scaricaAcBlocchi(
+  corsoId: string,
+  ids: (number | string)[],
+  correntiIniziali: any[],
+  onProgresso?: (righeCorrenti: any[]) => void
+): Promise<{ righe: any[]; errore: string | null }> {
+  let correnti = correntiIniziali;
+  let ultimoErrore: string | null = null;
+  for (let i = 0; i < ids.length; i += DIMENSIONE_BLOCCO) {
+    const blocco = ids.slice(i, i + DIMENSIONE_BLOCCO);
+    const { data, error } = await eseguiConTimeout(
+      signal => supabase.from('casi_studio').select('*').eq('corso_id', corsoId).in('id', blocco).abortSignal(signal),
+      TIMEOUT_BLOCCO_MS
+    );
+    if (error) {
+      // Con molte righe da scaricare (cache vuota, cambio browser...) un
+      // blocco lento o fallito non deve interrompere tutti quelli dopo:
+      // si continua con i blocchi successivi e si segnala l'errore solo
+      // alla fine, mostrando comunque tutto quello che si è riusciti a
+      // scaricare invece di abbandonare l'intero caricamento a metà.
+      ultimoErrore = messaggioErrore(error, TIMEOUT_BLOCCO_MS);
+      continue;
+    }
+    const nuovi = data || [];
+    await scriviCache(nuovi);
+    const mappa = new Map(correnti.map(r => [Number(r.id), r]));
+    nuovi.forEach(r => mappa.set(Number(r.id), r));
+    correnti = Array.from(mappa.values());
+    onProgresso?.(correnti);
+  }
+  return { righe: correnti, errore: ultimoErrore };
+}
+
+// Restituisce le righe aggiornate di casi_studio (formato grezzo dal db,
+// snake_case) usando la cache locale per evitare di riscaricare le
+// immagini di righe non cambiate dall'ultima visita, e scaricando quelle
+// nuove/cambiate a piccoli blocchi cosi' il caricamento avanza in modo
+// graduale anche su una connessione lenta. Se passato, onProgresso viene
+// richiamato via via che nuovi blocchi arrivano, con l'elenco più
+// aggiornato disponibile in quel momento.
+export async function caricaCasiConCache(
+  corsoId: string,
+  onProgresso?: (righeCorrenti: any[]) => void
+): Promise<{ righe: any[]; errore: string | null }> {
+  // La cache locale (IndexedDB) non deve mai bloccare il caricamento: se
+  // per qualsiasi motivo non risponde, si procede semplicemente senza.
+  const tutta = await leggiCache();
+  const scadute = tutta.filter(r => !r.corso_id).map(r => Number(r.id));
+  if (scadute.length > 0) await rimuoviDallaCache(scadute);
+  const cache = tutta.filter(r => r.corso_id === corsoId);
+  const cacheMap = new Map(cache.map(r => [Number(r.id), r]));
+
+  const { data: elenco, error: erroreElenco } = await eseguiConTimeout(signal =>
+    supabase.from('casi_studio').select('id, updated_at').eq('corso_id', corsoId).abortSignal(signal)
+  );
+
+  if (erroreElenco) {
+    if (cache.length > 0) {
+      // Query fallita ma abbiamo dati locali: meglio mostrare quelli
+      // (anche se non freschissimi) che uno schermo vuoto o un errore.
+      return { righe: cache, errore: null };
+    }
+    // La query leggera (id + updated_at) può fallire per un motivo specifico
+    // della cache (es. la colonna updated_at non esiste ancora perché la
+    // migrazione non è stata eseguita): la cache è solo un'ottimizzazione e
+    // non deve impedire il caricamento di base. Non conosciamo ancora gli id
+    // (quella query è fallita), quindi si scarica prima un elenco leggero
+    // di soli id e poi si procede comunque a blocchi.
+    const { data: soliId, error: erroreSoliId } = await eseguiConTimeout(signal =>
+      supabase.from('casi_studio').select('id').eq('corso_id', corsoId).abortSignal(signal)
+    );
+    if (erroreSoliId) {
+      return { righe: [], errore: messaggioErrore(erroreSoliId) };
+    }
+    return await scaricaAcBlocchi(corsoId, (soliId || []).map((r: any) => r.id), [], onProgresso);
+  }
+  if (!elenco) return { righe: cache, errore: null };
+
+  const idAttuali = new Set(elenco.map((r: any) => Number(r.id)));
+  const daRimuovere = cache.map(r => Number(r.id)).filter(id => !idAttuali.has(id));
+  if (daRimuovere.length > 0) await rimuoviDallaCache(daRimuovere);
+
+  const daScaricare = elenco
+    .filter((r: any) => {
+      const inCache = cacheMap.get(Number(r.id));
+      return !inCache || inCache.updated_at !== r.updated_at;
+    })
+    .map((r: any) => r.id);
+
+  const correntiIniziali = cache.filter(r => idAttuali.has(Number(r.id)));
+  if (daScaricare.length === 0) return { righe: correntiIniziali, errore: null };
+
+  onProgresso?.(correntiIniziali);
+  return await scaricaAcBlocchi(corsoId, daScaricare, correntiIniziali, onProgresso);
+}
