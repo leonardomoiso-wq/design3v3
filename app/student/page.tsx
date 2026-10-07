@@ -919,8 +919,8 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
               </div>
             ) : (
               casiFiltrati.map(c => (
-                <div key={c.id} className="bg-white p-4 rounded-2xl border border-stone-200 flex items-center justify-between shadow-sm hover:border-stone-300 transition">
-                  <div className="flex items-center space-x-4">
+                <div key={c.id} className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-stone-300 transition">
+                  <div className="flex items-center space-x-4 min-w-0">
                     {c.immagine ? (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
                         <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
@@ -928,13 +928,13 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] text-stone-400 font-bold flex-shrink-0">IMG</div>
                     )}
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-bold text-sm text-stone-900">{c.titolo}</h3>
                       <p className="text-xs text-stone-500">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
                       <MetaCaso anno={c.anno} provenienza={c.provenienza} className="mt-1" />
                     </div>
                   </div>
-                  <div className="flex space-x-2 flex-shrink-0">
+                  <div className="flex space-x-2 flex-shrink-0 max-sm:[&>button]:flex-1">
                     <button onClick={() => chiediSblocco(c)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
                       Modifica
                     </button>

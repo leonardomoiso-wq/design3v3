@@ -8,6 +8,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   margin: 0;
   overflow-x: hidden;
+  /* Testi scritti dagli studenti possono contenere parole lunghissime
+     senza spazi (link, sigle, prove di battitura): vanno a capo dove
+     serve invece di uscire da card e colonne. "anywhere" permette anche
+     agli elementi flex/grid di restringersi; chi deve restare su una riga
+     usa già whitespace-nowrap o truncate, che non ne sono toccati. */
+  overflow-wrap: anywhere;
 }
 
 h1, h2, h3, h4 {
