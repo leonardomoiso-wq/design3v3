@@ -151,7 +151,7 @@ function ManualiContenuto() {
               </div>
               <p className="text-sm text-stone-600">
                 Con il team già loggato, il passo &quot;Il Gruppo&quot; è già compilato: si parte direttamente da <b>Il Caso Studio</b> (titolo,
-                immagine, descrizione), poi <b>Temi</b> (i tag pertinenti, curati dal/dalla docente), <b>Valutazione</b> (i 4 driver scelti dal/dalla docente per il corso, da
+                anno, provenienza Italia/Estero, sito web o fonte, immagine, descrizione), poi <b>Temi</b> (i tag pertinenti, curati dal/dalla docente), <b>Valutazione</b> (i 4 driver scelti dal/dalla docente per il corso, da
                 0 a 5, ciascuno con una motivazione scritta) e <b>Riepilogo</b> prima dell&apos;invio definitivo. La scheda resta modificabile
                 o cancellabile in seguito dalla sezione &quot;Elenco &amp; Modifiche&quot; — riaprendola col vostro team non vi verrà richiesto
                 nessun codice.

@@ -6,6 +6,7 @@ import { useDocente } from '@/lib/docente-context';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
 import { ascoltaCorso } from '@/lib/realtime';
 import StellaScelto from '@/components/StellaScelto';
+import { MetaCaso, FonteCaso, metaDaRiga, type Provenienza } from '@/components/MetaCaso';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
 
@@ -22,6 +23,9 @@ type Caso = {
   esitoRevisione: 'verde' | 'giallo' | 'rosso' | null;
   inclusoRevisione: boolean;
   scelto: number;
+  anno: number | null;
+  provenienza: Provenienza | null;
+  fonte: string;
 };
 
 
@@ -78,6 +82,7 @@ export default function ReviewPage() {
       esitoRevisione: c.esito_revisione || null,
       inclusoRevisione: c.incluso_revisione ?? true,
       scelto: Number(c.scelto) || 0,
+      ...metaDaRiga(c),
     });
 
     const caricaCasi = async () => {
@@ -284,7 +289,9 @@ export default function ReviewPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-5 md:gap-8 items-start">
                   <div className="space-y-3">
                     <h2 className="text-2xl font-serif font-bold">{c.titolo}</h2>
+                    <MetaCaso anno={c.anno} provenienza={c.provenienza} />
                     <p className="text-sm text-stone-600 leading-relaxed">{c.descrizione}</p>
+                    <FonteCaso fonte={c.fonte} />
                   </div>
                   <div className="h-48 bg-stone-100 rounded-xl border border-stone-200 flex items-center justify-center p-3 overflow-hidden">
                     {c.immagine ? (
@@ -445,7 +452,9 @@ export default function ReviewPage() {
         </div>
         <div className="space-y-4 min-w-0">
           <h2 className={`${mobile ? 'text-2xl' : 'text-3xl xl:text-4xl'} font-serif font-bold text-stone-900`}>{casoCorrente.titolo}</h2>
+          <MetaCaso anno={casoCorrente.anno} provenienza={casoCorrente.provenienza} />
           <p className={`text-sm text-stone-600 leading-relaxed ${mobile ? '' : 'max-h-32 overflow-y-auto'}`}>{casoCorrente.descrizione}</p>
+          <FonteCaso fonte={casoCorrente.fonte} />
           {casoCorrente.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {casoCorrente.tags.map(tag => (

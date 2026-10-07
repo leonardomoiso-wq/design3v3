@@ -7,6 +7,7 @@ import { useDocente } from '@/lib/docente-context';
 import { ascoltaCorso } from '@/lib/realtime';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
+import { MetaCaso, FonteCaso, metaDaRiga, testoMeta, type Provenienza } from '@/components/MetaCaso';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
 
@@ -21,6 +22,9 @@ type Caso = {
   driver: { desiderabilita: number; fattibilita: number; responsabilita: number; vitalita: number };
   driverNote: NoteDriver;
   scelto: number;
+  anno: number | null;
+  provenienza: Provenienza | null;
+  fonte: string;
 };
 
 // Numero di assi del radar: sempre 4 driver (le etichette vengono dal corso).
@@ -205,6 +209,7 @@ export default function RadarPage() {
       driver: normalizzaDriver(c.driver),
       driverNote: estraiNote(c.driver),
       scelto: Number(c.scelto) || 0,
+      ...metaDaRiga(c),
     });
 
     const carica = async () => {
@@ -377,7 +382,7 @@ export default function RadarPage() {
                     <StellaScelto valore={c.scelto} />
                     <span className="truncate">{c.titolo}</span>
                   </div>
-                  <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}</div>
+                  <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}{testoMeta(c.anno, c.provenienza) && <> &middot; {testoMeta(c.anno, c.provenienza)}</>}</div>
                 </div>
               </button>
             );
@@ -419,6 +424,7 @@ export default function RadarPage() {
                     <h3 className="text-sm font-serif font-bold">{c.titolo}</h3>
                     <span className="text-[10px] bg-stone-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">G.{c.gruppoNum}</span>
                   </div>
+                  <MetaCaso anno={c.anno} provenienza={c.provenienza} />
                   <div className="grid grid-cols-2 gap-1.5 text-[11px]">
                     {ASSI.map(asse => (
                       <div key={asse.chiave} className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 flex justify-between">
@@ -799,6 +805,7 @@ export default function RadarPage() {
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}</span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>
+                  <MetaCaso anno={casoEspanso.anno} provenienza={casoEspanso.provenienza} className="mt-2" />
                 </div>
               </div>
 
@@ -813,6 +820,7 @@ export default function RadarPage() {
               <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
                 {casoEspanso.descrizione || 'Nessuna descrizione inserita.'}
               </p>
+              <FonteCaso fonte={casoEspanso.fonte} />
 
               <div className="space-y-3">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {corso.configurazione.framework} (scala 0-{MAX_DRIVER})</h3>

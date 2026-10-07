@@ -9,6 +9,7 @@ import { useTeam } from '../../lib/team-context';
 import { ascoltaCorso } from '../../lib/realtime';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
+import { MetaCaso, FonteCaso, metaDaRiga, type Provenienza } from '../../components/MetaCaso';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
 
@@ -43,6 +44,9 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
   const [gruppoNum, setGruppoNum] = useState('');
   const [titolo, setTitolo] = useState('');
   const [descrizione, setDescrizione] = useState('');
+  const [anno, setAnno] = useState('');
+  const [provenienza, setProvenienza] = useState<Provenienza | ''>('');
+  const [fonte, setFonte] = useState('');
   const [immagine, setImmagine] = useState<string>('');
   const [comprimendoImmagine, setComprimendoImmagine] = useState(false);
   const [tagsSelezionati, setTagsSelezionati] = useState<string[]>([]);
@@ -108,6 +112,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
     driverNote: estraiNote(c.driver),
     x: Number(c.x),
     y: Number(c.y),
+    ...metaDaRiga(c),
   });
 
   useEffect(() => {
@@ -205,6 +210,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
   const resetForm = () => {
     setGruppoNome(''); setGruppoNum(''); setTitolo(''); setDescrizione(''); setImmagine('');
+    setAnno(''); setProvenienza(''); setFonte('');
     setTagsSelezionati([]); setTagPersonalizzato(''); setCodiceGruppo('');
     setCodiceGiaVerificato(false);
     setDesiderabilita(DRIVER_DEFAULT); setFattibilita(DRIVER_DEFAULT); setResponsabilita(DRIVER_DEFAULT); setVitalita(DRIVER_DEFAULT);
@@ -240,6 +246,9 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           p_driver: driver,
           p_x: x,
           p_y: y,
+          p_anno: Number(anno),
+          p_provenienza: provenienza,
+          p_fonte: fonte.trim(),
         })
       : await supabase.rpc('crea_caso_studio', {
           p_corso_id: corso.id,
@@ -253,6 +262,9 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           p_x: x,
           p_y: y,
           p_codice: codiceGruppo,
+          p_anno: Number(anno),
+          p_provenienza: provenienza,
+          p_fonte: fonte.trim(),
         });
 
     setSalvataggioInCorso(false);
@@ -299,6 +311,9 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
     setGruppoNum(c.gruppoNum);
     setTitolo(c.titolo);
     setDescrizione(c.descrizione);
+    setAnno(c.anno ? String(c.anno) : '');
+    setProvenienza(c.provenienza || '');
+    setFonte(c.fonte || '');
     setImmagine(c.immagine || '');
     setCodiceGruppo(codiceVerificato);
     setCodiceGiaVerificato(true);
@@ -392,7 +407,9 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
   };
 
   const gruppoValido = gruppoNome.trim() !== '' && String(gruppoNum).trim() !== '' && (codiceGiaVerificato || codiceGruppo.trim().length >= 4);
-  const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '';
+  const annoCorrente = new Date().getFullYear();
+  const annoValido = /^\d{4}$/.test(anno.trim()) && Number(anno) >= 1000 && Number(anno) <= annoCorrente + 1;
+  const contenutiValidi = titolo.trim() !== '' && descrizione.trim() !== '' && annoValido && provenienza !== '' && fonte.trim() !== '';
   const tagsValidi = tagsSelezionati.length > 0 || tagPersonalizzato.trim() !== '';
   const valutazioneValida = (['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const)
     .every(chiave => note[chiave].trim() !== '');
@@ -605,6 +622,47 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   <input id="titolo" type="text" required value={titolo} onChange={e => setTitolo(e.target.value)} placeholder="Es. Superleggera" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-4">
+                  <div>
+                    <label htmlFor="anno" className="block text-xs font-medium uppercase text-stone-500 mb-1">Anno</label>
+                    <input
+                      id="anno"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      required
+                      value={anno}
+                      onChange={e => setAnno(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      placeholder={`Es. ${annoCorrente - 3}`}
+                      aria-invalid={anno !== '' && !annoValido}
+                      className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    />
+                    {anno.length === 4 && !annoValido && (
+                      <p className="text-[11px] text-red-600 mt-1">Anno non valido (massimo {annoCorrente + 1}).</p>
+                    )}
+                  </div>
+                  <fieldset>
+                    <legend className="block text-xs font-medium uppercase text-stone-500 mb-1">Provenienza</legend>
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup">
+                      {([['italia', 'Italia'], ['estero', 'Estero']] as const).map(([valore, etichetta]) => (
+                        <label
+                          key={valore}
+                          className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm cursor-pointer transition ${provenienza === valore ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-200 bg-stone-50/50 hover:border-stone-400'}`}
+                        >
+                          <input type="radio" name="provenienza" value={valore} checked={provenienza === valore} onChange={() => setProvenienza(valore)} className="sr-only" />
+                          {etichetta}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
+
+                <div>
+                  <label htmlFor="fonte" className="block text-xs font-medium uppercase text-stone-500 mb-1">Sito web / Fonte</label>
+                  <input id="fonte" type="text" inputMode="url" required value={fonte} onChange={e => setFonte(e.target.value)} placeholder="Es. https://www.studio-esempio.it oppure &quot;Domus n. 1080, 2023&quot;" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  <p className="text-[11px] text-stone-400 mt-1">Un link al progetto o il riferimento bibliografico da cui l&apos;avete tratto.</p>
+                </div>
+
                 <div>
                   <span className="block text-xs font-medium uppercase text-stone-500 mb-1">Immagine di Riferimento</span>
                   <div className="flex items-center space-x-4 border border-dashed border-stone-300 p-4 rounded-xl bg-stone-50/50">
@@ -729,8 +787,10 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   <div>
                     <h3 className="font-serif font-bold text-base">{titolo || 'Senza titolo'}</h3>
                     <p className="text-xs text-stone-500">Gruppo {gruppoNum || '—'} — {gruppoNome || '—'}</p>
+                    <MetaCaso anno={annoValido ? Number(anno) : null} provenienza={provenienza || null} className="mt-1.5" />
                   </div>
                 </div>
+                <FonteCaso fonte={fonte} />
 
                 <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200 max-h-28 overflow-y-auto">
                   {descrizione || 'Nessuna descrizione inserita.'}
@@ -834,6 +894,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                     <div>
                       <h3 className="font-bold text-sm text-stone-900">{c.titolo}</h3>
                       <p className="text-xs text-stone-500">Gruppo {c.gruppoNum} — {c.gruppoNome}</p>
+                      <MetaCaso anno={c.anno} provenienza={c.provenienza} className="mt-1" />
                     </div>
                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
@@ -893,6 +954,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                     <span className="text-[10px] uppercase tracking-widest text-emerald-700 font-bold">🟢 In votazione ora</span>
                     <h3 className="font-serif font-bold text-base text-stone-900">{casoInVotazione.titolo}</h3>
                     <p className="text-xs text-stone-500">Gruppo {casoInVotazione.gruppoNum} — {casoInVotazione.gruppoNome}</p>
+                    <MetaCaso anno={casoInVotazione.anno} provenienza={casoInVotazione.provenienza} className="mt-1" />
                   </div>
                 </div>
 
@@ -902,6 +964,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   {casoInVotazione.descrizione && (
                     <p className="text-xs text-stone-600 leading-relaxed">{casoInVotazione.descrizione}</p>
                   )}
+                  <FonteCaso fonte={casoInVotazione.fonte} />
 
                   {casoInVotazione.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">

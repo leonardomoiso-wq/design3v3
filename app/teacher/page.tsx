@@ -8,6 +8,7 @@ import { CONFIGURAZIONE_PREDEFINITA, etichettaDriver } from '@/lib/corsi';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache, svuotaCacheCasi } from '@/lib/cacheCasi';
 import { usePannelloRidimensionabile } from '@/lib/useRidimensionabile';
 import StellaScelto from '@/components/StellaScelto';
+import { MetaCaso, FonteCaso, metaDaRiga, testoMeta } from '@/components/MetaCaso';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
 import { useMappaZoom, ZOOM_MIN, ZOOM_MAX } from '@/lib/useMappaZoom';
@@ -212,6 +213,7 @@ export default function TeacherPage() {
     x: Number(c.x),
     y: Number(c.y),
     scelto: Number(c.scelto) || 0,
+    ...metaDaRiga(c),
   });
 
   useEffect(() => {
@@ -546,6 +548,7 @@ export default function TeacherPage() {
         <div className="min-w-0">
           <h2 className="text-lg md:text-2xl font-serif font-medium truncate md:whitespace-normal">{selezionato.titolo}</h2>
           <p className="text-xs text-stone-500 truncate"><span className="md:hidden">Gruppo {selezionato.gruppoNum} &middot; </span>{selezionato.gruppoNome}</p>
+          <MetaCaso anno={selezionato.anno} provenienza={selezionato.provenienza} className="mt-1.5" />
         </div>
         <StellaScelto
           valore={selezionato.scelto}
@@ -573,6 +576,7 @@ export default function TeacherPage() {
         <p className="text-xs text-stone-700 leading-relaxed bg-white p-4 rounded-xl border border-stone-200 max-h-36 overflow-y-auto">
           {selezionato.descrizione || "Nessuna descrizione inserita."}
         </p>
+        <FonteCaso fonte={selezionato.fonte} />
       </div>
 
       {selezionato.tags && selezionato.tags.length > 0 && (
@@ -778,6 +782,9 @@ export default function TeacherPage() {
                   <div className="overflow-hidden max-md:hidden">
                     <div className="text-xs font-bold truncate text-stone-900">{c.titolo}</div>
                     <div className="text-[9px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}</div>
+                    {testoMeta(c.anno, c.provenienza) && (
+                      <div className="text-[9px] text-stone-400 truncate tabular-nums">{testoMeta(c.anno, c.provenienza)}</div>
+                    )}
                   </div>
                 </div>
               );
@@ -916,9 +923,11 @@ export default function TeacherPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-5 md:gap-8 my-6">
                     <div className="space-y-2.5 min-w-0">
                       <h2 className="text-2xl font-serif font-bold text-stone-900">{c.titolo}</h2>
+                      <MetaCaso anno={c.anno} provenienza={c.provenienza} />
                       <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200 whitespace-pre-wrap">
                         {c.descrizione || "Nessuna descrizione fornita."}
                       </p>
+                      <FonteCaso fonte={c.fonte} />
                       <div className="grid grid-cols-2 gap-1.5">
                         {DRIVER.map(([chiave, etichetta]) => {
                           const nota = c.driverNote?.[chiave];
@@ -970,7 +979,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -982,7 +991,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -994,7 +1003,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -1006,7 +1015,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum})</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -1044,6 +1053,7 @@ export default function TeacherPage() {
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} &middot; {casoEspansoCluster.gruppoNome}</span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
+                  <MetaCaso anno={casoEspansoCluster.anno} provenienza={casoEspansoCluster.provenienza} className="mt-2" />
                 </div>
               </div>
 
@@ -1058,6 +1068,7 @@ export default function TeacherPage() {
               <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
                 {casoEspansoCluster.descrizione || 'Nessuna descrizione inserita.'}
               </p>
+              <FonteCaso fonte={casoEspansoCluster.fonte} />
 
               <div className="space-y-3">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Driver {config.framework} (scala 0-{MAX_DRIVER})</h3>
