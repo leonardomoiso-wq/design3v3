@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
+import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
+import { FASI, faseEffettiva, type Submission } from '@/components/crazy8/shared';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -515,6 +517,7 @@ export default function Crazy8DocentePage() {
                 <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
                 <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza sotto-ambito'}</h1>
                 {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
+                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/8 · {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
               </div>
               <div className="flex gap-1.5">
                 {STATI.map(st => (
@@ -561,6 +564,18 @@ export default function Crazy8DocentePage() {
               </div>
             )}
 
+            {(selezionata.moodboard || []).length > 0 && (
+              <div className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Moodboard del concept</h3>
+                <MoodboardGriglia submission={selezionata as Submission} />
+                <div className="grid sm:grid-cols-3 gap-4 text-xs text-stone-700 leading-relaxed">
+                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Concept</p>{selezionata.concept_titolo || '—'}</div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Caratteristiche</p>{selezionata.concept_descrizione || '—'}</div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Perché queste scelte</p>{selezionata.concept_motivazioni || '—'}</div>
+                </div>
+              </div>
+            )}
+
             {vistaDettaglio === 'timeline' ? (
               <TimelineSottoambito submission={selezionata} onImageClick={apriLightbox} />
             ) : (
@@ -574,7 +589,13 @@ export default function Crazy8DocentePage() {
                       <button onClick={() => { const flat = immaginiFlat(selezionata); apriLightbox(flat, flat.findIndex(f => f.url === sketch.url_file)); }} className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 hover:opacity-80 transition">
                         <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </button>
-                      <p className="text-xs font-bold text-stone-600">Sketch — {sketch.generazioni_crazy8.length} round di generazione</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-stone-600">
+                          {sketch.selezionato && <span className="text-amber-500 mr-1" title="Selezionato dal team">★</span>}
+                          Sketch{sketch.sotto_ambito ? ` · ${sketch.sotto_ambito}` : ''} — {sketch.generazioni_crazy8.length} round di generazione
+                        </p>
+                        {sketch.interpretazione && <p className="text-xs text-stone-500 mt-0.5 italic">Interpretazione: &ldquo;{sketch.interpretazione}&rdquo;</p>}
+                      </div>
                     </div>
 
                     {sketch.generazioni_crazy8.length > 0 && (
@@ -585,9 +606,11 @@ export default function Crazy8DocentePage() {
                               <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                             </button>
                             <div>
-                              <p className="font-bold text-stone-700">Round {g.ordine}</p>
+                              <p className="font-bold text-stone-700">Round {g.ordine}{g.motore ? ` · ${g.motore}` : ''}</p>
                               <p className="text-stone-600"><b>Prompt:</b> {g.prompt_usato}</p>
-                              {g.deduzione && <p className="text-stone-500 italic">Deduzione: &ldquo;{g.deduzione}&rdquo;</p>}
+                              {g.positivo && <p className="text-emerald-700">👍 {g.positivo}</p>}
+                              {g.negativo && <p className="text-rose-700">👎 {g.negativo}</p>}
+                              {g.deduzione && <p className="text-stone-500 italic">Prossimo giro: &ldquo;{g.deduzione}&rdquo;</p>}
                             </div>
                           </div>
                         ))}

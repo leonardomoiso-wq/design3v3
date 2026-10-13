@@ -199,34 +199,74 @@ function ManualiContenuto() {
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">A</span>
-              <h2 className="text-lg font-serif font-bold">Dallo sketch alla catena di iterazioni</h2>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">1</span>
+              <h2 className="text-lg font-serif font-bold">Sotto-ambiti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Aprite &quot;+ Nuova Consegna&quot;: col team già loggato basta indicare uno o più <b>sotto-ambiti progettuali</b> su cui state
-              lavorando. Nel canvas caricate uno o più sketch; per ciascuno costruite una catena di round — scrivete un <b>prompt</b>
-              (ambientazione, rendering, varianti di forma...), caricate l&apos;immagine generata, annotate cosa ne <b>deducete</b>: quella
-              deduzione informa il prompt del round successivo. Potete tornare e aggiungere round quando volete.
+              Aprite &quot;+ Nuova consegna&quot; e indicate uno o più <b>sotto-ambiti progettuali</b>: ogni sketch potrà essere collegato a uno di questi.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">B</span>
-              <h2 className="text-lg font-serif font-bold">Prompt suggeriti</h2>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">2</span>
+              <h2 className="text-lg font-serif font-bold">Sketch col telefono</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Mentre scrivete il prompt di un nuovo round, alcune direzioni suggerite dal/dalla docente compaiono come chip cliccabili
-              (es. ambientazione, gamme cromatiche, close up, raggi X dei componenti interni): un clic le aggiunge al vostro testo.
+              Disegnate su carta i vostri 8 sketch, poi aprite la pagina dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Gli sketch compaiono subito anche sul portatile.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">C</span>
-              <h2 className="text-lg font-serif font-bold">Chiudere la consegna</h2>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">3</span>
+              <h2 className="text-lg font-serif font-bold">Revisione e selezione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Quando siete soddisfatti, compilate motore usato, log prompt e riflessione finale (se richiesti) e premete &quot;Segna come
-              consegnata&quot;: potete comunque continuare ad aggiungere round anche dopo.
+              Quando avete tutti gli sketch si apre il pannello a doppia vista: galleria a sinistra, sketch in grande a destra. Segnate con la ★ i più promettenti e scrivete la vostra <b>interpretazione</b> (si salva da sola).
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
+              <h2 className="text-lg font-serif font-bold">Configuratore di prompt</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Per ogni sketch selezionato scegliete l&apos;obiettivo (migliorare lo sketch, render, ambientato, set minimale, esploso, varianti), poi <b>rendetelo vostro</b> rispondendo alle domande guidate: l&apos;indicatore mostra quanto il prompt parla del vostro progetto e i bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo con almeno una frase vostra. Un clic copia il prompt e apre il modello: allegate lo sketch e incollate.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">5</span>
+              <h2 className="text-lg font-serif font-bold">Caricare i risultati</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Caricate solo le immagini generate migliori: il prompt inviato dal configuratore è già compilato, indicate il modello usato.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">6</span>
+              <h2 className="text-lg font-serif font-bold">Riflessione</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Per ogni immagine: cosa funziona, cosa no, cosa chiederete al prossimo giro. <b>Reitera</b> vi riporta al configuratore con lo spunto già inserito. In fondo, una riflessione complessiva del team.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">7</span>
+              <h2 className="text-lg font-serif font-bold">Moodboard</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Scegliete 4-5 immagini (la prima è la copertina), scrivete una didascalia per ognuna, date un nome al concept, descrivetene le caratteristiche e motivate le scelte.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">8</span>
+              <h2 className="text-lg font-serif font-bold">Share</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Presentate la moodboard a schermo intero seguendo la traccia: concept, caratteristiche, perché queste scelte. Da &quot;Concept dei team&quot; si vedono anche quelle degli altri gruppi.
             </p>
           </div>
         </div>
