@@ -26,7 +26,7 @@ type Caso = {
   anno: number | null;
   provenienza: Provenienza | null;
   fonte: string;
-  // 'concept' = immagine finale di Crazy 8 valutata da un team (design fiction)
+  // 'concept' = immagine finale di Crazy 8 valutata da un team
   origine: 'caso' | 'concept';
 };
 
@@ -444,7 +444,7 @@ export default function RadarPage() {
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold truncate text-stone-900 flex items-center gap-1">
                     <StellaScelto valore={c.scelto} />
-                    {c.origine === 'concept' && <span title="Concept Crazy 8 (design fiction)" aria-label="Concept Crazy 8">🔭</span>}
+                    {c.origine === 'concept' && <span title="Concept Crazy 8" aria-label="Concept Crazy 8">🔭</span>}
                     <span className="truncate">{c.titolo}</span>
                   </div>
                   <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}{testoMeta(c.anno, c.provenienza) && <> &middot; {testoMeta(c.anno, c.provenienza)}</>}</div>
@@ -884,7 +884,7 @@ export default function RadarPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
-                    {casoEspanso.origine === 'concept' && <span className="text-amber-700">🔭 Concept Crazy 8 · design fiction &middot; </span>}
+                    {casoEspanso.origine === 'concept' && <span className="text-amber-700">🔭 Concept Crazy 8 &middot; </span>}
                     Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}
                   </span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>

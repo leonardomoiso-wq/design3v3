@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { normalizzaDriver, estraiNote, type Driver, type NoteDriver } from './driver';
-import { CHIAVI_DRIVER_C8, risolviVoceMoodboard, type Submission, type VoceMoodboard } from '@/components/crazy8/shared';
+import { CHIAVI_DRIVER_C8, risolviVoceMoodboard, visioneDi, type Submission, type VoceMoodboard } from '@/components/crazy8/shared';
 
 // Le immagini finali di Crazy 8 (moodboard), una volta descritte,
 // classificate con i tag e valutate sui 4 driver dai team, diventano
@@ -17,7 +17,7 @@ export type ElementoConcept = {
   tags: string[];
   driver: Driver;
   driverNote: NoteDriver;
-  anno: number | null;   // l'orizzonte temporale del mondo futuro
+  anno: number | null;   // l'orizzonte scelto dal team in fase 1
   conceptTitolo: string;
 };
 
@@ -47,7 +47,10 @@ export function elementiDaSubmission(riga: any): ElementoConcept[] {
     const descrizione = [
       voce.didascalia?.trim(),
       conceptTitolo && `Concept: ${conceptTitolo}${riga.concept_descrizione ? ` — ${riga.concept_descrizione.trim()}` : ''}`,
-      scenario.what_if?.trim() && `Mondo futuro: ${scenario.what_if.trim()}`,
+      (() => {
+        const v = visioneDi(s, img.sottoAmbito);
+        return v?.visione ? `${v.sottoAmbito || 'Sotto-ambito'}: ${v.visione}` : '';
+      })(),
     ].filter(Boolean).join('\n\n');
     return [{
       id: idDaChiave(chiave),

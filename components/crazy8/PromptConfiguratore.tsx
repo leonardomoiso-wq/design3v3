@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Miniatura, scaricaDataUrl, type Scenario, type Sketch } from './shared';
+import { Miniatura, scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
+
+type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string };
 
 // Configuratore del prompt per il miglioramento generativo degli sketch.
 // Le scelte "a chip" danno struttura, ma da sole producono immagini che
@@ -11,28 +13,26 @@ import { Miniatura, scaricaDataUrl, type Scenario, type Sketch } from './shared'
 
 type Opzione = { id: string; etichetta: string; testo: string; icona?: string; descrizione?: string };
 
-// Gli obiettivi seguono il Design Fiction Prototyping: l'immagine non
-// "abbellisce" lo sketch, lo fa esistere nel mondo futuro del team come
-// prototipo diegetico (un oggetto, una scena, un documento che in quel
-// mondo sarebbero normali). Restano disponibili anche gli obiettivi di
-// pura rifinitura dello sketch.
+// Gli obiettivi portano lo sketch nel contesto del suo sotto-ambito (come
+// potrebbe essere tra qualche anno): l'immagine fa vedere l'idea come se
+// esistesse già, non solo un render più pulito. Restano disponibili anche
+// gli obiettivi di sola rifinitura dello sketch.
 const OBIETTIVI: Opzione[] = [
-  { id: 'diegetico', icona: '🛸', etichetta: 'Oggetto dal futuro', descrizione: 'Fotografato come se esistesse già, nel suo mondo', testo: 'Trasforma lo sketch allegato in una fotografia realistica dell\'oggetto come se esistesse davvero nel mondo futuro descritto, usato con naturalezza, senza effetti fantascientifici' },
-  { id: 'quotidiano', icona: '🏠', etichetta: 'Scena di vita quotidiana', descrizione: 'Un momento ordinario in quel mondo', testo: 'Mostra una scena di vita quotidiana nel mondo futuro descritto in cui l\'artefatto dello sketch allegato viene usato come una cosa normale e banale' },
-  { id: 'pubblicita', icona: '📰', etichetta: 'Pubblicità dal futuro', descrizione: 'Un annuncio o un manifesto di quel mondo', testo: 'Crea una pubblicità (manifesto o pagina di rivista) del mondo futuro descritto che promuove l\'artefatto dello sketch allegato' },
-  { id: 'reperto', icona: '🏺', etichetta: 'Reperto / archeologia', descrizione: 'Ritrovato, consumato dall\'uso, in un museo', testo: 'Mostra l\'artefatto dello sketch allegato come un reperto consumato dall\'uso, fotografato in una vetrina museale con la sua etichetta, come se venisse dal mondo futuro descritto' },
-  { id: 'manuale', icona: '📦', etichetta: 'Packaging / manuale', descrizione: 'Confezione, istruzioni, etichetta', testo: 'Crea il packaging o una pagina del manuale d\'istruzioni dell\'artefatto dello sketch allegato, come verrebbe venduto nel mondo futuro descritto' },
+  { id: 'reale', icona: '📷', etichetta: 'Come se esistesse', descrizione: 'Una foto realistica, nel suo contesto', testo: 'Trasforma lo sketch allegato in una fotografia realistica, come se l\'oggetto esistesse già e venisse usato con naturalezza nel contesto descritto' },
+  { id: 'quotidiano', icona: '🏠', etichetta: 'Scena d\'uso', descrizione: 'Un momento quotidiano, con le persone', testo: 'Mostra una scena di vita quotidiana nel contesto descritto in cui l\'idea dello sketch allegato viene usata come una cosa normale' },
+  { id: 'pubblicita', icona: '📰', etichetta: 'Pubblicità', descrizione: 'Un manifesto o una pagina di rivista', testo: 'Crea una pubblicità (manifesto o pagina di rivista) che presenta l\'idea dello sketch allegato, ambientata nel contesto descritto' },
+  { id: 'manuale', icona: '📦', etichetta: 'Packaging / istruzioni', descrizione: 'Confezione, etichetta o manuale', testo: 'Crea il packaging o una pagina di istruzioni dell\'oggetto dello sketch allegato, pensato per il contesto descritto' },
   { id: 'migliora', icona: '✨', etichetta: 'Migliora lo sketch', descrizione: 'Linee pulite, proporzioni corrette, stessa idea', testo: 'Rielabora lo sketch allegato in un disegno di prodotto pulito e leggibile, correggendo proporzioni e prospettiva senza cambiare l\'idea' },
-  { id: 'minimale', icona: '⬜', etichetta: 'Set minimale', descrizione: 'Still life da studio, sfondo neutro', testo: 'Presenta l\'artefatto dello sketch allegato su un set fotografico minimale da studio, con sfondo neutro e continuo' },
-  { id: 'esploso', icona: '🧩', etichetta: 'Esploso / componenti', descrizione: 'Parti e funzionamento interno', testo: 'Crea una vista esplosa dell\'artefatto dello sketch allegato che mostri i componenti e come si assemblano' },
+  { id: 'minimale', icona: '⬜', etichetta: 'Set minimale', descrizione: 'Still life da studio, sfondo neutro', testo: 'Presenta l\'oggetto dello sketch allegato su un set fotografico minimale da studio, con sfondo neutro e continuo' },
+  { id: 'esploso', icona: '🧩', etichetta: 'Esploso / componenti', descrizione: 'Parti e funzionamento interno', testo: 'Crea una vista esplosa dell\'oggetto dello sketch allegato che mostri i componenti e come si assemblano' },
 ];
 
-// obiettivi in cui il contesto del mondo futuro entra nel prompt
-const OBIETTIVI_NEL_MONDO = ['diegetico', 'quotidiano', 'pubblicita', 'reperto', 'manuale'];
+// obiettivi in cui il contesto del sotto-ambito entra nel prompt
+const OBIETTIVI_NEL_MONDO = ['reale', 'quotidiano', 'pubblicita', 'manuale'];
 
 const GRUPPI: { id: string; titolo: string; multiplo?: boolean; opzioni: Opzione[]; soloPer?: string[] }[] = [
   {
-    id: 'ambientazione', titolo: 'Ambientazione', soloPer: ['diegetico', 'quotidiano'],
+    id: 'ambientazione', titolo: 'Ambientazione', soloPer: ['reale', 'quotidiano'],
     opzioni: [
       { id: 'casa', etichetta: 'Interno domestico', testo: 'in un interno domestico vissuto' },
       { id: 'urbano', etichetta: 'Spazio urbano', testo: 'in uno spazio pubblico urbano' },
@@ -119,7 +119,7 @@ type Config = {
   manuale: string | null;
 };
 
-const CONFIG_VUOTA: Config = { obiettivo: 'diegetico', scelte: {}, vincoli: ['fedele'], suggerimenti: [], cosa: '', dettaglio: '', frizione: '', atmosfera: '', aggiunte: '', manuale: null };
+const CONFIG_VUOTA: Config = { obiettivo: 'reale', scelte: {}, vincoli: ['fedele'], suggerimenti: [], cosa: '', dettaglio: '', frizione: '', atmosfera: '', aggiunte: '', manuale: null };
 const chiaveConfig = (sketchId: string) => `crazy8_config_${sketchId}`;
 
 function leggiConfig(sketchId: string): Config {
@@ -128,7 +128,7 @@ function leggiConfig(sketchId: string): Config {
     if (salvata) {
       const c = { ...CONFIG_VUOTA, ...JSON.parse(salvata) };
       // obiettivi della versione precedente non più presenti
-      if (!OBIETTIVI.some(o => o.id === c.obiettivo)) c.obiettivo = c.obiettivo === 'ambientato' ? 'quotidiano' : 'diegetico';
+      if (!OBIETTIVI.some(o => o.id === c.obiettivo)) c.obiettivo = c.obiettivo === 'ambientato' ? 'quotidiano' : ['render', 'reperto', 'diegetico'].includes(c.obiettivo) ? 'reale' : 'migliora';
       return c;
     }
   } catch { /* storage non disponibile */ }
@@ -139,22 +139,22 @@ const contaParole = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
 
 type Segmento = { testo: string; tipo: 'base' | 'scelta' | 'vostro' };
 
-function componi(c: Config, sottoAmbito: string | null, interpretazione: string | null, suggerimentiDocente: { id: string; testo_prompt: string }[], scenario: Scenario | null): Segmento[] {
+function componi(c: Config, sottoAmbito: string | null, interpretazione: string | null, suggerimentiDocente: { id: string; testo_prompt: string }[], contesto: Contesto): Segmento[] {
   const seg: Segmento[] = [];
   const obiettivo = OBIETTIVI.find(o => o.id === c.obiettivo) || OBIETTIVI[0];
   seg.push({ testo: obiettivo.testo + '.', tipo: 'scelta' });
-  if (OBIETTIVI_NEL_MONDO.includes(c.obiettivo) && scenario) {
-    const mondo: string[] = [];
-    if (scenario.orizzonte) mondo.push(`Siamo nel ${scenario.orizzonte}`);
-    if (scenario.what_if?.trim()) mondo.push(`il mondo è cambiato così: ${scenario.what_if.trim().replace(/[.?]$/, '')}`);
-    if (scenario.abitanti?.trim()) mondo.push(`chi lo abita: ${scenario.abitanti.trim().replace(/\.$/, '')}`);
-    if (mondo.length) seg.push({ testo: ` ${mondo.join('; ').replace(/^./, m => m.toUpperCase())}.`, tipo: 'vostro' });
-  }
   if (sottoAmbito) seg.push({ testo: ` Ambito di progetto: ${sottoAmbito}.`, tipo: 'base' });
+  if (OBIETTIVI_NEL_MONDO.includes(c.obiettivo) && contesto.visione) {
+    const pulisci = (t: string) => t.trim().replace(/[.?]$/, '');
+    const parti: string[] = [];
+    if (contesto.visione.segnale) parti.push(`oggi ${pulisci(contesto.visione.segnale)}`);
+    if (contesto.visione.visione) parti.push(`${contesto.orizzonte ? `nel ${contesto.orizzonte}` : 'tra qualche anno'} ${pulisci(contesto.visione.visione)}`);
+    if (parti.length) seg.push({ testo: ` Contesto: ${parti.join('; ')}.`, tipo: 'vostro' });
+  }
   if (c.cosa.trim()) seg.push({ testo: ` Il progetto: ${c.cosa.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
   else if (interpretazione?.trim()) seg.push({ testo: ` Il progetto: ${interpretazione.trim().replace(/\.$/, '')}.`, tipo: 'base' });
   if (c.dettaglio.trim()) seg.push({ testo: ` L'elemento che non deve perdersi: ${c.dettaglio.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
-  if (c.frizione.trim()) seg.push({ testo: ` Mostra anche una frizione di questo futuro: ${c.frizione.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
+  if (c.frizione.trim()) seg.push({ testo: ` Aggiungi un dettaglio realistico e imperfetto: ${c.frizione.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
 
   const parti: string[] = [];
   for (const g of GRUPPI) {
@@ -229,9 +229,10 @@ function Chip({ attivo, onClick, children }: { attivo: boolean; onClick: () => v
 }
 
 export default function PromptConfiguratore({
-  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, scenario,
+  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, visioneDi, orizzonte = '',
 }: {
-  scenario: Scenario | null;
+  visioneDi: (sottoAmbito: string | null) => VisioneSottoAmbito | null;
+  orizzonte?: string;
   sketchSelezionati: Sketch[];
   sketchIniziale?: string | null;
   spuntoIniziale?: string | null;
@@ -277,8 +278,8 @@ export default function PromptConfiguratore({
 
   const sketch = sketchSelezionati.find(s => s.id === sketchId) || null;
   const segmenti = useMemo(
-    () => componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente, scenario),
-    [config, sketch, suggerimentiDocente, scenario],
+    () => componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente, { visione: visioneDi(sketch?.sotto_ambito || null), orizzonte }),
+    [config, sketch, suggerimentiDocente, visioneDi, orizzonte],
   );
   const promptComposto = segmenti.map(s => s.testo).join('').trim();
   const promptFinale = (config.manuale ?? promptComposto).trim();
@@ -361,7 +362,7 @@ export default function PromptConfiguratore({
             <span className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${infoLivello.testoColore}`}>{parole} parole vostre</span>
           </div>
           <label className="block">
-            <span className="text-xs font-medium text-stone-800">Cosa fa questo artefatto nel vostro mondo futuro, e per chi?</span>
+            <span className="text-xs font-medium text-stone-800">Cosa fa la vostra idea, e per chi?</span>
             <textarea ref={campoCosa} rows={2} value={config.cosa} onChange={e => aggiorna({ cosa: e.target.value, manuale: null })} placeholder={sketch?.interpretazione ? `es. ${sketch.interpretazione.slice(0, 80)}` : 'es. un dispenser che rilascia semi per gli impollinatori sui balconi di città'} className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
@@ -369,9 +370,9 @@ export default function PromptConfiguratore({
             <textarea rows={2} value={config.dettaglio} onChange={e => aggiorna({ dettaglio: e.target.value, manuale: null })} placeholder="es. la forma a goccia e il foro di uscita sul fondo" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-stone-800">Una frizione: cosa non funziona, o chi resta escluso?</span>
-            <span className="block text-[11px] text-stone-500">Un futuro senza difetti non è credibile: un dettaglio imperfetto rende il prototipo diegetico più vero.</span>
-            <textarea rows={2} value={config.frizione} onChange={e => aggiorna({ frizione: e.target.value, manuale: null })} placeholder="es. l'adesivo di garanzia scaduto, una coda di persone che non può permetterselo" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <span className="text-xs font-medium text-stone-800">Un dettaglio imperfetto <span className="text-stone-400 font-normal">(facoltativo)</span></span>
+            <span className="block text-[11px] text-stone-500">Un segno d&apos;uso, un limite, qualcosa che non torna: rende l&apos;immagine più credibile.</span>
+            <textarea rows={2} value={config.frizione} onChange={e => aggiorna({ frizione: e.target.value, manuale: null })} placeholder="es. il vaso un po' sporco di terra, un'etichetta scolorita" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-stone-800">L&apos;atmosfera in 3 parole</span>

@@ -7,7 +7,7 @@ import { useTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
 import {
-  FASI, NUMERO_FASI, ORIZZONTI, TIPI_FUTURO, MIN_MOODBOARD, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi,
+  FASI, NUMERO_FASI, ORIZZONTI, MIN_MOODBOARD, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi, visioneDi,
   type Generazione, type Scenario, type Sketch, type Submission, type VoceMoodboard,
 } from '../../components/crazy8/shared';
 import PromptConfiguratore, { MOTORI } from '../../components/crazy8/PromptConfiguratore';
@@ -26,11 +26,10 @@ import { caricaTagCorso, TAG_VUOTI, type TagCorso } from '../../lib/tag';
 const TUTORIAL_VISTO_KEY = 'crazy8_fasi_tutorial_visto';
 
 const TUTORIAL_SLIDES = [
-  { icona: '🔭', titolo: 'Design fiction: progettare dal futuro', testo: 'Non progettate un prodotto per oggi: immaginate un mondo futuro a partire da un segnale di oggi e da un "what if…", poi date forma agli oggetti che in quel mondo sarebbero normali.' },
-  { icona: '📱', titolo: 'Gli sketch si scattano col telefono', testo: 'Disegnate su carta 8 artefatti di quel futuro, poi aprite questa pagina dal telefono (accesso col team) e scattate una foto per ognuno: compariranno subito anche sul portatile.' },
-  { icona: '🪄', titolo: 'Un prototipo diegetico, non un render', testo: 'Il configuratore vi aiuta a far "esistere" lo sketch nel suo mondo: una foto, una scena quotidiana, una pubblicità, un reperto. Si sblocca solo quando ci mettete parole vostre.' },
-  { icona: '🎯', titolo: 'Valutate come i casi studio', testo: 'Alle immagini finali date un nome, i tag del corso e i 4 driver: così i vostri artefatti dal futuro si confrontano sul radar con i casi studio reali.' },
-  { icona: '📣', titolo: 'Raccontate il mondo', testo: 'La moodboard è la vostra mostra dal futuro: presentatela alla classe, motivate le scelte e lasciate aperta la domanda "vorremmo davvero questo futuro?".' },
+  { icona: '🧭', titolo: 'Si parte dai sotto-ambiti', testo: 'Per ognuno scrivete cosa sta cambiando oggi e come potrebbe essere tra qualche anno.' },
+  { icona: '📱', titolo: 'Sketch su carta, foto col telefono', testo: 'Fate gli 8 sketch, poi fotografateli da qui: li ritrovate subito anche sul portatile.' },
+  { icona: '🪄', titolo: 'Dallo sketch all\'immagine', testo: 'Scegliete i migliori, componete il prompt e apritelo in ChatGPT o Gemini. Più ci mettete di vostro, meglio viene.' },
+  { icona: '🎯', titolo: 'Valutate e presentate', testo: 'Le immagini migliori vanno in una moodboard: date tag e punteggi, poi raccontatele alla classe.' },
 ];
 
 const messaggioErrore = (codice: string) => {
@@ -467,7 +466,19 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   };
 
   // === fase 1 ===
-  const modificaSottoAmbito = (i: number, valore: string) => setSottoAmbiti(prev => prev.map((s, idx) => (idx === i ? valore : s)));
+  const modificaSottoAmbito = (i: number, valore: string) => {
+    // rinominando un sotto-ambito, segnale e visione già scritti lo seguono
+    const vecchio = (sottoAmbiti[i] || '').trim();
+    const nuovo = valore.trim();
+    if (vecchio && nuovo && vecchio !== nuovo) {
+      setScenarioBozza(v => {
+        const mappa = { ...(v.sotto_ambiti || {}) };
+        if (mappa[vecchio] && !mappa[nuovo]) { mappa[nuovo] = mappa[vecchio]; delete mappa[vecchio]; }
+        return { ...v, sotto_ambiti: mappa };
+      });
+    }
+    setSottoAmbiti(prev => prev.map((s, idx) => (idx === i ? valore : s)));
+  };
   const aggiungiCampoSottoAmbito = () => setSottoAmbiti(prev => [...prev, '']);
   const rimuoviCampoSottoAmbito = (i: number) => setSottoAmbiti(prev => prev.filter((_, idx) => idx !== i));
 
@@ -477,7 +488,10 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     if (attiva && fase === 1) {
       const salvati = sottoAmbitiDi(attiva);
       setSottoAmbiti(salvati.length ? salvati : ['']);
-      setScenarioBozza(attiva.scenario || {});
+      const sc = attiva.scenario || {};
+      setScenarioBozza(sc.sotto_ambiti || !salvati[0]
+        ? sc
+        : { orizzonte: sc.orizzonte, sotto_ambiti: { [salvati[0]]: { segnale: sc.segnale, visione: sc.what_if } } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attivaId, fase]);
@@ -514,7 +528,11 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const salvaMondo = async () => {
     const puliti = sottoAmbiti.map(s => s.trim()).filter(Boolean);
     if (puliti.length === 0) { setErroreAzione('Serve almeno un sotto-ambito.'); return; }
-    const scenario: Scenario = Object.fromEntries(Object.entries(scenarioBozza).map(([k, v]) => [k, (v || '').trim()]));
+    const mappa = scenarioBozza.sotto_ambiti || {};
+    const scenario: Scenario = {
+      orizzonte: scenarioBozza.orizzonte || '',
+      sotto_ambiti: Object.fromEntries(puliti.map(sa => [sa, { segnale: (mappa[sa]?.segnale || '').trim(), visione: (mappa[sa]?.visione || '').trim() }])),
+    };
     patchSubmission({ hmw_o_tema: puliti.join('; '), scenario });
     const ok = await salvaCampi({ sotto_ambito: puliti.join('; '), scenario });
     if (ok) avanzaA(2);
@@ -640,71 +658,55 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const renderFase = () => {
     if (!attiva) return null;
     switch (fase) {
-      case 1:
+      case 1: {
+        const mappa = scenarioBozza.sotto_ambiti || {};
+        const impostaVisione = (sa: string, campo: 'segnale' | 'visione', valore: string) =>
+          setScenarioBozza(v => ({ ...v, sotto_ambiti: { ...(v.sotto_ambiti || {}), [sa]: { ...(v.sotto_ambiti?.[sa] || {}), [campo]: valore } } }));
+        const conVisione = sottoAmbiti.filter(sa => sa.trim() && (mappa[sa.trim()]?.visione || '').trim()).length;
         return (
-          <div className="space-y-5">
-            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-5 items-start">
-              <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
-                <h3 className="text-sm font-bold text-stone-900">I vostri sotto-ambiti</h3>
-                <p className="text-xs text-stone-500">Sono le lenti da cui guardare il futuro.</p>
-                {sottoAmbiti.map((s, i) => (
-                  <div key={i} className="flex gap-1.5">
-                    <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={`Sotto-ambito ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+          <div className="space-y-5 max-w-3xl">
+            <div className="space-y-3">
+              {sottoAmbiti.map((sa, i) => (
+                <section key={i} className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
+                  <div className="flex gap-1.5">
+                    <input type="text" value={sa} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={`Sotto-ambito ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
                     {sottoAmbiti.length > 1 && (
                       <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
                     )}
                   </div>
-                ))}
-                <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
-              </section>
-
-              <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/60 p-5 space-y-4">
-                <h3 className="text-sm font-bold text-stone-900">Il mondo futuro</h3>
-                <label className="block">
-                  <span className="text-xs font-medium text-stone-800">1 · Un segnale dal presente</span>
-                  <span className="block text-[11px] text-stone-500">Una notizia, una tecnologia emergente, un comportamento che sta già cambiando.</span>
-                  <textarea rows={2} value={scenarioBozza.segnale || ''} onChange={e => setScenarioBozza(v => ({ ...v, segnale: e.target.value }))} placeholder="es. in molte città gli impollinatori sono in calo e si piantano fiori sui tetti" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-medium text-stone-800">2 · What if…? <span className="text-red-600">*</span></span>
-                  <span className="block text-[11px] text-stone-500">Portate il segnale all&apos;estremo: cosa succederebbe se…</span>
-                  <textarea rows={2} value={scenarioBozza.what_if || ''} onChange={e => setScenarioBozza(v => ({ ...v, what_if: e.target.value }))} placeholder="es. e se ogni balcone fosse obbligato per legge a nutrire una specie non umana?" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </label>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-stone-800">3 · Quando?</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ORIZZONTI.map(o => (
-                      <button key={o} type="button" aria-pressed={scenarioBozza.orizzonte === o} onClick={() => setScenarioBozza(v => ({ ...v, orizzonte: v.orizzonte === o ? '' : o }))} className={`text-xs px-3.5 py-1.5 rounded-full border transition ${scenarioBozza.orizzonte === o ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-500'}`}>{o}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-stone-800">4 · Che tipo di futuro? <span className="font-normal text-stone-500">(cono dei futuri)</span></span>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                    {TIPI_FUTURO.map(t => (
-                      <button key={t.id} type="button" aria-pressed={scenarioBozza.tipo_futuro === t.id} onClick={() => setScenarioBozza(v => ({ ...v, tipo_futuro: v.tipo_futuro === t.id ? '' : t.id }))} className={`text-left rounded-xl border px-3 py-2 transition ${scenarioBozza.tipo_futuro === t.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-500'}`}>
-                        <span className="block text-xs font-bold">{t.etichetta}</span>
-                        <span className={`block text-[10px] leading-tight ${scenarioBozza.tipo_futuro === t.id ? 'text-stone-300' : 'text-stone-500'}`}>{t.descrizione}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="block">
-                  <span className="text-xs font-medium text-stone-800">5 · Chi abita questo mondo?</span>
-                  <textarea rows={2} value={scenarioBozza.abitanti || ''} onChange={e => setScenarioBozza(v => ({ ...v, abitanti: e.target.value }))} placeholder="es. famiglie di città, api selvatiche, un ispettorato per la biodiversità" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </label>
-              </section>
+                  {sa.trim() && (
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-xs font-medium text-stone-700">Cosa sta cambiando oggi?</span>
+                        <textarea rows={2} value={mappa[sa.trim()]?.segnale || ''} onChange={e => impostaVisione(sa.trim(), 'segnale', e.target.value)} placeholder="es. gli impollinatori in città sono in calo" className="mt-1 w-full border border-stone-200 rounded-xl p-2.5 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-medium text-stone-700">Come potrebbe essere tra qualche anno?</span>
+                        <textarea rows={2} value={mappa[sa.trim()]?.visione || ''} onChange={e => impostaVisione(sa.trim(), 'visione', e.target.value)} placeholder="es. ogni balcone ospita piante e rifugi per gli insetti" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-amber-50/40 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                      </label>
+                    </div>
+                  )}
+                </section>
+              ))}
+              <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-stone-500">Orizzonte (facoltativo):</span>
+              {ORIZZONTI.map(o => (
+                <button key={o} type="button" aria-pressed={scenarioBozza.orizzonte === o} onClick={() => setScenarioBozza(v => ({ ...v, orizzonte: v.orizzonte === o ? '' : o }))} className={`text-xs px-3 py-1 rounded-full border transition ${scenarioBozza.orizzonte === o ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-500'}`}>{o}</button>
+              ))}
             </div>
             <NavigazioneFase
               fase={1}
               onIndietro={() => {}}
               onAvanti={salvaMondo}
-              avantiPossibile={sottoAmbiti.some(s => s.trim()) && !!(scenarioBozza.what_if || '').trim()}
-              motivoBlocco={!sottoAmbiti.some(s => s.trim()) ? 'Serve almeno un sotto-ambito' : 'Scrivete il vostro "what if…"'}
-              etichettaAvanti="Salva il mondo e vai agli sketch"
+              avantiPossibile={sottoAmbiti.some(sa => sa.trim()) && conVisione > 0}
+              motivoBlocco={!sottoAmbiti.some(sa => sa.trim()) ? 'Serve almeno un sotto-ambito' : 'Scrivete come potrebbe essere almeno un sotto-ambito'}
+              etichettaAvanti="Salva e vai agli sketch"
             />
           </div>
         );
+      }
 
       case 2:
         return (
@@ -855,7 +857,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     etichetta="La vostra interpretazione"
                     valore={sketchRevisione.interpretazione}
                     righe={4}
-                    placeholder="Cos'è questo artefatto nel vostro mondo futuro? Chi lo usa, e cosa racconta di quel mondo?"
+                    placeholder="Cosa ci vedete? Quale idea c'è dietro, per chi è, cosa la rende promettente?"
                     onSalva={t => salvaSketch(sketchRevisione.id, { interpretazione: t })}
                   />
                 </section>
@@ -873,7 +875,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <PromptConfiguratore
               key={reitera ? `reitera-${reitera.n}` : 'config'}
               sketchSelezionati={sketchSelezionati}
-              scenario={attiva.scenario}
+              visioneDi={sa => visioneDi(attiva, sa)}
+              orizzonte={attiva.scenario?.orizzonte || ''}
               sketchIniziale={reitera?.sketchId || null}
               spuntoIniziale={reitera?.spunto || null}
               suggerimentiDocente={suggerimentiPrompt}
@@ -946,8 +949,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                       </div>
                       <div className="space-y-3">
                         <div className="grid sm:grid-cols-2 gap-3">
-                          <TestoAutosalvato tono="positivo" etichetta="👍 Cosa funziona" valore={g.positivo} righe={3} placeholder="Cosa rende credibile l'artefatto e il suo mondo? Cosa terreste?" onSalva={t => salvaGenerazione(g.id, { positivo: t })} />
-                          <TestoAutosalvato tono="negativo" etichetta="👎 Cosa non funziona" valore={g.negativo} righe={3} placeholder="Cosa sembra generico, troppo patinato o fantascientifico, o tradisce lo sketch?" onSalva={t => salvaGenerazione(g.id, { negativo: t })} />
+                          <TestoAutosalvato tono="positivo" etichetta="👍 Cosa funziona" valore={g.positivo} righe={3} placeholder="Cosa vi convince? Cosa terreste?" onSalva={t => salvaGenerazione(g.id, { positivo: t })} />
+                          <TestoAutosalvato tono="negativo" etichetta="👎 Cosa non funziona" valore={g.negativo} righe={3} placeholder="Cosa sembra generico o poco credibile, o tradisce lo sketch?" onSalva={t => salvaGenerazione(g.id, { negativo: t })} />
                         </div>
                         <TestoAutosalvato tono="avanti" etichetta="→ Al prossimo giro chiederemo…" valore={g.deduzione} righe={2} placeholder="Cosa cambiereste nel prompt?" onSalva={t => salvaGenerazione(g.id, { deduzione: t })} />
                         <button
@@ -1067,7 +1070,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <div className="max-w-md w-full space-y-4 animate-fade-in-up">
               <div className="text-center mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase 1 di {NUMERO_FASI}</p>
-                <h1 className="text-3xl font-serif mt-1">🔭 Da dove guardate il futuro?</h1>
+                <h1 className="text-3xl font-serif mt-1">🧭 Su cosa lavorate?</h1>
                 <p className="text-sm text-stone-500 mt-1">
                   {team ? 'Su quali sotto-ambiti progettuali lavora il team? Uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}
                 </p>
@@ -1097,7 +1100,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               )}
               {erroreCreazione && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreCreazione}</p>}
               <button onClick={iniziaConsegna} disabled={creazioneInCorso} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
-                {creazioneInCorso ? 'Creazione...' : 'Avanti: il mondo futuro →'}
+                {creazioneInCorso ? 'Creazione...' : 'Avanti →'}
               </button>
             </div>
           </div>

@@ -8,8 +8,8 @@ import {
   type Submission, type VoceMoodboard,
 } from './shared';
 
-// Fase 8: le immagini finali della moodboard vengono rilette come
-// artefatti e rivalutate con gli stessi strumenti dei casi studio (tag
+// Fase 8: le immagini finali della moodboard vengono valutate con gli
+// stessi strumenti dei casi studio (tag
 // del corso e 4 driver con motivazione). Questi dati alimentano poi il
 // radar del/della docente, accanto ai casi studio.
 
@@ -104,7 +104,7 @@ export default function Valutazione({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-stone-200 px-4 py-3">
         <p className="text-xs text-stone-600">
-          Usate gli stessi criteri dei casi studio ({framework}): così i vostri artefatti si possono confrontare con il reale sul radar.
+          Usate gli stessi criteri dei casi studio ({framework}): così le vostre idee si possono confrontare sul radar con i casi reali.
         </p>
         <span className={`text-xs font-bold ${completate === voci.length ? 'text-emerald-700' : 'text-stone-500'}`}>{completate}/{voci.length} valutate</span>
       </div>
@@ -134,10 +134,10 @@ export default function Valutazione({
 
               <div className="space-y-5 min-w-0">
                 <TestoAutosalvato
-                  etichetta="Nome dell'artefatto"
+                  etichetta="Nome dell'idea"
                   valore={v.titolo || ''}
                   righe={1}
-                  placeholder="Come si chiama questo oggetto/servizio nel vostro mondo futuro?"
+                  placeholder="Come la chiamereste?"
                   onSalva={t => aggiornaVoce(v, x => ({ ...x, titolo: t }))}
                 />
 
@@ -202,7 +202,7 @@ export default function Valutazione({
                         <TestoAutosalvato
                           valore={v.driver?.[d.chiave]?.nota || ''}
                           righe={1}
-                          placeholder="Perché? (nel mondo futuro che avete immaginato)"
+                          placeholder="Perché?"
                           onSalva={t => impostaNota(v, d.chiave, t)}
                         />
                       </div>

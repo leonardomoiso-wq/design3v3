@@ -36,17 +36,23 @@ export type VoceMoodboard = {
   tipo: 'sketch' | 'generata';
   id: string;
   didascalia: string;
-  // fase 8 (Valutazione): l'immagine finale riletta come artefatto
+  // fase 8 (Valutazione): nome, tag e driver dell'immagine finale
   titolo?: string;
   tags?: string[];
   driver?: ValutazioneDriver;
 };
 
-// Il "mondo futuro" del team (fase 1, Design Fiction Prototyping)
+// Fase 1: per ogni sotto-ambito, cosa sta cambiando oggi e come
+// potrebbe essere tra qualche anno. Le chiavi segnale/what_if/tipo_futuro/
+// abitanti a livello radice vengono dalla versione precedente (uno
+// scenario unico per team) e si leggono ancora per compatibilità.
+export type VisioneSottoAmbito = { segnale?: string; visione?: string };
+
 export type Scenario = {
+  orizzonte?: string;
+  sotto_ambiti?: Record<string, VisioneSottoAmbito>;
   segnale?: string;
   what_if?: string;
-  orizzonte?: string;
   tipo_futuro?: string;
   abitanti?: string;
 };
@@ -70,31 +76,38 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '🔭', breve: 'Mondo futuro', titolo: 'Immaginate il mondo futuro', sottotitolo: 'Dai sotto-ambiti a uno scenario: quale segnale di oggi, quale "what if…", in quale anno. Gli artefatti che disegnerete vivranno lì.' },
-  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Crazy 8: artefatti da quel futuro', sottotitolo: '8 oggetti, servizi o tracce che esisterebbero in quel mondo, in 8 minuti, su carta. Poi una foto per ogni sketch, dal telefono.' },
-  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Rivedete, selezionate, interpretate', sottotitolo: 'Quali artefatti raccontano meglio il vostro mondo? Sceglieteli e scrivete cosa sono, per chi, e cosa dicono di quel futuro.' },
-  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Prototipate l\'artefatto con l\'AI', sottotitolo: 'Componete il prompt per far "esistere" lo sketch nel suo mondo: un oggetto, una scena, una pubblicità, un reperto. Poi apritelo nel modello che preferite.' },
-  { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Caricate le migliori immagini generate', sottotitolo: 'Solo le immagini che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
-  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Riflettete e reiterate', sottotitolo: 'Cosa rende credibile il mondo, cosa lo rende generico, e cosa chiederete al prossimo giro.' },
-  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'Componete la moodboard del concept', sottotitolo: '4-5 immagini che, insieme, fanno vedere il vostro mondo futuro e i suoi artefatti.' },
-  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'Rivalutate le immagini finali', sottotitolo: 'Ogni immagine scelta diventa un artefatto da valutare: un titolo, i tag del corso e i 4 driver, come per i casi studio.' },
-  { n: 9, icona: '📣', breve: 'Share', titolo: 'Share: presentate il mondo e i suoi artefatti', sottotitolo: 'Raccontate il concept come se arrivaste da quel futuro, poi motivate le vostre scelte e aprite la discussione.' },
+  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Definite i sotto-ambiti', sottotitolo: 'Per ognuno: cosa sta cambiando oggi e come potrebbe essere tra qualche anno. Tutto il lavoro partirà da qui.' },
+  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Crazy 8: scattate e caricate gli sketch', sottotitolo: '8 idee in 8 minuti sui vostri sotto-ambiti, su carta. Poi una foto per ogni sketch, dal telefono.' },
+  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Rivedete, selezionate, interpretate', sottotitolo: 'Scegliete gli sketch più promettenti per ogni sotto-ambito e scrivete cosa ci vedete.' },
+  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Configurate il prompt', sottotitolo: 'Fate vedere l\'idea nel suo contesto: componete il prompt, rendetelo vostro e apritelo nel modello che preferite.' },
+  { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Caricate le migliori immagini generate', sottotitolo: 'Solo quelle che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
+  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Riflettete e reiterate', sottotitolo: 'Cosa funziona, cosa no, e cosa chiederete al prossimo giro.' },
+  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'Componete la moodboard del concept', sottotitolo: '4-5 immagini che raccontano il concept dei vostri sotto-ambiti, con una didascalia ciascuna.' },
+  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'Valutate le immagini finali', sottotitolo: 'Per ogni immagine: un nome, i tag del corso e i 4 driver, come per i casi studio.' },
+  { n: 9, icona: '📣', breve: 'Share', titolo: 'Share: presentate il concept', sottotitolo: 'Raccontate il concept sotto-ambito per sotto-ambito e motivate le vostre scelte.' },
 ] as const;
 
 export const NUMERO_FASI = FASI.length;
 
-// Cono dei futuri (Voros / Dunne & Raby): che tipo di futuro sta esplorando il team
-export const TIPI_FUTURO = [
-  { id: 'probabile', etichetta: 'Probabile', descrizione: 'Dove ci portano le tendenze attuali' },
-  { id: 'plausibile', etichetta: 'Plausibile', descrizione: 'Potrebbe succedere, con qualche svolta' },
-  { id: 'possibile', etichetta: 'Possibile', descrizione: 'Ai limiti di ciò che conosciamo' },
-  { id: 'preferibile', etichetta: 'Preferibile', descrizione: 'Il futuro che vorremmo' },
-  { id: 'da_evitare', etichetta: 'Da evitare', descrizione: 'Il futuro che temiamo' },
-] as const;
+export const ORIZZONTI = ['2030', '2035', '2040', '2050'];
 
-export const ORIZZONTI = ['2030', '2040', '2050', '2100'];
+// Segnale e visione di ogni sotto-ambito, nell'ordine dei sotto-ambiti.
+// Una consegna con il vecchio scenario unico lo mostra come prima voce.
+export function visioniDi(s: Pick<Submission, 'hmw_o_tema' | 'scenario'>): { sottoAmbito: string; segnale: string; visione: string }[] {
+  const sc = s.scenario || {};
+  const mappa = sc.sotto_ambiti || {};
+  const voci = sottoAmbitiDi(s).map(sa => ({ sottoAmbito: sa, segnale: (mappa[sa]?.segnale || '').trim(), visione: (mappa[sa]?.visione || '').trim() }));
+  if (!sc.sotto_ambiti && (sc.what_if || sc.segnale)) {
+    return [{ sottoAmbito: voci[0]?.sottoAmbito || '', segnale: (sc.segnale || '').trim(), visione: (sc.what_if || '').trim() }];
+  }
+  return voci.filter(v => v.segnale || v.visione);
+}
 
-export const etichettaTipoFuturo = (id?: string) => TIPI_FUTURO.find(t => t.id === id)?.etichetta || '';
+// Visione del sotto-ambito di uno sketch (o dell'unico sotto-ambito del team)
+export function visioneDi(s: Pick<Submission, 'hmw_o_tema' | 'scenario'>, sottoAmbito: string | null) {
+  const voci = visioniDi(s);
+  return voci.find(v => v.sottoAmbito === sottoAmbito) || (voci.length === 1 ? voci[0] : null);
+}
 
 // Una voce della moodboard è "valutata" quando ha almeno un tag e tutti
 // e 4 i driver con un valore.

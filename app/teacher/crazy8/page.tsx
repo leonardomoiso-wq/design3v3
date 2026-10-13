@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
-import { FASI, NUMERO_FASI, etichettaTipoFuturo, faseEffettiva, type Submission } from '@/components/crazy8/shared';
+import { FASI, NUMERO_FASI, faseEffettiva, visioniDi, type Submission } from '@/components/crazy8/shared';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -564,14 +564,17 @@ export default function Crazy8DocentePage() {
               </div>
             )}
 
-            {selezionata.scenario?.what_if && (
-              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-1 text-xs text-stone-700">
+            {visioniDi(selezionata as Submission).length > 0 && (
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2 text-xs text-stone-700">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
-                  Mondo futuro{selezionata.scenario.orizzonte ? ` · ${selezionata.scenario.orizzonte}` : ''}{selezionata.scenario.tipo_futuro ? ` · futuro ${etichettaTipoFuturo(selezionata.scenario.tipo_futuro).toLowerCase()}` : ''}
+                  Sotto-ambiti{selezionata.scenario?.orizzonte ? ` · verso il ${selezionata.scenario.orizzonte}` : ''}
                 </h3>
-                <p className="text-sm font-medium text-stone-900">{selezionata.scenario.what_if}</p>
-                {selezionata.scenario.segnale && <p><b>Segnale:</b> {selezionata.scenario.segnale}</p>}
-                {selezionata.scenario.abitanti && <p><b>Chi lo abita:</b> {selezionata.scenario.abitanti}</p>}
+                {visioniDi(selezionata as Submission).map(v => (
+                  <p key={v.sottoAmbito || 'unico'}>
+                    {v.sottoAmbito && <b className="text-stone-900">{v.sottoAmbito}: </b>}
+                    {v.segnale && <>oggi {v.segnale} </>}{v.visione && <>→ {v.visione}</>}
+                  </p>
+                ))}
               </div>
             )}
 

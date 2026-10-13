@@ -2,30 +2,37 @@
 import { useEffect, useState } from 'react';
 import { MoodboardGriglia } from './Moodboard';
 import type { ChiaveDriver } from '@/lib/driver';
-import { CHIAVI_DRIVER_C8, MIN_MOODBOARD, etichettaTipoFuturo, risolviVoceMoodboard, sottoAmbitiDi, type Submission } from './shared';
+import { CHIAVI_DRIVER_C8, MIN_MOODBOARD, risolviVoceMoodboard, sottoAmbitiDi, visioniDi, type Submission } from './shared';
 
 type EtichettaDriver = (k: ChiaveDriver) => string;
 
-// Domande del Design Fiction per aprire la discussione dopo ogni presentazione
+// Domande per aprire la discussione dopo ogni presentazione
 const DOMANDE_CRITICHE = [
-  'Vorreste vivere in questo futuro? Perché?',
-  'Chi ci guadagna e chi resta escluso?',
-  'Quale segnale di oggi lo rende plausibile?',
-  'Cosa dovremmo fare adesso per arrivarci — o per evitarlo?',
+  'Cosa vi convince di più di questo concept?',
+  'Chi ne avrebbe vantaggio, e chi potrebbe restarne fuori?',
+  'Quale cambiamento di oggi lo rende credibile?',
+  'Cosa cambiereste voi?',
 ];
 
+// I sotto-ambiti del team: cosa sta cambiando oggi → come potrebbe essere
 function SchedaScenario({ s, scuro = false }: { s: Submission; scuro?: boolean }) {
-  const sc = s.scenario || {};
-  if (!sc.what_if && !sc.segnale) return null;
-  const etichetta = scuro ? 'text-stone-500' : 'text-stone-400';
+  const voci = visioniDi(s);
+  if (voci.length === 0) return null;
+  const orizzonte = s.scenario?.orizzonte;
   return (
-    <div className={`rounded-2xl p-4 space-y-2 ${scuro ? 'bg-amber-400/10 border border-amber-400/30' : 'bg-amber-50 border border-amber-200'}`}>
+    <div className={`rounded-2xl p-4 space-y-3 ${scuro ? 'bg-amber-400/10 border border-amber-400/30' : 'bg-amber-50 border border-amber-200'}`}>
       <p className={`text-[10px] font-bold uppercase tracking-widest ${scuro ? 'text-amber-300' : 'text-amber-800'}`}>
-        Il mondo futuro{sc.orizzonte ? ` · ${sc.orizzonte}` : ''}{sc.tipo_futuro ? ` · futuro ${etichettaTipoFuturo(sc.tipo_futuro).toLowerCase()}` : ''}
+        I sotto-ambiti{orizzonte ? ` · verso il ${orizzonte}` : ''}
       </p>
-      {sc.what_if && <p className={`text-sm font-medium leading-snug ${scuro ? 'text-white' : 'text-stone-900'}`}>{sc.what_if}</p>}
-      {sc.segnale && <p className={`text-xs ${scuro ? 'text-stone-300' : 'text-stone-600'}`}><span className={etichetta}>Segnale di oggi:</span> {sc.segnale}</p>}
-      {sc.abitanti && <p className={`text-xs ${scuro ? 'text-stone-300' : 'text-stone-600'}`}><span className={etichetta}>Chi lo abita:</span> {sc.abitanti}</p>}
+      <div className="grid sm:grid-cols-2 gap-3">
+        {voci.map(v => (
+          <div key={v.sottoAmbito || 'unico'} className="space-y-0.5">
+            {v.sottoAmbito && <p className={`text-xs font-bold ${scuro ? 'text-white' : 'text-stone-900'}`}>{v.sottoAmbito}</p>}
+            {v.segnale && <p className={`text-xs ${scuro ? 'text-stone-400' : 'text-stone-500'}`}>Oggi: {v.segnale}</p>}
+            {v.visione && <p className={`text-sm leading-snug ${scuro ? 'text-stone-200' : 'text-stone-800'}`}>→ {v.visione}</p>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -178,8 +185,8 @@ export default function Share({ submissions, propriaId, etichettaDriver }: { sub
             </div>
           </div>
           <div className="text-xs text-stone-500 bg-stone-50 rounded-xl p-3 border border-stone-100">
-            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) raccontate il mondo come se ci viveste: il segnale, il what-if, l&apos;anno ·
-            2) gli artefatti, immagine per immagine · 3) perché queste scelte, cosa avete scartato e come li avete valutati sui 4 driver. Chiudete con una domanda aperta alla classe.
+            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) i sotto-ambiti: cosa sta cambiando e come potrebbe essere ·
+            2) il concept, immagine per immagine · 3) perché queste scelte, cosa avete scartato e come le avete valutate. Chiudete con una domanda alla classe.
           </div>
         </section>
       ) : (

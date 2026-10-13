@@ -200,10 +200,10 @@ function ManualiContenuto() {
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">1</span>
-              <h2 className="text-lg font-serif font-bold">Il mondo futuro</h2>
+              <h2 className="text-lg font-serif font-bold">Sotto-ambiti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Crazy 8 segue il <b>Design Fiction Prototyping</b>: non si progetta per oggi, ma per un futuro immaginato. Indicate i <b>sotto-ambiti</b>, poi costruite lo scenario: un <b>segnale</b> dal presente, un <b>what if…</b> (obbligatorio), l&apos;anno, il tipo di futuro secondo il cono dei futuri (probabile, plausibile, possibile, preferibile, da evitare) e chi abita quel mondo.
+              Indicate i vostri <b>sotto-ambiti</b>. Per ognuno scrivete in una riga <b>cosa sta cambiando oggi</b> e <b>come potrebbe essere tra qualche anno</b>. Se volete, scegliete un orizzonte (2030–2050).
             </p>
           </div>
           <div className="space-y-4">
@@ -212,7 +212,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Sketch col telefono</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Disegnate su carta 8 artefatti che esisterebbero in quel mondo, poi aprite la pagina dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Gli sketch compaiono subito anche sul portatile.
+              Fate gli 8 sketch su carta, poi apriteli dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Ogni sketch si collega a un sotto-ambito e compare subito anche sul portatile.
             </p>
           </div>
           <div className="space-y-4">
@@ -221,16 +221,16 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Revisione e selezione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Pannello a doppia vista: galleria a sinistra, sketch in grande a destra. Segnate con la ★ gli artefatti che raccontano meglio il vostro mondo e scrivete cosa sono, per chi e cosa dicono di quel futuro.
+              Galleria a sinistra, sketch in grande a destra: segnate con la ★ i più promettenti e scrivete cosa ci vedete. Il testo si salva da solo.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
-              <h2 className="text-lg font-serif font-bold">Prototipo diegetico con l&apos;AI</h2>
+              <h2 className="text-lg font-serif font-bold">Configuratore di prompt</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Il configuratore propone obiettivi da design fiction (oggetto dal futuro, scena di vita quotidiana, pubblicità, reperto, packaging/manuale) oltre alla semplice rifinitura dello sketch, e inserisce nel prompt il vostro scenario. Nella sezione <b>Rendetelo vostro</b> descrivete l&apos;artefatto, il dettaglio da non perdere e una <b>frizione</b> (cosa non funziona, chi resta escluso). I bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo con almeno una frase vostra.
+              Scegliete cosa ottenere (come se esistesse, scena d&apos;uso, pubblicità, packaging, oppure solo migliorare lo sketch): il contesto del sotto-ambito entra da solo nel prompt. Poi aggiungete qualcosa di vostro nella sezione <b>Rendetelo vostro</b>: i bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo così.
             </p>
           </div>
           <div className="space-y-4">
@@ -239,7 +239,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Caricare i risultati</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Caricate solo le immagini generate migliori: il prompt inviato dal configuratore è già compilato, indicate il modello usato.
+              Caricate solo le immagini generate migliori: il prompt è già compilato, indicate il modello usato.
             </p>
           </div>
           <div className="space-y-4">
@@ -248,7 +248,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Riflessione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni immagine: cosa rende credibile il mondo, cosa lo rende generico, cosa chiederete al prossimo giro. <b>Reitera</b> riporta al configuratore con lo spunto già inserito. In fondo, una riflessione complessiva del team.
+              Per ogni immagine: cosa funziona, cosa no, cosa chiederete al prossimo giro. <b>Reitera</b> riporta al configuratore con lo spunto già inserito.
             </p>
           </div>
           <div className="space-y-4">
@@ -266,7 +266,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Valutazione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Ogni immagine finale diventa un artefatto: le date un nome, i <b>tag del corso</b> e i <b>4 driver</b> con motivazione, come per i casi studio. Così il/la docente può confrontarle sul radar con i casi studio reali.
+              Per ogni immagine finale: un nome, i <b>tag del corso</b> e i <b>4 driver</b>, come per i casi studio. Il/la docente può poi confrontarle sul radar.
             </p>
           </div>
           <div className="space-y-4">
@@ -275,7 +275,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Share</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Presentate il mondo e i suoi artefatti a schermo intero: scenario, moodboard, profilo sui driver e domande aperte per la classe (vorreste vivere in questo futuro? chi resta escluso?).
+              Presentate il concept a schermo intero: sotto-ambiti, moodboard e punteggi, con qualche domanda per aprire la discussione.
             </p>
           </div>
         </div>
