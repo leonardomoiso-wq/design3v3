@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
-import { FASI, faseEffettiva, type Submission } from '@/components/crazy8/shared';
+import { FASI, NUMERO_FASI, etichettaTipoFuturo, faseEffettiva, type Submission } from '@/components/crazy8/shared';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -517,7 +517,7 @@ export default function Crazy8DocentePage() {
                 <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
                 <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza sotto-ambito'}</h1>
                 {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
-                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/8 · {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
+                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} · {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
               </div>
               <div className="flex gap-1.5">
                 {STATI.map(st => (
@@ -561,6 +561,17 @@ export default function Crazy8DocentePage() {
                     <p className="text-xs text-stone-700 leading-relaxed">{selezionata.riflessione}</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {selezionata.scenario?.what_if && (
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-1 text-xs text-stone-700">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+                  Mondo futuro{selezionata.scenario.orizzonte ? ` · ${selezionata.scenario.orizzonte}` : ''}{selezionata.scenario.tipo_futuro ? ` · futuro ${etichettaTipoFuturo(selezionata.scenario.tipo_futuro).toLowerCase()}` : ''}
+                </h3>
+                <p className="text-sm font-medium text-stone-900">{selezionata.scenario.what_if}</p>
+                {selezionata.scenario.segnale && <p><b>Segnale:</b> {selezionata.scenario.segnale}</p>}
+                {selezionata.scenario.abitanti && <p><b>Chi lo abita:</b> {selezionata.scenario.abitanti}</p>}
               </div>
             )}
 

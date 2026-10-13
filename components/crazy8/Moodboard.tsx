@@ -32,9 +32,10 @@ export function MoodboardGriglia({ submission, scuro = false, grande = false }: 
           <div className={`flex-1 flex items-center justify-center ${scuro ? 'bg-stone-950' : 'bg-stone-50'} ${i === 0 ? altezzaCopertina : altezzaAltre}`}>
             <img src={img.url} alt={voce.didascalia || img.etichetta} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
           </div>
-          {(voce.didascalia || img.sottoAmbito) && (
+          {(voce.didascalia || img.sottoAmbito || voce.titolo) && (
             <figcaption className={`px-3 py-2 text-xs leading-snug ${didascalia}`}>
               {img.sottoAmbito && <span className={`block text-[9px] font-bold uppercase tracking-widest mb-0.5 ${scuro ? 'text-amber-400' : 'text-amber-700'}`}>{img.sottoAmbito}</span>}
+              {voce.titolo && <span className={`block font-bold ${scuro ? 'text-white' : 'text-stone-900'}`}>{voce.titolo}</span>}
               {voce.didascalia}
             </figcaption>
           )}

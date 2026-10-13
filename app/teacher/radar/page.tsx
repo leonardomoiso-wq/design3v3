@@ -10,6 +10,7 @@ import StellaScelto from '@/components/StellaScelto';
 import { MetaCaso, FonteCaso, metaDaRiga, testoMeta, type Provenienza } from '@/components/MetaCaso';
 import { BottomSheet, ActionSheet, SlidingPanel, type StatoPannello } from '@/components/PannelliMobile';
 import { useMobile } from '@/lib/useMobile';
+import { caricaElementiConcept } from '@/lib/conceptRadar';
 
 type Caso = {
   id: number;
@@ -25,7 +26,17 @@ type Caso = {
   anno: number | null;
   provenienza: Provenienza | null;
   fonte: string;
+  // 'concept' = immagine finale di Crazy 8 valutata da un team (design fiction)
+  origine: 'caso' | 'concept';
 };
+
+type FonteRadar = 'casi' | 'concept' | 'tutti';
+const FONTI: { id: FonteRadar; etichetta: string }[] = [
+  { id: 'casi', etichetta: 'Casi studio' },
+  { id: 'concept', etichetta: '🔭 Concept Crazy 8' },
+  { id: 'tutti', etichetta: 'Tutti' },
+];
+const CHIAVE_FONTE = 'radar-fonte';
 
 // Numero di assi del radar: sempre 4 driver (le etichette vengono dal corso).
 const NUMERO_ASSI = 4;
@@ -69,6 +80,9 @@ export default function RadarPage() {
   const { corso } = useDocente();
   const ASSI = corso.configurazione.driver.map(d => ({ chiave: d.chiave, etichetta: d.etichetta }));
   const [casi, setCasi] = useState<Caso[]>([]);
+  const [concept, setConcept] = useState<Caso[]>([]);
+  const [fonteRadar, setFonteRadar] = useState<FonteRadar>('casi');
+  const [conceptCaricati, setConceptCaricati] = useState(false);
   const [attivi, setAttivi] = useState<number[]>([]);
   const [filtroTag, setFiltroTag] = useState('');
   const [filtroDriver, setFiltroDriver] = useState<'nessuno' | 'desiderabilita' | 'fattibilita' | 'responsabilita' | 'vitalita'>('nessuno');
@@ -210,6 +224,7 @@ export default function RadarPage() {
       driverNote: estraiNote(c.driver),
       scelto: Number(c.scelto) || 0,
       ...metaDaRiga(c),
+      origine: 'caso' as const,
     });
 
     const carica = async () => {
@@ -260,10 +275,54 @@ export default function RadarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const tuttiITag = useMemo(() => Array.from(new Set(casi.flatMap(c => c.tags || []))).sort(), [casi]);
+  // Sorgente del radar scelta dal/dalla docente (ricordata nel browser)
+  useEffect(() => {
+    try {
+      const salvata = localStorage.getItem(CHIAVE_FONTE) as FonteRadar | null;
+      if (salvata && FONTI.some(f => f.id === salvata)) setFonteRadar(salvata);
+    } catch { /* storage non disponibile */ }
+  }, []);
+  const cambiaFonte = (f: FonteRadar) => {
+    setFonteRadar(f);
+    setFiltroTag('');
+    try { localStorage.setItem(CHIAVE_FONTE, f); } catch { /* non bloccante */ }
+  };
+
+  // Le immagini di Crazy 8 si caricano solo quando servono (sono pesanti),
+  // poi restano aggiornate in tempo reale.
+  useEffect(() => {
+    if (fonteRadar === 'casi') return;
+    let attivo = true;
+    const carica = async () => {
+      const { elementi, errore } = await caricaElementiConcept(corso.id);
+      if (!attivo) return;
+      if (errore) { setErroreCasi(`Errore nel caricamento dei concept Crazy 8: ${errore}`); return; }
+      setConcept(elementi.map(e => ({ ...e, scelto: 0, provenienza: null, fonte: '', origine: 'concept' as const })));
+      setConceptCaricati(true);
+    };
+    carica();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const channel = ascoltaCorso(supabase.channel(`realtime-radar-concept-${corso.id}`), 'submission_crazy8', corso.id, () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(carica, 800);
+    }).subscribe();
+    return () => {
+      attivo = false;
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fonteRadar === 'casi']);
+
+  const elementi = useMemo(
+    () => (fonteRadar === 'casi' ? casi : fonteRadar === 'concept' ? concept : [...casi, ...concept]),
+    [fonteRadar, casi, concept],
+  );
+
+  const tuttiITag = useMemo(() => Array.from(new Set(elementi.flatMap(c => c.tags || []))).sort(), [elementi]);
 
   const casiFiltrati = useMemo(() => {
-    let lista = filtroTag ? casi.filter(c => (c.tags || []).includes(filtroTag)) : casi;
+    let lista = filtroTag ? elementi.filter(c => (c.tags || []).includes(filtroTag)) : elementi;
     if (ricerca.trim()) {
       const q = ricerca.trim().toLowerCase();
       // Una ricerca di soli numeri ("4") è chiaramente un numero di gruppo,
@@ -286,7 +345,7 @@ export default function RadarPage() {
         .slice(0, 5);
     }
     return lista;
-  }, [casi, filtroTag, filtroDriver, ricerca]);
+  }, [elementi, filtroTag, filtroDriver, ricerca]);
 
   useEffect(() => {
     setAttivi(casiFiltrati.slice(0, Math.min(5, limiteAttivi)).map(c => c.id));
@@ -317,7 +376,8 @@ export default function RadarPage() {
   // Il colore segue l'id del caso studio, mai la sua posizione nell'elenco
   // filtrato: altrimenti cambiare ricerca/filtro "ridipingerebbe" i
   // progetti già selezionati, confondendo chi li sta confrontando.
-  const coloreDi = (id: number) => PALETTE[id % PALETTE.length];
+  // (gli id dei concept sono negativi: modulo sempre positivo)
+  const coloreDi = (id: number) => PALETTE[((id % PALETTE.length) + PALETTE.length) % PALETTE.length];
 
   // Più si zooma, più le linee/punti in unità SVG vanno assottigliati: la
   // trasformazione CSS le scala comunque, e a zoom alto uno spessore fisso
@@ -353,7 +413,11 @@ export default function RadarPage() {
             </p>
           )}
           {casiFiltrati.length === 0 && (
-            <p className="text-xs text-stone-400 px-1">Nessun caso studio corrisponde alla ricerca.</p>
+            <p className="text-xs text-stone-400 px-1">
+              {fonteRadar === 'concept' && conceptCaricati && concept.length === 0
+                ? 'Nessuna immagine di Crazy 8 è ancora stata valutata dai team (fase Valutazione).'
+                : fonteRadar !== 'casi' && !conceptCaricati ? 'Carico i concept…' : 'Nessun elemento corrisponde alla ricerca.'}
+            </p>
           )}
           {casiFiltrati.map(c => {
             const colore = coloreDi(c.id);
@@ -380,6 +444,7 @@ export default function RadarPage() {
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold truncate text-stone-900 flex items-center gap-1">
                     <StellaScelto valore={c.scelto} />
+                    {c.origine === 'concept' && <span title="Concept Crazy 8 (design fiction)" aria-label="Concept Crazy 8">🔭</span>}
                     <span className="truncate">{c.titolo}</span>
                   </div>
                   <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}{testoMeta(c.anno, c.provenienza) && <> &middot; {testoMeta(c.anno, c.provenienza)}</>}</div>
@@ -421,7 +486,7 @@ export default function RadarPage() {
                 </div>
                 <div className="p-3.5 space-y-2">
                   <div className="flex justify-between items-start">
-                    <h3 className="text-sm font-serif font-bold">{c.titolo}</h3>
+                    <h3 className="text-sm font-serif font-bold">{c.origine === 'concept' && <span aria-label="Concept Crazy 8">🔭 </span>}{c.titolo}</h3>
                     <span className="text-[10px] bg-stone-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">G.{c.gruppoNum}</span>
                   </div>
                   <MetaCaso anno={c.anno} provenienza={c.provenienza} />
@@ -458,11 +523,18 @@ export default function RadarPage() {
               ↕ {ordinamentoCorrente}
             </button>
             <button onClick={() => setFiltriAperti(true)} aria-haspopup="dialog" aria-label="Filtri" className={`ml-auto px-3 py-2 rounded-full text-xs font-medium border flex-shrink-0 ${filtroTag ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-stone-200 text-stone-700'}`}>
-              ⚙️{filtroTag ? ' 1' : ''}
+              ⚙️{(filtroTag ? 1 : 0) + (fonteRadar !== 'casi' ? 1 : 0) || ''}
             </button>
           </div>
         ) : (
           <div className="flex items-center space-x-2">
+          <div role="radiogroup" aria-label="Cosa mostrare sul radar" className="flex bg-white border border-stone-200 rounded-full p-0.5">
+            {FONTI.map(f => (
+              <button key={f.id} type="button" role="radio" aria-checked={fonteRadar === f.id} onClick={() => cambiaFonte(f.id)} className={`text-xs px-3 py-1 rounded-full transition ${fonteRadar === f.id ? 'bg-stone-900 text-white' : 'text-stone-600 hover:text-stone-900'}`}>
+                {f.etichetta}
+              </button>
+            ))}
+          </div>
           <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
           <select
             id="radar-filtro-tag"
@@ -748,7 +820,15 @@ export default function RadarPage() {
 
       <BottomSheet aperto={mobile && filtriAperti} onChiudi={() => setFiltriAperti(false)} etichetta="Filtri del radar" titolo="Filtri">
         <div className="space-y-3 [&_select]:w-full [&_select]:py-3 [&_select]:text-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Tag tematico</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Cosa mostrare</p>
+          <div role="radiogroup" aria-label="Cosa mostrare sul radar" className="grid grid-cols-3 gap-1.5">
+            {FONTI.map(f => (
+              <button key={f.id} type="button" role="radio" aria-checked={fonteRadar === f.id} onClick={() => cambiaFonte(f.id)} className={`text-xs px-2 py-2.5 rounded-xl border transition ${fonteRadar === f.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-700'}`}>
+                {f.etichetta}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 pt-1">Tag tematico</p>
           <label className="sr-only" htmlFor="radar-filtro-tag">Filtra per tag tematico</label>
           <select
             id="radar-filtro-tag"
@@ -803,7 +883,10 @@ export default function RadarPage() {
             <div className="p-5 md:p-8 space-y-5">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
+                    {casoEspanso.origine === 'concept' && <span className="text-amber-700">🔭 Concept Crazy 8 · design fiction &middot; </span>}
+                    Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}
+                  </span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>
                   <MetaCaso anno={casoEspanso.anno} provenienza={casoEspanso.provenienza} className="mt-2" />
                 </div>
@@ -818,7 +901,7 @@ export default function RadarPage() {
               )}
 
               <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
-                {casoEspanso.descrizione || 'Nessuna descrizione inserita.'}
+                <span className="whitespace-pre-line">{casoEspanso.descrizione || 'Nessuna descrizione inserita.'}</span>
               </p>
               <FonteCaso fonte={casoEspanso.fonte} />
 

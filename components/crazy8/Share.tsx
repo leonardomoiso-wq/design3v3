@@ -1,7 +1,64 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { MoodboardGriglia } from './Moodboard';
-import { MIN_MOODBOARD, risolviVoceMoodboard, sottoAmbitiDi, type Submission } from './shared';
+import type { ChiaveDriver } from '@/lib/driver';
+import { CHIAVI_DRIVER_C8, MIN_MOODBOARD, etichettaTipoFuturo, risolviVoceMoodboard, sottoAmbitiDi, type Submission } from './shared';
+
+type EtichettaDriver = (k: ChiaveDriver) => string;
+
+// Domande del Design Fiction per aprire la discussione dopo ogni presentazione
+const DOMANDE_CRITICHE = [
+  'Vorreste vivere in questo futuro? Perché?',
+  'Chi ci guadagna e chi resta escluso?',
+  'Quale segnale di oggi lo rende plausibile?',
+  'Cosa dovremmo fare adesso per arrivarci — o per evitarlo?',
+];
+
+function SchedaScenario({ s, scuro = false }: { s: Submission; scuro?: boolean }) {
+  const sc = s.scenario || {};
+  if (!sc.what_if && !sc.segnale) return null;
+  const etichetta = scuro ? 'text-stone-500' : 'text-stone-400';
+  return (
+    <div className={`rounded-2xl p-4 space-y-2 ${scuro ? 'bg-amber-400/10 border border-amber-400/30' : 'bg-amber-50 border border-amber-200'}`}>
+      <p className={`text-[10px] font-bold uppercase tracking-widest ${scuro ? 'text-amber-300' : 'text-amber-800'}`}>
+        Il mondo futuro{sc.orizzonte ? ` · ${sc.orizzonte}` : ''}{sc.tipo_futuro ? ` · futuro ${etichettaTipoFuturo(sc.tipo_futuro).toLowerCase()}` : ''}
+      </p>
+      {sc.what_if && <p className={`text-sm font-medium leading-snug ${scuro ? 'text-white' : 'text-stone-900'}`}>{sc.what_if}</p>}
+      {sc.segnale && <p className={`text-xs ${scuro ? 'text-stone-300' : 'text-stone-600'}`}><span className={etichetta}>Segnale di oggi:</span> {sc.segnale}</p>}
+      {sc.abitanti && <p className={`text-xs ${scuro ? 'text-stone-300' : 'text-stone-600'}`}><span className={etichetta}>Chi lo abita:</span> {sc.abitanti}</p>}
+    </div>
+  );
+}
+
+// Profilo medio del concept sui 4 driver, dalle immagini valutate
+function ProfiloDriver({ s, etichettaDriver, scuro = false }: { s: Submission; etichettaDriver: EtichettaDriver; scuro?: boolean }) {
+  const voci = (s.moodboard || []).filter(v => v.driver && risolviVoceMoodboard(s, v));
+  if (voci.length === 0) return null;
+  const tags = Array.from(new Set(voci.flatMap(v => v.tags || [])));
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        {CHIAVI_DRIVER_C8.map(k => {
+          const valori = voci.map(v => v.driver?.[k]?.valore).filter((x): x is number => typeof x === 'number');
+          const media = valori.length ? valori.reduce((a, b) => a + b, 0) / valori.length : 0;
+          return (
+            <div key={k} className="text-xs">
+              <div className="flex justify-between"><span className={scuro ? 'text-stone-400' : 'text-stone-500'}>{etichettaDriver(k)}</span><b className={scuro ? 'text-white' : 'text-stone-900'}>{media.toFixed(1)}</b></div>
+              <div className={`h-1.5 rounded-full overflow-hidden ${scuro ? 'bg-stone-800' : 'bg-stone-100'}`}>
+                <div className={`h-full rounded-full ${scuro ? 'bg-amber-400' : 'bg-stone-900'}`} style={{ width: `${(media / 5) * 100}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.map(t => <span key={t} className={`text-[10px] px-2 py-0.5 rounded-full border ${scuro ? 'border-stone-700 text-stone-300' : 'border-stone-200 text-stone-600'}`}>{t}</span>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Modalità share: ogni team presenta la propria moodboard e motiva le
 // scelte. La traccia "1. concept · 2. caratteristiche · 3. perché" è
@@ -35,7 +92,7 @@ function SchedaConcept({ s, scuro = false }: { s: Submission; scuro?: boolean })
   );
 }
 
-function Presentazione({ elenco, indiceIniziale, onChiudi }: { elenco: Submission[]; indiceIniziale: number; onChiudi: () => void }) {
+function Presentazione({ elenco, indiceIniziale, onChiudi, etichettaDriver }: { elenco: Submission[]; indiceIniziale: number; onChiudi: () => void; etichettaDriver: EtichettaDriver }) {
   const [indice, setIndice] = useState(indiceIniziale);
   const s = elenco[indice];
 
@@ -68,17 +125,27 @@ function Presentazione({ elenco, indiceIniziale, onChiudi }: { elenco: Submissio
           <div className="flex flex-wrap gap-1.5">
             {sottoAmbitiDi(s).map(x => <span key={x} className="text-[11px] border border-amber-400/40 text-amber-300 px-2.5 py-1 rounded-full">{x}</span>)}
           </div>
+          <SchedaScenario s={s} scuro />
           <MoodboardGriglia submission={s} scuro grande />
         </div>
-        <aside className="lg:sticky lg:top-24 self-start bg-stone-900 border border-stone-800 rounded-3xl p-6">
-          <SchedaConcept s={s} scuro />
+        <aside className="lg:sticky lg:top-24 self-start space-y-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 space-y-5">
+            <SchedaConcept s={s} scuro />
+            <ProfiloDriver s={s} etichettaDriver={etichettaDriver} scuro />
+          </div>
+          <div className="bg-stone-900/60 border border-stone-800 rounded-3xl p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-2">Domande per la classe</p>
+            <ul className="text-xs text-stone-300 space-y-1.5 list-disc list-inside">
+              {DOMANDE_CRITICHE.map(d => <li key={d}>{d}</li>)}
+            </ul>
+          </div>
         </aside>
       </div>
     </div>
   );
 }
 
-export default function Share({ submissions, propriaId }: { submissions: Submission[]; propriaId: string | null }) {
+export default function Share({ submissions, propriaId, etichettaDriver }: { submissions: Submission[]; propriaId: string | null; etichettaDriver: EtichettaDriver }) {
   const [presentaDa, setPresentaDa] = useState<number | null>(null);
   // si mostrano solo i team che hanno già una moodboard; il proprio per primo
   const elenco = submissions
@@ -102,15 +169,17 @@ export default function Share({ submissions, propriaId }: { submissions: Submiss
           {contaImmagini(propria) < MIN_MOODBOARD && (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5">La moodboard ha meno di {MIN_MOODBOARD} immagini: completatela nella fase 7 prima di presentare.</p>
           )}
+          <SchedaScenario s={propria} />
           <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-6">
             <MoodboardGriglia submission={propria} />
-            <div className="bg-stone-50 rounded-2xl border border-stone-100 p-5">
+            <div className="bg-stone-50 rounded-2xl border border-stone-100 p-5 space-y-5">
               <SchedaConcept s={propria} />
+              <ProfiloDriver s={propria} etichettaDriver={etichettaDriver} />
             </div>
           </div>
           <div className="text-xs text-stone-500 bg-stone-50 rounded-xl p-3 border border-stone-100">
-            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) il nome del concept e il sotto-ambito · 2) le caratteristiche,
-            immagine per immagine · 3) perché queste scelte, e cosa avete scartato lungo le iterazioni.
+            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) raccontate il mondo come se ci viveste: il segnale, il what-if, l&apos;anno ·
+            2) gli artefatti, immagine per immagine · 3) perché queste scelte, cosa avete scartato e come li avete valutati sui 4 driver. Chiudete con una domanda aperta alla classe.
           </div>
         </section>
       ) : (
@@ -144,7 +213,7 @@ export default function Share({ submissions, propriaId }: { submissions: Submiss
         </div>
       </section>
 
-      {presentaDa !== null && <Presentazione elenco={elenco} indiceIniziale={presentaDa} onChiudi={() => setPresentaDa(null)} />}
+      {presentaDa !== null && <Presentazione elenco={elenco} indiceIniziale={presentaDa} onChiudi={() => setPresentaDa(null)} etichettaDriver={etichettaDriver} />}
     </div>
   );
 }

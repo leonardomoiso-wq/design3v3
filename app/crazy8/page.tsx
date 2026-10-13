@@ -7,12 +7,14 @@ import { useTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
 import {
-  FASI, MIN_MOODBOARD, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi,
-  type Generazione, type Sketch, type Submission, type VoceMoodboard,
+  FASI, NUMERO_FASI, ORIZZONTI, TIPI_FUTURO, MIN_MOODBOARD, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi,
+  type Generazione, type Scenario, type Sketch, type Submission, type VoceMoodboard,
 } from '../../components/crazy8/shared';
 import PromptConfiguratore, { MOTORI } from '../../components/crazy8/PromptConfiguratore';
 import { MoodboardEditor } from '../../components/crazy8/Moodboard';
 import Share from '../../components/crazy8/Share';
+import Valutazione, { valutazioneCompleta } from '../../components/crazy8/Valutazione';
+import { caricaTagCorso, TAG_VUOTI, type TagCorso } from '../../lib/tag';
 
 // Crazy 8 a fasi (lato studente). Il percorso è lineare: ogni fase si
 // sblocca quando la precedente ha prodotto ciò che serve (almeno uno
@@ -24,11 +26,11 @@ import Share from '../../components/crazy8/Share';
 const TUTORIAL_VISTO_KEY = 'crazy8_fasi_tutorial_visto';
 
 const TUTORIAL_SLIDES = [
-  { icona: '🧭', titolo: 'Un percorso in 8 fasi', testo: 'Sotto-ambiti, sketch, selezione, prompt, risultati, riflessione, moodboard, share. Ogni fase si apre quando la precedente è pronta: in alto vedete sempre dove siete.' },
-  { icona: '📱', titolo: 'Gli sketch si scattano col telefono', testo: 'Disegnate su carta i vostri 8 sketch, poi aprite questa pagina dal telefono (accesso col team) e scattate una foto per ognuno: compariranno subito anche sul portatile.' },
-  { icona: '🔍', titolo: 'Selezionate e interpretate', testo: 'Rivedete tutti gli sketch in galleria, scegliete i più promettenti e scrivete cosa ci vedete: quell\'interpretazione guiderà il prompt.' },
-  { icona: '🪄', titolo: 'Un prompt che parla di voi', testo: 'Il configuratore vi aiuta a comporre il prompt, ma si sblocca solo quando ci mettete parole vostre. Poi un clic lo apre in ChatGPT, Gemini o altri modelli.' },
-  { icona: '💭', titolo: 'Riflettete, reiterate, raccontate', testo: 'Per ogni immagine generata: cosa funziona, cosa no, cosa chiederete al giro dopo. Alla fine 4-5 immagini diventano la moodboard del vostro concept, da presentare alla classe.' },
+  { icona: '🔭', titolo: 'Design fiction: progettare dal futuro', testo: 'Non progettate un prodotto per oggi: immaginate un mondo futuro a partire da un segnale di oggi e da un "what if…", poi date forma agli oggetti che in quel mondo sarebbero normali.' },
+  { icona: '📱', titolo: 'Gli sketch si scattano col telefono', testo: 'Disegnate su carta 8 artefatti di quel futuro, poi aprite questa pagina dal telefono (accesso col team) e scattate una foto per ognuno: compariranno subito anche sul portatile.' },
+  { icona: '🪄', titolo: 'Un prototipo diegetico, non un render', testo: 'Il configuratore vi aiuta a far "esistere" lo sketch nel suo mondo: una foto, una scena quotidiana, una pubblicità, un reperto. Si sblocca solo quando ci mettete parole vostre.' },
+  { icona: '🎯', titolo: 'Valutate come i casi studio', testo: 'Alle immagini finali date un nome, i tag del corso e i 4 driver: così i vostri artefatti dal futuro si confrontano sul radar con i casi studio reali.' },
+  { icona: '📣', titolo: 'Raccontate il mondo', testo: 'La moodboard è la vostra mostra dal futuro: presentatela alla classe, motivate le scelte e lasciate aperta la domanda "vorremmo davvero questo futuro?".' },
 ];
 
 const messaggioErrore = (codice: string) => {
@@ -57,6 +59,7 @@ function normalizza(s: any): Submission {
     ...s,
     fase_raggiunta: s.fase_raggiunta || 1,
     moodboard: Array.isArray(s.moodboard) ? s.moodboard : [],
+    scenario: s.scenario && typeof s.scenario === 'object' ? s.scenario : {},
     immagini: (s.immagini || [])
       .slice()
       .sort((a: any, b: any) => a.ordine - b.ordine)
@@ -276,6 +279,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const [caricamentoSketch, setCaricamentoSketch] = useState(false);
   const segnalaCaricamento = (attivo: boolean) => setCaricamentiAttivi(n => Math.max(0, n + (attivo ? 1 : -1)));
   const [urlPagina, setUrlPagina] = useState('');
+  const [tagCorso, setTagCorso] = useState<TagCorso>(TAG_VUOTI);
+  const [scenarioBozza, setScenarioBozza] = useState<Scenario>({});
 
   // La consegna aperta al momento (creata ora o sbloccata dall'elenco)
   const [attivaId, setAttivaId] = useState<string | null>(null);
@@ -352,6 +357,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
     caricaAttivita();
     caricaSubmissions();
+    caricaTagCorso(corso.id).then(({ dati }) => setTagCorso(dati));
     caricaSuggerimenti();
     setUrlPagina(`${window.location.origin}/crazy8`);
 
@@ -471,6 +477,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     if (attiva && fase === 1) {
       const salvati = sottoAmbitiDi(attiva);
       setSottoAmbiti(salvati.length ? salvati : ['']);
+      setScenarioBozza(attiva.scenario || {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attivaId, fase]);
@@ -495,20 +502,21 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       setErroreCreazione(messaggioErrore(error.message));
       return;
     }
-    await supabase.rpc('aggiorna_campi_submission_crazy8', { p_id: data, p_codice: codiceNuovo, p_campi: { fase_raggiunta: 2 } });
     await caricaSubmissions();
     setCreazioneInCorso(false);
     setAttivaId(data);
     setAttivaCodice(codiceNuovo);
     setSottoAmbitoUpload(puliti[0] || '');
-    vaiAFase(2);
+    setScenarioBozza({});
+    vaiAFase(1);
   };
 
-  const salvaSottoAmbiti = async () => {
+  const salvaMondo = async () => {
     const puliti = sottoAmbiti.map(s => s.trim()).filter(Boolean);
     if (puliti.length === 0) { setErroreAzione('Serve almeno un sotto-ambito.'); return; }
-    patchSubmission({ hmw_o_tema: puliti.join('; ') });
-    const ok = await salvaCampi({ sotto_ambito: puliti.join('; ') });
+    const scenario: Scenario = Object.fromEntries(Object.entries(scenarioBozza).map(([k, v]) => [k, (v || '').trim()]));
+    patchSubmission({ hmw_o_tema: puliti.join('; '), scenario });
+    const ok = await salvaCampi({ sotto_ambito: puliti.join('; '), scenario });
     if (ok) avanzaA(2);
   };
 
@@ -622,7 +630,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const sottoAmbitiAttiva = sottoAmbitiDi(attiva);
   const infoFase = FASI[fase - 1];
   const riflessioniScritte = generazioniTutte.filter(g => (g.positivo || '').trim() || (g.negativo || '').trim()).length;
-  const immaginiMoodboard = attiva ? (attiva.moodboard || []).filter(v => risolviVoceMoodboard(attiva, v)).length : 0;
+  const vociMoodboard = attiva ? (attiva.moodboard || []).filter(v => risolviVoceMoodboard(attiva, v)) : [];
+  const immaginiMoodboard = vociMoodboard.length;
 
   const sketchRevisione = sketchTutti.find(s => s.id === sketchInRevisione) || (soloSelezionati ? sketchSelezionati[0] : sketchTutti[0]) || null;
   const galleriaRevisione = soloSelezionati ? sketchSelezionati : sketchTutti;
@@ -633,19 +642,67 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     switch (fase) {
       case 1:
         return (
-          <div className="max-w-xl space-y-4">
-            <div className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
-              {sottoAmbiti.map((s, i) => (
-                <div key={i} className="flex gap-1.5">
-                  <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={`Sotto-ambito ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  {sottoAmbiti.length > 1 && (
-                    <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
-                  )}
+          <div className="space-y-5">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-5 items-start">
+              <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
+                <h3 className="text-sm font-bold text-stone-900">I vostri sotto-ambiti</h3>
+                <p className="text-xs text-stone-500">Sono le lenti da cui guardare il futuro.</p>
+                {sottoAmbiti.map((s, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={`Sotto-ambito ${i + 1}`} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                    {sottoAmbiti.length > 1 && (
+                      <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
+              </section>
+
+              <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/60 p-5 space-y-4">
+                <h3 className="text-sm font-bold text-stone-900">Il mondo futuro</h3>
+                <label className="block">
+                  <span className="text-xs font-medium text-stone-800">1 · Un segnale dal presente</span>
+                  <span className="block text-[11px] text-stone-500">Una notizia, una tecnologia emergente, un comportamento che sta già cambiando.</span>
+                  <textarea rows={2} value={scenarioBozza.segnale || ''} onChange={e => setScenarioBozza(v => ({ ...v, segnale: e.target.value }))} placeholder="es. in molte città gli impollinatori sono in calo e si piantano fiori sui tetti" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-stone-800">2 · What if…? <span className="text-red-600">*</span></span>
+                  <span className="block text-[11px] text-stone-500">Portate il segnale all&apos;estremo: cosa succederebbe se…</span>
+                  <textarea rows={2} value={scenarioBozza.what_if || ''} onChange={e => setScenarioBozza(v => ({ ...v, what_if: e.target.value }))} placeholder="es. e se ogni balcone fosse obbligato per legge a nutrire una specie non umana?" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </label>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-stone-800">3 · Quando?</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ORIZZONTI.map(o => (
+                      <button key={o} type="button" aria-pressed={scenarioBozza.orizzonte === o} onClick={() => setScenarioBozza(v => ({ ...v, orizzonte: v.orizzonte === o ? '' : o }))} className={`text-xs px-3.5 py-1.5 rounded-full border transition ${scenarioBozza.orizzonte === o ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-500'}`}>{o}</button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-stone-800">4 · Che tipo di futuro? <span className="font-normal text-stone-500">(cono dei futuri)</span></span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {TIPI_FUTURO.map(t => (
+                      <button key={t.id} type="button" aria-pressed={scenarioBozza.tipo_futuro === t.id} onClick={() => setScenarioBozza(v => ({ ...v, tipo_futuro: v.tipo_futuro === t.id ? '' : t.id }))} className={`text-left rounded-xl border px-3 py-2 transition ${scenarioBozza.tipo_futuro === t.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-500'}`}>
+                        <span className="block text-xs font-bold">{t.etichetta}</span>
+                        <span className={`block text-[10px] leading-tight ${scenarioBozza.tipo_futuro === t.id ? 'text-stone-300' : 'text-stone-500'}`}>{t.descrizione}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="block">
+                  <span className="text-xs font-medium text-stone-800">5 · Chi abita questo mondo?</span>
+                  <textarea rows={2} value={scenarioBozza.abitanti || ''} onChange={e => setScenarioBozza(v => ({ ...v, abitanti: e.target.value }))} placeholder="es. famiglie di città, api selvatiche, un ispettorato per la biodiversità" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </label>
+              </section>
             </div>
-            <NavigazioneFase fase={1} onIndietro={() => {}} onAvanti={salvaSottoAmbiti} avantiPossibile={sottoAmbiti.some(s => s.trim())} motivoBlocco="Serve almeno un sotto-ambito" etichettaAvanti="Salva e vai agli sketch" />
+            <NavigazioneFase
+              fase={1}
+              onIndietro={() => {}}
+              onAvanti={salvaMondo}
+              avantiPossibile={sottoAmbiti.some(s => s.trim()) && !!(scenarioBozza.what_if || '').trim()}
+              motivoBlocco={!sottoAmbiti.some(s => s.trim()) ? 'Serve almeno un sotto-ambito' : 'Scrivete il vostro "what if…"'}
+              etichettaAvanti="Salva il mondo e vai agli sketch"
+            />
           </div>
         );
 
@@ -798,7 +855,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     etichetta="La vostra interpretazione"
                     valore={sketchRevisione.interpretazione}
                     righe={4}
-                    placeholder="Cosa ci vedete? Quale idea c'è dietro, cosa la rende promettente, cosa manca ancora?"
+                    placeholder="Cos'è questo artefatto nel vostro mondo futuro? Chi lo usa, e cosa racconta di quel mondo?"
                     onSalva={t => salvaSketch(sketchRevisione.id, { interpretazione: t })}
                   />
                 </section>
@@ -816,6 +873,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <PromptConfiguratore
               key={reitera ? `reitera-${reitera.n}` : 'config'}
               sketchSelezionati={sketchSelezionati}
+              scenario={attiva.scenario}
               sketchIniziale={reitera?.sketchId || null}
               spuntoIniziale={reitera?.spunto || null}
               suggerimentiDocente={suggerimentiPrompt}
@@ -888,8 +946,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                       </div>
                       <div className="space-y-3">
                         <div className="grid sm:grid-cols-2 gap-3">
-                          <TestoAutosalvato tono="positivo" etichetta="👍 Cosa funziona" valore={g.positivo} righe={3} placeholder="Cosa vi convince? Cosa terreste?" onSalva={t => salvaGenerazione(g.id, { positivo: t })} />
-                          <TestoAutosalvato tono="negativo" etichetta="👎 Cosa non funziona" valore={g.negativo} righe={3} placeholder="Cosa è sbagliato, generico, tradisce lo sketch?" onSalva={t => salvaGenerazione(g.id, { negativo: t })} />
+                          <TestoAutosalvato tono="positivo" etichetta="👍 Cosa funziona" valore={g.positivo} righe={3} placeholder="Cosa rende credibile l'artefatto e il suo mondo? Cosa terreste?" onSalva={t => salvaGenerazione(g.id, { positivo: t })} />
+                          <TestoAutosalvato tono="negativo" etichetta="👎 Cosa non funziona" valore={g.negativo} righe={3} placeholder="Cosa sembra generico, troppo patinato o fantascientifico, o tradisce lo sketch?" onSalva={t => salvaGenerazione(g.id, { negativo: t })} />
                         </div>
                         <TestoAutosalvato tono="avanti" etichetta="→ Al prossimo giro chiederemo…" valore={g.deduzione} righe={2} placeholder="Cosa cambiereste nel prompt?" onSalva={t => salvaGenerazione(g.id, { deduzione: t })} />
                         <button
@@ -936,10 +994,10 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <NavigazioneFase
               fase={7}
               onIndietro={() => vaiAFase(6)}
-              onAvanti={() => avanzaA(8, { stato: 'consegnato' })}
+              onAvanti={() => avanzaA(8)}
               avantiPossibile={immaginiMoodboard >= MIN_MOODBOARD && !!(attiva.concept_titolo || '').trim()}
               motivoBlocco={immaginiMoodboard < MIN_MOODBOARD ? `Servono almeno ${MIN_MOODBOARD} immagini` : 'Date un nome al concept'}
-              etichettaAvanti="Pronti per lo share"
+              etichettaAvanti="Valuta le immagini finali"
             />
           </div>
         );
@@ -947,8 +1005,29 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       case 8:
         return (
           <div className="space-y-6">
-            <Share submissions={submissions} propriaId={attiva.id} />
-            <NavigazioneFase fase={8} onIndietro={() => vaiAFase(7)} avantiPossibile={false} />
+            <Valutazione
+              submission={attiva}
+              driverCorso={corso.configurazione.driver}
+              framework={corso.configurazione.framework}
+              tagCorso={tagCorso}
+              onSalvaMoodboard={async (voci: VoceMoodboard[]) => { patchSubmission({ moodboard: voci }); return salvaCampi({ moodboard: voci }); }}
+            />
+            <NavigazioneFase
+              fase={8}
+              onIndietro={() => vaiAFase(7)}
+              onAvanti={() => avanzaA(9, { stato: 'consegnato' })}
+              avantiPossibile={vociMoodboard.length > 0 && vociMoodboard.every(v => valutazioneCompleta(v, tagCorso))}
+              motivoBlocco="Ogni immagine ha bisogno di tag e dei 4 driver"
+              etichettaAvanti="Pronti per lo share"
+            />
+          </div>
+        );
+
+      case 9:
+        return (
+          <div className="space-y-6">
+            <Share submissions={submissions} propriaId={attiva.id} etichettaDriver={k => corso.configurazione.driver.find(d => d.chiave === k)?.etichetta || k} />
+            <NavigazioneFase fase={9} onIndietro={() => vaiAFase(8)} avantiPossibile={false} />
           </div>
         );
     }
@@ -987,8 +1066,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           <div className="min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-10">
             <div className="max-w-md w-full space-y-4 animate-fade-in-up">
               <div className="text-center mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase 1 di 8</p>
-                <h1 className="text-3xl font-serif mt-1">🧭 Definite i sotto-ambiti</h1>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase 1 di {NUMERO_FASI}</p>
+                <h1 className="text-3xl font-serif mt-1">🔭 Da dove guardate il futuro?</h1>
                 <p className="text-sm text-stone-500 mt-1">
                   {team ? 'Su quali sotto-ambiti progettuali lavora il team? Uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}
                 </p>
@@ -1018,7 +1097,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               )}
               {erroreCreazione && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreCreazione}</p>}
               <button onClick={iniziaConsegna} disabled={creazioneInCorso} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
-                {creazioneInCorso ? 'Creazione...' : 'Avanti: gli sketch →'}
+                {creazioneInCorso ? 'Creazione...' : 'Avanti: il mondo futuro →'}
               </button>
             </div>
           </div>
@@ -1037,7 +1116,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <Stepper fase={fase} raggiunta={raggiunta} onVai={vaiAFase} />
 
             <header key={fase} className="animate-fade-in-up">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase {fase} di 8</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase {fase} di {NUMERO_FASI}</p>
               <h1 className="text-2xl sm:text-3xl font-serif font-bold mt-1"><span aria-hidden="true">{infoFase.icona}</span> {infoFase.titolo}</h1>
               <p className="text-sm text-stone-500 mt-1 max-w-2xl">{infoFase.sottotitolo}</p>
             </header>
@@ -1060,7 +1139,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <h1 className="text-2xl font-serif font-bold">📣 I concept dei team</h1>
             <p className="text-sm text-stone-500 mt-1">Le moodboard composte da ogni team, pronte per la presentazione in aula.</p>
           </header>
-          <Share submissions={submissions} propriaId={attiva?.id || null} />
+          <Share submissions={submissions} propriaId={attiva?.id || null} etichettaDriver={k => corso.configurazione.driver.find(d => d.chiave === k)?.etichetta || k} />
         </div>
       )}
 
@@ -1094,7 +1173,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm text-stone-900 truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</h3>
                       <p className="text-xs text-stone-500">
-                        Gruppo {s.gruppo_num} — {s.gruppo_nome} · Fase {faseEffettiva(s)}/8 {FASI[faseEffettiva(s) - 1].breve}
+                        Gruppo {s.gruppo_num} — {s.gruppo_nome} · Fase {faseEffettiva(s)}/{NUMERO_FASI} {FASI[faseEffettiva(s) - 1].breve}
                       </p>
                     </div>
                   </div>

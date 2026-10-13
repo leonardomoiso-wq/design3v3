@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import type { ChiaveDriver } from '@/lib/driver';
 
 // Tipi e piccoli componenti condivisi dalle fasi di Crazy 8 (pagina
 // studente app/crazy8/page.tsx e componenti in components/crazy8/).
@@ -27,7 +28,28 @@ export type Sketch = {
   generazioni_crazy8: Generazione[];
 };
 
-export type VoceMoodboard = { tipo: 'sketch' | 'generata'; id: string; didascalia: string };
+// Valutazione di un driver: stessa forma usata dai casi studio
+// ({ valore, nota }), così radar e lib/driver.ts la leggono senza adattatori.
+export type ValutazioneDriver = Partial<Record<ChiaveDriver, { valore: number; nota: string }>>;
+
+export type VoceMoodboard = {
+  tipo: 'sketch' | 'generata';
+  id: string;
+  didascalia: string;
+  // fase 8 (Valutazione): l'immagine finale riletta come artefatto
+  titolo?: string;
+  tags?: string[];
+  driver?: ValutazioneDriver;
+};
+
+// Il "mondo futuro" del team (fase 1, Design Fiction Prototyping)
+export type Scenario = {
+  segnale?: string;
+  what_if?: string;
+  orizzonte?: string;
+  tipo_futuro?: string;
+  abitanti?: string;
+};
 
 export type Submission = {
   id: string;
@@ -37,6 +59,7 @@ export type Submission = {
   stato: string;
   fase_raggiunta: number;
   moodboard: VoceMoodboard[] | null;
+  scenario: Scenario | null;
   concept_titolo: string | null;
   concept_descrizione: string | null;
   concept_motivazioni: string | null;
@@ -47,15 +70,38 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Definite i sotto-ambiti', sottotitolo: 'Su quali sotto-ambiti progettuali lavora il team? Ogni sketch potrà essere collegato a uno di questi.' },
-  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Crazy 8: scattate e caricate gli sketch', sottotitolo: '8 idee in 8 minuti, su carta. Poi una foto per ogni sketch, direttamente dal telefono.' },
-  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Rivedete, selezionate, interpretate', sottotitolo: 'Guardate tutti gli sketch insieme: scegliete i più promettenti e annotate cosa ci vedete.' },
-  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Configurate il prompt generativo', sottotitolo: 'Componete il prompt per migliorare lo sketch selezionato, rendetelo vostro, poi apritelo nel modello che preferite.' },
+  { n: 1, icona: '🔭', breve: 'Mondo futuro', titolo: 'Immaginate il mondo futuro', sottotitolo: 'Dai sotto-ambiti a uno scenario: quale segnale di oggi, quale "what if…", in quale anno. Gli artefatti che disegnerete vivranno lì.' },
+  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Crazy 8: artefatti da quel futuro', sottotitolo: '8 oggetti, servizi o tracce che esisterebbero in quel mondo, in 8 minuti, su carta. Poi una foto per ogni sketch, dal telefono.' },
+  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Rivedete, selezionate, interpretate', sottotitolo: 'Quali artefatti raccontano meglio il vostro mondo? Sceglieteli e scrivete cosa sono, per chi, e cosa dicono di quel futuro.' },
+  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Prototipate l\'artefatto con l\'AI', sottotitolo: 'Componete il prompt per far "esistere" lo sketch nel suo mondo: un oggetto, una scena, una pubblicità, un reperto. Poi apritelo nel modello che preferite.' },
   { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Caricate le migliori immagini generate', sottotitolo: 'Solo le immagini che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
-  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Riflettete e reiterate', sottotitolo: 'Cosa funziona, cosa no, e cosa chiederete al prossimo giro.' },
-  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'Componete la moodboard del concept', sottotitolo: '4-5 immagini che raccontano il concept dei vostri sotto-ambiti, con una didascalia ciascuna.' },
-  { n: 8, icona: '📣', breve: 'Share', titolo: 'Share: presentate il concept', sottotitolo: 'Spiegate le caratteristiche del concept e motivate le vostre scelte.' },
+  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Riflettete e reiterate', sottotitolo: 'Cosa rende credibile il mondo, cosa lo rende generico, e cosa chiederete al prossimo giro.' },
+  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'Componete la moodboard del concept', sottotitolo: '4-5 immagini che, insieme, fanno vedere il vostro mondo futuro e i suoi artefatti.' },
+  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'Rivalutate le immagini finali', sottotitolo: 'Ogni immagine scelta diventa un artefatto da valutare: un titolo, i tag del corso e i 4 driver, come per i casi studio.' },
+  { n: 9, icona: '📣', breve: 'Share', titolo: 'Share: presentate il mondo e i suoi artefatti', sottotitolo: 'Raccontate il concept come se arrivaste da quel futuro, poi motivate le vostre scelte e aprite la discussione.' },
 ] as const;
+
+export const NUMERO_FASI = FASI.length;
+
+// Cono dei futuri (Voros / Dunne & Raby): che tipo di futuro sta esplorando il team
+export const TIPI_FUTURO = [
+  { id: 'probabile', etichetta: 'Probabile', descrizione: 'Dove ci portano le tendenze attuali' },
+  { id: 'plausibile', etichetta: 'Plausibile', descrizione: 'Potrebbe succedere, con qualche svolta' },
+  { id: 'possibile', etichetta: 'Possibile', descrizione: 'Ai limiti di ciò che conosciamo' },
+  { id: 'preferibile', etichetta: 'Preferibile', descrizione: 'Il futuro che vorremmo' },
+  { id: 'da_evitare', etichetta: 'Da evitare', descrizione: 'Il futuro che temiamo' },
+] as const;
+
+export const ORIZZONTI = ['2030', '2040', '2050', '2100'];
+
+export const etichettaTipoFuturo = (id?: string) => TIPI_FUTURO.find(t => t.id === id)?.etichetta || '';
+
+// Una voce della moodboard è "valutata" quando ha almeno un tag e tutti
+// e 4 i driver con un valore.
+export const CHIAVI_DRIVER_C8: ChiaveDriver[] = ['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'];
+export const voceValutata = (v: VoceMoodboard) =>
+  (v.tags || []).length > 0 && CHIAVI_DRIVER_C8.every(k => typeof v.driver?.[k]?.valore === 'number');
+
 
 export const MIN_MOODBOARD = 4;
 export const MAX_MOODBOARD = 5;
@@ -73,8 +119,10 @@ export function faseEffettiva(s: Submission): number {
   if (sketch.length > 0) fase = Math.max(fase, 2);
   if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 4);
   if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 6);
-  if ((s.moodboard || []).length > 0) fase = Math.max(fase, 7);
-  return Math.min(8, fase);
+  const voci = s.moodboard || [];
+  if (voci.length > 0) fase = Math.max(fase, 7);
+  if (voci.some(v => v.driver && Object.keys(v.driver).length > 0)) fase = Math.max(fase, 8);
+  return Math.min(NUMERO_FASI, fase);
 }
 
 export function risolviVoceMoodboard(s: Submission, voce: VoceMoodboard): { url: string; etichetta: string; sottoAmbito: string | null } | null {

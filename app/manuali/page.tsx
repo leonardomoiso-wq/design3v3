@@ -200,10 +200,10 @@ function ManualiContenuto() {
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">1</span>
-              <h2 className="text-lg font-serif font-bold">Sotto-ambiti</h2>
+              <h2 className="text-lg font-serif font-bold">Il mondo futuro</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Aprite &quot;+ Nuova consegna&quot; e indicate uno o più <b>sotto-ambiti progettuali</b>: ogni sketch potrà essere collegato a uno di questi.
+              Crazy 8 segue il <b>Design Fiction Prototyping</b>: non si progetta per oggi, ma per un futuro immaginato. Indicate i <b>sotto-ambiti</b>, poi costruite lo scenario: un <b>segnale</b> dal presente, un <b>what if…</b> (obbligatorio), l&apos;anno, il tipo di futuro secondo il cono dei futuri (probabile, plausibile, possibile, preferibile, da evitare) e chi abita quel mondo.
             </p>
           </div>
           <div className="space-y-4">
@@ -212,7 +212,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Sketch col telefono</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Disegnate su carta i vostri 8 sketch, poi aprite la pagina dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Gli sketch compaiono subito anche sul portatile.
+              Disegnate su carta 8 artefatti che esisterebbero in quel mondo, poi aprite la pagina dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Gli sketch compaiono subito anche sul portatile.
             </p>
           </div>
           <div className="space-y-4">
@@ -221,16 +221,16 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Revisione e selezione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Quando avete tutti gli sketch si apre il pannello a doppia vista: galleria a sinistra, sketch in grande a destra. Segnate con la ★ i più promettenti e scrivete la vostra <b>interpretazione</b> (si salva da sola).
+              Pannello a doppia vista: galleria a sinistra, sketch in grande a destra. Segnate con la ★ gli artefatti che raccontano meglio il vostro mondo e scrivete cosa sono, per chi e cosa dicono di quel futuro.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
-              <h2 className="text-lg font-serif font-bold">Configuratore di prompt</h2>
+              <h2 className="text-lg font-serif font-bold">Prototipo diegetico con l&apos;AI</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni sketch selezionato scegliete l&apos;obiettivo (migliorare lo sketch, render, ambientato, set minimale, esploso, varianti), poi <b>rendetelo vostro</b> rispondendo alle domande guidate: l&apos;indicatore mostra quanto il prompt parla del vostro progetto e i bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo con almeno una frase vostra. Un clic copia il prompt e apre il modello: allegate lo sketch e incollate.
+              Il configuratore propone obiettivi da design fiction (oggetto dal futuro, scena di vita quotidiana, pubblicità, reperto, packaging/manuale) oltre alla semplice rifinitura dello sketch, e inserisce nel prompt il vostro scenario. Nella sezione <b>Rendetelo vostro</b> descrivete l&apos;artefatto, il dettaglio da non perdere e una <b>frizione</b> (cosa non funziona, chi resta escluso). I bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo con almeno una frase vostra.
             </p>
           </div>
           <div className="space-y-4">
@@ -248,7 +248,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Riflessione</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni immagine: cosa funziona, cosa no, cosa chiederete al prossimo giro. <b>Reitera</b> vi riporta al configuratore con lo spunto già inserito. In fondo, una riflessione complessiva del team.
+              Per ogni immagine: cosa rende credibile il mondo, cosa lo rende generico, cosa chiederete al prossimo giro. <b>Reitera</b> riporta al configuratore con lo spunto già inserito. In fondo, una riflessione complessiva del team.
             </p>
           </div>
           <div className="space-y-4">
@@ -257,16 +257,25 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Moodboard</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete 4-5 immagini (la prima è la copertina), scrivete una didascalia per ognuna, date un nome al concept, descrivetene le caratteristiche e motivate le scelte.
+              Scegliete 4-5 immagini (la prima è la copertina), una didascalia per ognuna, il nome del concept, le caratteristiche e le motivazioni.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">8</span>
+              <h2 className="text-lg font-serif font-bold">Valutazione</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Ogni immagine finale diventa un artefatto: le date un nome, i <b>tag del corso</b> e i <b>4 driver</b> con motivazione, come per i casi studio. Così il/la docente può confrontarle sul radar con i casi studio reali.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">9</span>
               <h2 className="text-lg font-serif font-bold">Share</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Presentate la moodboard a schermo intero seguendo la traccia: concept, caratteristiche, perché queste scelte. Da &quot;Concept dei team&quot; si vedono anche quelle degli altri gruppi.
+              Presentate il mondo e i suoi artefatti a schermo intero: scenario, moodboard, profilo sui driver e domande aperte per la classe (vorreste vivere in questo futuro? chi resta escluso?).
             </p>
           </div>
         </div>

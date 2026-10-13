@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Miniatura, scaricaDataUrl, type Sketch } from './shared';
+import { Miniatura, scaricaDataUrl, type Scenario, type Sketch } from './shared';
 
 // Configuratore del prompt per il miglioramento generativo degli sketch.
 // Le scelte "a chip" danno struttura, ma da sole producono immagini che
@@ -11,18 +11,28 @@ import { Miniatura, scaricaDataUrl, type Sketch } from './shared';
 
 type Opzione = { id: string; etichetta: string; testo: string; icona?: string; descrizione?: string };
 
+// Gli obiettivi seguono il Design Fiction Prototyping: l'immagine non
+// "abbellisce" lo sketch, lo fa esistere nel mondo futuro del team come
+// prototipo diegetico (un oggetto, una scena, un documento che in quel
+// mondo sarebbero normali). Restano disponibili anche gli obiettivi di
+// pura rifinitura dello sketch.
 const OBIETTIVI: Opzione[] = [
+  { id: 'diegetico', icona: '🛸', etichetta: 'Oggetto dal futuro', descrizione: 'Fotografato come se esistesse già, nel suo mondo', testo: 'Trasforma lo sketch allegato in una fotografia realistica dell\'oggetto come se esistesse davvero nel mondo futuro descritto, usato con naturalezza, senza effetti fantascientifici' },
+  { id: 'quotidiano', icona: '🏠', etichetta: 'Scena di vita quotidiana', descrizione: 'Un momento ordinario in quel mondo', testo: 'Mostra una scena di vita quotidiana nel mondo futuro descritto in cui l\'artefatto dello sketch allegato viene usato come una cosa normale e banale' },
+  { id: 'pubblicita', icona: '📰', etichetta: 'Pubblicità dal futuro', descrizione: 'Un annuncio o un manifesto di quel mondo', testo: 'Crea una pubblicità (manifesto o pagina di rivista) del mondo futuro descritto che promuove l\'artefatto dello sketch allegato' },
+  { id: 'reperto', icona: '🏺', etichetta: 'Reperto / archeologia', descrizione: 'Ritrovato, consumato dall\'uso, in un museo', testo: 'Mostra l\'artefatto dello sketch allegato come un reperto consumato dall\'uso, fotografato in una vetrina museale con la sua etichetta, come se venisse dal mondo futuro descritto' },
+  { id: 'manuale', icona: '📦', etichetta: 'Packaging / manuale', descrizione: 'Confezione, istruzioni, etichetta', testo: 'Crea il packaging o una pagina del manuale d\'istruzioni dell\'artefatto dello sketch allegato, come verrebbe venduto nel mondo futuro descritto' },
   { id: 'migliora', icona: '✨', etichetta: 'Migliora lo sketch', descrizione: 'Linee pulite, proporzioni corrette, stessa idea', testo: 'Rielabora lo sketch allegato in un disegno di prodotto pulito e leggibile, correggendo proporzioni e prospettiva senza cambiare l\'idea' },
-  { id: 'render', icona: '📷', etichetta: 'Render realistico', descrizione: 'Come se il prodotto esistesse già', testo: 'Trasforma lo sketch allegato in un rendering fotorealistico del prodotto, come se esistesse già' },
-  { id: 'ambientato', icona: '🏞️', etichetta: 'Ambientato', descrizione: 'Nel suo contesto d\'uso reale', testo: 'Mostra il prodotto dello sketch allegato ambientato nel suo contesto d\'uso reale' },
-  { id: 'minimale', icona: '⬜', etichetta: 'Set minimale', descrizione: 'Still life da studio, sfondo neutro', testo: 'Presenta il prodotto dello sketch allegato su un set fotografico minimale da studio, con sfondo neutro e continuo' },
-  { id: 'esploso', icona: '🧩', etichetta: 'Esploso / componenti', descrizione: 'Parti e funzionamento interno', testo: 'Crea una vista esplosa del prodotto dello sketch allegato che mostri i componenti e come si assemblano' },
-  { id: 'varianti', icona: '🔀', etichetta: 'Varianti di forma', descrizione: '3-4 alternative a confronto', testo: 'Genera 4 varianti di forma del prodotto dello sketch allegato, affiancate su una griglia, mantenendo la stessa funzione' },
+  { id: 'minimale', icona: '⬜', etichetta: 'Set minimale', descrizione: 'Still life da studio, sfondo neutro', testo: 'Presenta l\'artefatto dello sketch allegato su un set fotografico minimale da studio, con sfondo neutro e continuo' },
+  { id: 'esploso', icona: '🧩', etichetta: 'Esploso / componenti', descrizione: 'Parti e funzionamento interno', testo: 'Crea una vista esplosa dell\'artefatto dello sketch allegato che mostri i componenti e come si assemblano' },
 ];
+
+// obiettivi in cui il contesto del mondo futuro entra nel prompt
+const OBIETTIVI_NEL_MONDO = ['diegetico', 'quotidiano', 'pubblicita', 'reperto', 'manuale'];
 
 const GRUPPI: { id: string; titolo: string; multiplo?: boolean; opzioni: Opzione[]; soloPer?: string[] }[] = [
   {
-    id: 'ambientazione', titolo: 'Ambientazione', soloPer: ['ambientato', 'render'],
+    id: 'ambientazione', titolo: 'Ambientazione', soloPer: ['diegetico', 'quotidiano'],
     opzioni: [
       { id: 'casa', etichetta: 'Interno domestico', testo: 'in un interno domestico vissuto' },
       { id: 'urbano', etichetta: 'Spazio urbano', testo: 'in uno spazio pubblico urbano' },
@@ -103,18 +113,24 @@ type Config = {
   suggerimenti: string[];
   cosa: string;
   dettaglio: string;
+  frizione: string;
   atmosfera: string;
   aggiunte: string;
   manuale: string | null;
 };
 
-const CONFIG_VUOTA: Config = { obiettivo: 'migliora', scelte: {}, vincoli: ['fedele'], suggerimenti: [], cosa: '', dettaglio: '', atmosfera: '', aggiunte: '', manuale: null };
+const CONFIG_VUOTA: Config = { obiettivo: 'diegetico', scelte: {}, vincoli: ['fedele'], suggerimenti: [], cosa: '', dettaglio: '', frizione: '', atmosfera: '', aggiunte: '', manuale: null };
 const chiaveConfig = (sketchId: string) => `crazy8_config_${sketchId}`;
 
 function leggiConfig(sketchId: string): Config {
   try {
     const salvata = localStorage.getItem(chiaveConfig(sketchId));
-    if (salvata) return { ...CONFIG_VUOTA, ...JSON.parse(salvata) };
+    if (salvata) {
+      const c = { ...CONFIG_VUOTA, ...JSON.parse(salvata) };
+      // obiettivi della versione precedente non più presenti
+      if (!OBIETTIVI.some(o => o.id === c.obiettivo)) c.obiettivo = c.obiettivo === 'ambientato' ? 'quotidiano' : 'diegetico';
+      return c;
+    }
   } catch { /* storage non disponibile */ }
   return CONFIG_VUOTA;
 }
@@ -123,14 +139,22 @@ const contaParole = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
 
 type Segmento = { testo: string; tipo: 'base' | 'scelta' | 'vostro' };
 
-function componi(c: Config, sottoAmbito: string | null, interpretazione: string | null, suggerimentiDocente: { id: string; testo_prompt: string }[]): Segmento[] {
+function componi(c: Config, sottoAmbito: string | null, interpretazione: string | null, suggerimentiDocente: { id: string; testo_prompt: string }[], scenario: Scenario | null): Segmento[] {
   const seg: Segmento[] = [];
   const obiettivo = OBIETTIVI.find(o => o.id === c.obiettivo) || OBIETTIVI[0];
   seg.push({ testo: obiettivo.testo + '.', tipo: 'scelta' });
+  if (OBIETTIVI_NEL_MONDO.includes(c.obiettivo) && scenario) {
+    const mondo: string[] = [];
+    if (scenario.orizzonte) mondo.push(`Siamo nel ${scenario.orizzonte}`);
+    if (scenario.what_if?.trim()) mondo.push(`il mondo è cambiato così: ${scenario.what_if.trim().replace(/[.?]$/, '')}`);
+    if (scenario.abitanti?.trim()) mondo.push(`chi lo abita: ${scenario.abitanti.trim().replace(/\.$/, '')}`);
+    if (mondo.length) seg.push({ testo: ` ${mondo.join('; ').replace(/^./, m => m.toUpperCase())}.`, tipo: 'vostro' });
+  }
   if (sottoAmbito) seg.push({ testo: ` Ambito di progetto: ${sottoAmbito}.`, tipo: 'base' });
   if (c.cosa.trim()) seg.push({ testo: ` Il progetto: ${c.cosa.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
   else if (interpretazione?.trim()) seg.push({ testo: ` Il progetto: ${interpretazione.trim().replace(/\.$/, '')}.`, tipo: 'base' });
   if (c.dettaglio.trim()) seg.push({ testo: ` L'elemento che non deve perdersi: ${c.dettaglio.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
+  if (c.frizione.trim()) seg.push({ testo: ` Mostra anche una frizione di questo futuro: ${c.frizione.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
 
   const parti: string[] = [];
   for (const g of GRUPPI) {
@@ -153,7 +177,7 @@ function componi(c: Config, sottoAmbito: string | null, interpretazione: string 
 
 // 0 = generico (bottoni bloccati), 1-3 = sempre più "vostro"
 function livelloPersonalizzazione(c: Config): { livello: number; parole: number } {
-  const campi = [c.cosa, c.dettaglio, c.atmosfera, c.aggiunte];
+  const campi = [c.cosa, c.dettaglio, c.frizione, c.atmosfera, c.aggiunte];
   const parole = campi.reduce((n, t) => n + contaParole(t), 0);
   const campiPieni = campi.filter(t => contaParole(t) >= 2).length;
   let livello = 0;
@@ -205,8 +229,9 @@ function Chip({ attivo, onClick, children }: { attivo: boolean; onClick: () => v
 }
 
 export default function PromptConfiguratore({
-  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato,
+  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, scenario,
 }: {
+  scenario: Scenario | null;
   sketchSelezionati: Sketch[];
   sketchIniziale?: string | null;
   spuntoIniziale?: string | null;
@@ -252,8 +277,8 @@ export default function PromptConfiguratore({
 
   const sketch = sketchSelezionati.find(s => s.id === sketchId) || null;
   const segmenti = useMemo(
-    () => componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente),
-    [config, sketch, suggerimentiDocente],
+    () => componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente, scenario),
+    [config, sketch, suggerimentiDocente, scenario],
   );
   const promptComposto = segmenti.map(s => s.testo).join('').trim();
   const promptFinale = (config.manuale ?? promptComposto).trim();
@@ -309,7 +334,7 @@ export default function PromptConfiguratore({
         {/* 1. Obiettivo */}
         <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
           <h3 className="text-sm font-bold text-stone-900"><span className="text-stone-400 mr-1">1</span> Cosa volete ottenere?</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {OBIETTIVI.map(o => (
               <button
                 key={o.id}
@@ -336,12 +361,17 @@ export default function PromptConfiguratore({
             <span className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${infoLivello.testoColore}`}>{parole} parole vostre</span>
           </div>
           <label className="block">
-            <span className="text-xs font-medium text-stone-800">Cosa fa il vostro progetto, e per chi?</span>
+            <span className="text-xs font-medium text-stone-800">Cosa fa questo artefatto nel vostro mondo futuro, e per chi?</span>
             <textarea ref={campoCosa} rows={2} value={config.cosa} onChange={e => aggiorna({ cosa: e.target.value, manuale: null })} placeholder={sketch?.interpretazione ? `es. ${sketch.interpretazione.slice(0, 80)}` : 'es. un dispenser che rilascia semi per gli impollinatori sui balconi di città'} className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-stone-800">Qual è il dettaglio dello sketch che non deve perdersi?</span>
             <textarea rows={2} value={config.dettaglio} onChange={e => aggiorna({ dettaglio: e.target.value, manuale: null })} placeholder="es. la forma a goccia e il foro di uscita sul fondo" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-stone-800">Una frizione: cosa non funziona, o chi resta escluso?</span>
+            <span className="block text-[11px] text-stone-500">Un futuro senza difetti non è credibile: un dettaglio imperfetto rende il prototipo diegetico più vero.</span>
+            <textarea rows={2} value={config.frizione} onChange={e => aggiorna({ frizione: e.target.value, manuale: null })} placeholder="es. l'adesivo di garanzia scaduto, una coda di persone che non può permetterselo" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-stone-800">L&apos;atmosfera in 3 parole</span>
