@@ -34,7 +34,7 @@ export function GalleriaProposte({ proposte, onApri, mioVoto, mioId }: {
               type="button"
               onClick={e => onApri(p, e.currentTarget)}
               aria-label={`Apri la proposta ${p.titolo}`}
-              style={{ all: 'unset', cursor: 'pointer', display: 'block', position: 'relative', borderRadius: 4, overflow: 'hidden' }}
+              style={{ all: 'unset', cursor: 'pointer', display: 'block', position: 'relative', borderRadius: 18, overflow: 'hidden' }}
             >
               <Cornice src={p.immagine} alt="" style={{ aspectRatio: larga ? '16 / 10' : '4 / 3' }} />
               <span className="mz-mono" style={{ position: 'absolute', left: 14, top: 12, color: '#fff', mixBlendMode: 'difference' }}>({pad(i + 1)})</span>
@@ -50,7 +50,7 @@ export function GalleriaProposte({ proposte, onApri, mioVoto, mioId }: {
               </h3>
               {p.sintesi && <p className="mz-break" style={{ margin: 0, fontSize: larga ? 21 : 18, lineHeight: 1.35, maxWidth: 620 }}>{p.sintesi}</p>}
               {p.perche && (
-                <div style={{ display: 'grid', gap: 4, borderLeft: '2px solid var(--blue)', paddingLeft: 12, maxWidth: 620 }}>
+                <div style={{ display: 'grid', gap: 4, borderLeft: '2px solid var(--accento-vivo)', paddingLeft: 12, maxWidth: 620 }}>
                   <span className="mz-mono mz-blue">Perché votarla</span>
                   <p className="mz-muted mz-break" style={{ margin: 0, fontSize: 14.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.perche}</p>
                 </div>
@@ -67,8 +67,8 @@ export function GalleriaProposte({ proposte, onApri, mioVoto, mioId }: {
 function Blocco({ n, titolo, testo, blu }: { n: string; titolo: string; testo: string; blu?: boolean }) {
   if (!testo.trim()) return null;
   return (
-    <section className="mz-blocco" style={blu ? { borderTopColor: 'var(--blue)' } : undefined}>
-      <span className="mz-mono" style={{ color: blu ? 'var(--blue)' : undefined }}>{n} · {titolo}</span>
+    <section className="mz-blocco" style={blu ? { borderTopColor: 'var(--accento-vivo)' } : undefined}>
+      <span className="mz-mono" style={{ color: blu ? 'var(--accento)' : undefined }}>{n} · {titolo}</span>
       <p className="mz-break" style={{ margin: 0, fontSize: blu ? 19 : 16.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: blu ? 'var(--ink)' : undefined }}>{testo}</p>
     </section>
   );
@@ -86,12 +86,12 @@ export function DettaglioProposta({ p, indice }: { p: Proposta; indice: number }
       </header>
       {immagini.length > 0 && (
         <div className="mz-in" style={{ animationDelay: '80ms', display: 'grid', gap: 8 }}>
-          <Cornice key={grande} src={immagini[grande]} alt={p.titolo} className="mz-fade" style={{ aspectRatio: '16 / 10', borderRadius: 4 }} />
+          <Cornice key={grande} src={immagini[grande]} alt={p.titolo} className="mz-fade" style={{ aspectRatio: '16 / 10' }} />
           {immagini.length > 1 && (
             <div className="mz-scroll-x" style={{ display: 'flex', gap: 8 }}>
               {immagini.map((src, i) => (
                 <button key={i} type="button" onClick={() => setGrande(i)} aria-label={`Immagine ${i + 1}`}
-                  style={{ all: 'unset', cursor: 'pointer', flex: 'none', width: 96, height: 64, borderRadius: 4, overflow: 'hidden', outline: i === grande ? '2px solid var(--blue)' : 'none', outlineOffset: 2, opacity: i === grande ? 1 : .6, transition: 'opacity .3s' }}>
+                  style={{ all: 'unset', cursor: 'pointer', flex: 'none', width: 96, height: 64, borderRadius: 10, overflow: 'hidden', outline: i === grande ? '2px solid var(--accento-vivo)' : 'none', outlineOffset: 2, opacity: i === grande ? 1 : .6, transition: 'opacity .3s' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </button>
@@ -220,7 +220,7 @@ export function StackProposte({ proposte, onApri, mioVoto }: { proposte: Propost
             type="button"
             onClick={e => onApri(p, e.currentTarget)}
             aria-label={`Apri ${p.titolo}`}
-            style={{ all: 'unset', cursor: 'pointer', position: 'absolute', left: 'max(20px, 4%)', top: '4%', height: '88%', aspectRatio: '3 / 4', maxWidth: '78%', willChange: 'transform', transformStyle: 'preserve-3d', boxShadow: '0 40px 80px rgba(10,12,30,.18)', borderRadius: 4, overflow: 'hidden', background: 'var(--card)' }}
+            style={{ all: 'unset', cursor: 'pointer', position: 'absolute', left: 'max(20px, 4%)', top: '4%', height: '88%', aspectRatio: '3 / 4', maxWidth: '78%', willChange: 'transform', transformStyle: 'preserve-3d', boxShadow: '0 40px 80px rgba(28,25,23,.2)', borderRadius: 18, overflow: 'hidden', background: 'var(--card)' }}
           >
             <Cornice src={p.immagine} alt="" style={{ position: 'absolute', inset: 0 }} />
             <span style={{ position: 'absolute', inset: 'auto 0 0 0', padding: '40px 18px 16px', background: 'linear-gradient(transparent, rgba(5,7,15,.78))', color: '#fff', display: 'grid', gap: 4 }}>

@@ -58,10 +58,10 @@ export function Celebrazione({ origine, titolo, sottotitolo, numero, onFine, dur
       ref={rif}
       role="status"
       aria-live="assertive"
-      style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'var(--blue)', color: '#fff', display: 'grid', gridTemplateRows: '1fr auto auto', gap: 18, padding: '28px max(20px, env(safe-area-inset-left))' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', gridTemplateRows: '1fr auto auto', gap: 18, padding: '28px max(20px, env(safe-area-inset-left))' }}
     >
-      <div style={{ alignSelf: 'center', color: '#fff' }}>
-        <Solidi cadono colore="#fff" />
+      <div style={{ alignSelf: 'center', color: 'var(--scena-testo)' }}>
+        <Solidi cadono colore="var(--scena-testo)" />
       </div>
       <div className="mz-display" style={{ fontSize: 'clamp(54px, 11vw, 168px)', lineHeight: .9, display: 'flex', flexWrap: 'wrap', overflow: 'hidden', columnGap: '.25em' }}>
         {titolo.split(' ').map((parola, i) => (
@@ -70,12 +70,12 @@ export function Celebrazione({ origine, titolo, sottotitolo, numero, onFine, dur
           </span>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,.5)', paddingTop: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, flexWrap: 'wrap', borderTop: '1px solid var(--scena-filo)', paddingTop: 14 }}>
         <span style={{ fontSize: 'clamp(15px, 1.6vw, 19px)', maxWidth: 560 }} className="mz-break">{sottotitolo}</span>
         {numero !== null && (
           <span style={{ display: 'grid', justifyItems: 'end' }}>
-            <span className="mz-mono" style={{ color: 'rgba(255,255,255,.75)' }}>Voto anonimo n.</span>
-            <span ref={contatore} className="mz-num" style={{ fontFamily: 'var(--f-mono)', fontSize: 'clamp(30px, 4vw, 56px)', lineHeight: 1 }}>000</span>
+            <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>Voto anonimo n.</span>
+            <span ref={contatore} className="mz-num" style={{ fontFamily: 'var(--f-display)', fontSize: 'clamp(30px, 4vw, 56px)', lineHeight: 1 }}>000</span>
           </span>
         )}
       </div>

@@ -35,6 +35,7 @@ export function BottomSheet({
   children,
   larghezzaDesktop = 'md:max-w-lg',
   classePannello = 'p-6 space-y-4',
+  desktop = 'centro',
 }: {
   aperto: boolean;
   onChiudi: () => void;
@@ -43,8 +44,14 @@ export function BottomSheet({
   children: React.ReactNode;
   larghezzaDesktop?: string;
   classePannello?: string;
+  // Su desktop: 'centro' = finestra centrata; 'lato' = pannello che entra
+  // da destra a tutta altezza (per i dettagli lunghi: si legge accanto
+  // a ciò che resta visibile, come nel Contest). Su telefono sale sempre
+  // dal basso.
+  desktop?: 'centro' | 'lato';
 }) {
   const [offset, setOffset] = useState(0);
+  const lato = desktop === 'lato';
   const inizio = useRef<number | null>(null);
   const chiudiRef = useRef(onChiudi);
   chiudiRef.current = onChiudi;
@@ -77,14 +84,14 @@ export function BottomSheet({
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6 animate-fade-in"
+      className={`fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-end justify-center animate-fade-in ${lato ? 'md:items-stretch md:justify-end md:p-3' : 'md:items-center md:p-6'}`}
       role="dialog"
       aria-modal="true"
       aria-label={etichetta}
       onClick={onChiudi}
     >
       <div
-        className={`bg-white w-full ${larghezzaDesktop} rounded-t-3xl md:rounded-2xl shadow-2xl max-h-[90dvh] md:max-h-[85vh] flex flex-col overflow-hidden animate-sheet-up md:animate-scale-in pb-[env(safe-area-inset-bottom)]`}
+        className={`bg-white w-full ${larghezzaDesktop} rounded-t-3xl md:rounded-2xl shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden animate-sheet-up pb-[env(safe-area-inset-bottom)] ${lato ? 'md:max-h-none md:h-full md:rounded-3xl md:animate-sheet-destra' : 'md:max-h-[85vh] md:animate-scale-in'}`}
         style={offset ? { transform: `translateY(${offset}px)`, transition: 'none' } : undefined}
         onClick={e => e.stopPropagation()}
       >

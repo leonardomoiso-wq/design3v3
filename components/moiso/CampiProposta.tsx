@@ -78,7 +78,7 @@ export function CampiProposta({ dati, onCambia, conAutori = false }: {
       <label className="mz-field">
         <span className="mz-mono" style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>03 · In una frase</span>
-          <span className="mz-num" style={{ color: dati.sintesi.length > LIMITE_SINTESI - 20 ? 'var(--blue)' : undefined }}>{dati.sintesi.length}/{LIMITE_SINTESI}</span>
+          <span className="mz-num" style={{ color: dati.sintesi.length > LIMITE_SINTESI - 20 ? 'var(--accento)' : undefined }}>{dati.sintesi.length}/{LIMITE_SINTESI}</span>
         </span>
         <span className="mz-muted" style={{ fontSize: 13.5 }}>Cosa fa e per chi. È la riga che chi vota legge sotto il titolo.</span>
         <textarea className="mz-input" value={dati.sintesi} onChange={e => set('sintesi', e.target.value.slice(0, LIMITE_SINTESI))} style={{ minHeight: 70 }}

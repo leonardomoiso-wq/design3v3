@@ -261,7 +261,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
             </select>
           )}
         </div>
-        <h1 className="mz-display mz-in mz-break" style={{ fontSize: scheda === 'proposte' ? 'clamp(52px, 9.5vw, 150px)' : 'clamp(40px, 6vw, 84px)', animationDelay: '60ms', maxWidth: 1200 }}>
+        <h1 className="mz-display mz-in mz-break" style={{ fontSize: scheda === 'proposte' ? 'clamp(44px, 7.5vw, 112px)' : 'clamp(40px, 6vw, 84px)', animationDelay: '60ms', maxWidth: 1200 }}>
           {contest.titolo}<span className="mz-sup">({String(proposte.length).padStart(2, '0')})</span>
         </h1>
         {scheda === 'proposte' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 28, alignItems: 'end' }}>
@@ -302,13 +302,13 @@ function ContestCorso({ corso }: { corso: Corso }) {
         {scheda === 'proposte' && (
           <div style={{ display: 'grid', gap: 36 }}>
             {vincitore && (
-              <section className="mz-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(20px, 3vw, 40px)', alignItems: 'end', background: 'var(--blue)', color: '#fff', borderRadius: 6, padding: 'clamp(18px, 3vw, 32px)' }}>
-                <Cornice src={vincitore.p.immagine} alt="" style={{ aspectRatio: '16 / 10', borderRadius: 4 }} />
+              <section className="mz-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(20px, 3vw, 40px)', alignItems: 'end', background: 'var(--scena)', color: 'var(--scena-testo)', borderRadius: 6, padding: 'clamp(18px, 3vw, 32px)' }}>
+                <Cornice src={vincitore.p.immagine} alt="" style={{ aspectRatio: '16 / 10' }} />
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'} · {vincitore.n} voti</span>
+                  <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'} · {vincitore.n} voti</span>
                   <h2 className="mz-display mz-break" style={{ fontSize: 'clamp(40px, 6vw, 88px)' }}>{vincitore.p.titolo}</h2>
                   <span className="mz-break" style={{ fontSize: 15 }}>{vincitore.p.autori}</span>
-                  <button type="button" className="mz-pill" style={{ background: '#fff', color: '#0b0c10', justifySelf: 'start' }} onClick={() => apri(vincitore.p)}>Apri la proposta →</button>
+                  <button type="button" className="mz-pill" style={{ background: 'var(--scena-testo)', color: 'var(--scena-su-testo)', justifySelf: 'start' }} onClick={() => apri(vincitore.p)}>Apri la proposta →</button>
                 </div>
               </section>
             )}
@@ -349,7 +349,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
           <>
             <DettaglioProposta p={aperta} indice={indiceAperta} />
             <div style={{ position: 'sticky', bottom: 0, padding: '16px clamp(20px, 4vw, 44px) calc(16px + env(safe-area-inset-bottom))', background: 'color-mix(in srgb, var(--surface) 88%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderTop: '1px solid var(--line)', display: 'grid', gap: 10 }}>
-              {errore && <p role="alert" style={{ margin: 0, color: '#d22', fontSize: 14 }}>{errore}</p>}
+              {errore && <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{errore}</p>}
               {!tipoAmmesso ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">In questo contest votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}.</p>
               ) : propria ? (

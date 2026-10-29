@@ -1,0 +1,184 @@
+/* =============================================================
+   Contest: stile della piattaforma (token in app/globals.css) con gli
+   effetti più "di scena" che servono al voto: tendina, sheet, forme
+   appese, contatori a cifre rotanti, barre che corrono. Le classi .mz-*
+   valgono solo dentro il contenitore .mz.
+   ============================================================= */
+.mz {
+  --bg: var(--paper);
+  --accento: var(--accent);            /* testo in evidenza (ambra scura) */
+  --accento-vivo: var(--accent-vivo);  /* barre, anelli, selezioni */
+  --accento-tenue: var(--accent-tenue);
+  --accento-bordo: var(--accent-bordo);
+  /* Scena: i momenti speciali (voto registrato, vincitore) */
+  --scena: var(--accent-vivo);
+  --scena-testo: #1c1917;
+  --scena-tenue: rgba(28, 25, 23, 0.72);
+  --scena-filo: rgba(28, 25, 23, 0.3);
+  --scena-su-testo: #FBF9F5;
+  --f-label: var(--f-text);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+/* Schermo da proiettare: versione scura e calda della stessa palette. */
+.mz[data-theme="dark"] {
+  --bg: #0c0a09; --surface: #1c1917; --ink: #fafaf9; --ink-2: #d6d3d1; --muted: #a8a29e; --faint: #44403c;
+  --line: #292524; --card: #1c1917; --scrim: rgba(0, 0, 0, .6);
+  --accento: #fbbf24; --accento-vivo: #f59e0b; --accento-tenue: rgba(245, 158, 11, .14);
+  color-scheme: dark;
+}
+.mz *, .mz *::before, .mz *::after { box-sizing: border-box; }
+.mz [hidden] { display: none !important; }
+.mz h1, .mz h2, .mz h3, .mz h4 { font-family: var(--f-display); letter-spacing: -.03em; margin: 0; font-weight: 500; }
+.mz :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Etichette: lo stesso maiuscoletto spaziato del resto della piattaforma. */
+.mz-mono { font-family: var(--f-label); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.mz-display { font-family: var(--f-display); font-weight: 500; letter-spacing: -.035em; line-height: .95; }
+.mz-muted { color: var(--muted); }
+.mz-blue { color: var(--accento); }
+.mz-num { font-variant-numeric: tabular-nums; }
+.mz-sup { font-family: var(--f-label); font-size: .28em; font-weight: 700; letter-spacing: .04em; vertical-align: top; color: var(--accento); margin-left: .2em; position: relative; top: .4em; }
+.mz-rule { height: 1px; background: var(--ink); border: 0; margin: 0; }
+.mz-hair { border-top: 1px solid var(--line); }
+.mz-break { overflow-wrap: anywhere; word-break: break-word; }
+
+/* --- Pulsanti: come le pillole del resto della piattaforma --- */
+.mz-pill { all: unset; box-sizing: border-box; max-width: 100%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 9999px; font: 500 14px/1 var(--f-text); background: var(--ink); color: var(--bg); transition: transform .45s var(--spring), background .3s, box-shadow .3s, opacity .3s; white-space: nowrap; }
+.mz-pill:hover { transform: translateY(-1px); }
+.mz-pill:active { transform: scale(.97); }
+.mz-pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.mz-pill[disabled] { opacity: .35; cursor: not-allowed; transform: none; }
+.mz-pill.o { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--faint); }
+.mz-pill.o:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+/* Azione di voto: ambra viva con testo scuro (8:1). */
+.mz-pill.b { background: var(--accento-vivo); color: #1c1917; box-shadow: 0 10px 24px -12px rgba(217, 119, 6, .7); }
+.mz-pill.b:hover { box-shadow: 0 14px 30px -12px rgba(217, 119, 6, .8); }
+.mz-pill.sm { padding: 7px 14px; font-size: 12.5px; }
+.mz-pill.lg { padding: 16px 28px; font-size: 16px; }
+.mz-pill.ghost { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.mz-pill.ghost:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.mz-pill.danger:hover { color: #dc2626; box-shadow: inset 0 0 0 1px #dc2626; }
+
+/* Chip selezionata: come il selettore del corso (fondo e bordo ambra). */
+.mz-chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 9999px; font-size: 13px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); transition: background .3s, color .3s, box-shadow .3s; white-space: nowrap; }
+.mz-chip:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+.mz-chip[aria-pressed="true"], .mz-chip.on { background: var(--accento-tenue); color: #78350f; box-shadow: inset 0 0 0 1px var(--accento-bordo); }
+.mz[data-theme="dark"] .mz-chip.on, .mz[data-theme="dark"] .mz-chip[aria-pressed="true"] { color: var(--accento); }
+.mz-chip .mz-mono { color: inherit; opacity: .7; }
+
+/* Switch segmentato: pillola scura che scorre, come nel menu docente. */
+.mz-seg { position: relative; display: inline-flex; padding: 4px; border-radius: 9999px; background: var(--card); }
+.mz-seg button { all: unset; cursor: pointer; position: relative; z-index: 1; padding: 7px 15px; border-radius: 9999px; font-size: 13px; font-weight: 500; color: var(--muted); transition: color .35s; white-space: nowrap; }
+.mz-seg button[aria-current="true"] { color: var(--bg); }
+.mz-seg button:focus-visible { outline: 2px solid var(--ink); }
+.mz-seg .mz-seg-pill { position: absolute; left: 0; top: 0; border-radius: 9999px; background: var(--ink); transition: transform .55s var(--spring), width .55s var(--spring); }
+
+/* Campi: come gli input del resto della piattaforma. */
+.mz-field { display: grid; gap: 6px; }
+.mz-input { all: unset; box-sizing: border-box; width: 100%; padding: 12px 14px; border-radius: 12px; background: #fafaf9; box-shadow: inset 0 0 0 1px var(--line); font: 15px/1.45 var(--f-text); color: var(--ink); transition: box-shadow .25s, background .25s; }
+.mz-input:focus { background: var(--surface); box-shadow: inset 0 0 0 2px var(--ink); }
+textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
+.mz-input::placeholder { color: var(--muted); opacity: .8; }
+
+/* --- Barra in alto: come l'intestazione dell'area docente --- */
+.mz-rail { position: sticky; top: 0; z-index: 40; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 max(20px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.mz-live-dot { position: relative; width: 8px; height: 8px; border-radius: 99px; background: var(--accento-vivo); flex: none; }
+.mz-live-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 99px; border: 1.5px solid var(--accento-vivo); animation: mz-ping 2.2s var(--out) infinite; }
+.mz-live-dot.off { background: var(--faint); }
+.mz-live-dot.off::after { display: none; }
+@keyframes mz-ping { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+
+/* --- Ingressi --- */
+.mz-in { animation: mz-rise .62s var(--out) backwards; }
+@keyframes mz-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.mz-fade { animation: mz-fadein .9s var(--out) backwards; }
+@keyframes mz-fadein { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: none; } }
+
+/* --- Immagini: cornice arrotondata come le card, zoom dentro la cornice --- */
+.mz-frame { position: relative; overflow: hidden; background: var(--card); border-radius: 16px; }
+.mz-frame img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 1s var(--out), filter .6s; }
+.mz-placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: var(--accento-tenue); }
+
+/* --- Nastro dei titoli --- */
+.mz-ticker { overflow: hidden; white-space: nowrap; border-block: 1px solid var(--line); padding: 12px 0; }
+.mz-ticker-track { display: inline-flex; gap: 28px; animation: mz-tick 48s linear infinite; font-family: var(--f-display); font-size: 21px; letter-spacing: -.02em; color: var(--ink-2); }
+.mz-ticker-track span:nth-child(3n) { color: var(--accento); }
+.mz-ticker-track i { font-style: normal; color: var(--accento-vivo); }
+@keyframes mz-tick { to { transform: translateX(-50%); } }
+
+/* --- Sheet: da destra su desktop, dal basso su telefono (come BottomSheet) --- */
+.mz-scrim { position: fixed; inset: 0; z-index: 70; background: var(--scrim); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: mz-fadein .45s var(--out); }
+.mz-sheet { position: fixed; z-index: 71; top: 10px; right: 10px; bottom: 10px; width: min(860px, 94vw); background: var(--surface); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; animation: mz-sheet-r .6s var(--ease); box-shadow: -30px 0 80px rgba(28, 25, 23, .18); }
+@keyframes mz-sheet-r { from { transform: translateX(105%); } to { transform: none; } }
+.mz-sheet-bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.mz-sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.mz-handle { display: none; }
+@media (max-width: 760px) {
+  .mz-sheet { top: auto; left: 0; right: 0; bottom: 0; width: 100%; height: 92vh; height: 92dvh; border-radius: 24px 24px 0 0; animation-name: mz-sheet-b; }
+  @keyframes mz-sheet-b { from { transform: translateY(100%); } to { transform: none; } }
+  .mz-sheet-bar { padding-top: 20px; }
+  .mz-handle { display: block; position: absolute; top: 7px; left: 50%; width: 40px; height: 6px; margin-left: -20px; border-radius: 9px; background: var(--faint); }
+}
+
+/* --- Tendina tra le schede del contest --- */
+.mz-curtain { position: fixed; inset: 0; z-index: 90; background: var(--ink); color: var(--bg); display: grid; place-items: center; pointer-events: none; transform: translateY(-101%); }
+.mz-curtain::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--accento-vivo); }
+.mz-curtain span { font-family: var(--f-display); font-weight: 500; font-size: clamp(40px, 7vw, 104px); letter-spacing: -.04em; text-align: center; padding: 0 20px; line-height: .95; }
+
+/* --- Forme appese: cerchio ambra, quadrato, rombo (le tre forme del laboratorio) --- */
+.mz-solids { position: relative; display: flex; justify-content: center; align-items: flex-start; gap: clamp(22px, 5vw, 56px); height: 190px; pointer-events: none; color: var(--ink); }
+.mz-solid { position: relative; transform-origin: 50% -96px; margin-top: 96px; animation: mz-sway 6s ease-in-out infinite; }
+.mz-solid::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1px; height: 96px; background: currentColor; opacity: .4; }
+.mz-solid.s1 { width: 62px; height: 62px; border-radius: 50%; background: var(--accento-vivo); animation-delay: -1s; }
+.mz-solid.s2 { width: 54px; height: 54px; border-radius: 10px; background: currentColor; animation-duration: 7.2s; animation-delay: -3s; }
+.mz-solid.s3 { width: 52px; height: 52px; animation-duration: 6.6s; animation-delay: -2s; }
+.mz-solid.s3::after { content: ""; position: absolute; inset: 8px; border: 2px solid currentColor; border-radius: 4px; transform: rotate(45deg); }
+.mz-solids.drop .mz-solid { animation: mz-drop 1.5s cubic-bezier(.3, .7, .3, 1) backwards, mz-sway 6s ease-in-out 1.5s infinite; }
+.mz-solids.drop .mz-solid.s2 { animation-delay: .22s, 1.72s; }
+.mz-solids.drop .mz-solid.s3 { animation-delay: .44s, 1.94s; }
+.mz-solids.inv .mz-solid.s1 { background: currentColor; }
+.mz-solids.inv .mz-solid.s2 { background: transparent; border: 2px solid currentColor; }
+.mz-solids.inv .mz-solid.s3::after { background: currentColor; }
+.mz-solids.sm { height: 120px; transform: scale(.62); transform-origin: 50% 0; margin-bottom: -50px; }
+@keyframes mz-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mz-drop { 0% { transform: translateY(-260px); opacity: 0; } 55% { transform: none; opacity: 1; } 72% { transform: rotate(-9deg); } 86% { transform: rotate(5deg); } 100% { transform: rotate(0); } }
+
+.mz-blocco { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: clamp(12px, 3vw, 32px); padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .mz-blocco { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* --- Cifre che ruotano (contatori) --- */
+.mz-odo { display: inline-flex; font-variant-numeric: tabular-nums; line-height: 1; overflow: hidden; }
+.mz-odo-d { position: relative; display: inline-block; height: 1em; overflow: hidden; }
+.mz-odo-col { display: flex; flex-direction: column; transition: transform 1.1s var(--out); }
+.mz-odo-col span { height: 1em; display: block; text-align: center; }
+
+/* --- Barre: una sola tinta (ambra), estremità arrotondate --- */
+.mz-bar { height: 100%; border-radius: 2px 4px 4px 2px; background: var(--accento-vivo); transform-origin: 0 50%; transition: width 1.1s var(--out); }
+.mz-bar.ink { background: var(--ink); }
+.mz-track { position: relative; height: 10px; border-radius: 4px; background: var(--card); overflow: hidden; }
+
+.mz-tip { position: absolute; z-index: 5; pointer-events: none; padding: 6px 9px; border-radius: 8px; background: var(--ink); color: var(--bg); font: 12px/1.3 var(--f-text); white-space: nowrap; transform: translate(-50%, calc(-100% - 8px)); }
+
+/* --- Segni di vita: nuovo voto, scatto, respiro --- */
+.mz-flash { animation: mz-flash 1.6s var(--out); }
+@keyframes mz-flash { 0% { background: var(--accento-tenue); transform: translateY(-14px); opacity: 0; } 25% { opacity: 1; transform: none; } 100% { background: transparent; } }
+.mz-pop { animation: mz-pop .7s var(--spring); }
+@keyframes mz-pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.mz-breathe { animation: mz-breathe 3.6s ease-in-out infinite; }
+@keyframes mz-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.mz-float { animation: mz-floaty 7s ease-in-out infinite; }
+@keyframes mz-floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.mz-plus { position: absolute; pointer-events: none; font: 700 18px var(--f-display); color: var(--accento); animation: mz-plus 1.4s var(--out) forwards; }
+@keyframes mz-plus { 0% { opacity: 0; transform: translateY(6px) scale(.6); } 20% { opacity: 1; transform: translateY(-4px) scale(1.1); } 100% { opacity: 0; transform: translateY(-46px) scale(1); } }
+
+.mz-scroll-x { overflow-x: auto; scrollbar-width: none; }
+.mz-scroll-x::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mz *, .mz *::before, .mz *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .mz-ticker-track { animation: none; }
+}

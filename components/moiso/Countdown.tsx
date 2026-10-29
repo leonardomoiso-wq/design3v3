@@ -53,7 +53,7 @@ export function Countdown({ fine, inizio, adesso, grande = true, finito = 'Votaz
 
   return (
     <div style={{ display: 'grid', gap: 14 }} role="timer" aria-label={`Mancano ${g} giorni, ${h} ore, ${m} minuti`}>
-      <div style={{ display: 'flex', gap: grande ? 'clamp(14px, 3vw, 34px)' : 16, alignItems: 'flex-start', flexWrap: 'wrap', color: ultimiSecondi ? 'var(--blue)' : undefined }}>
+      <div style={{ display: 'flex', gap: grande ? 'clamp(14px, 3vw, 34px)' : 16, alignItems: 'flex-start', flexWrap: 'wrap', color: ultimiSecondi ? 'var(--accento)' : undefined }}>
         {g > 0 && <Cella valore={pad(g)} etichetta={g === 1 ? 'giorno' : 'giorni'} grande={grande} />}
         <Cella valore={pad(h)} etichetta="ore" grande={grande} />
         <Cella valore={pad(m)} etichetta="minuti" grande={grande} />

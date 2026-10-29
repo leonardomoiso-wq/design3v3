@@ -65,3 +65,11 @@ body { overflow-wrap: anywhere; }
 ## 7. Stile
 
 Tailwind, palette neutra calda (`stone`, sfondo `#FBF9F5`), titoli in `font-serif` rimappato a una sans tipo Helvetica, card bianche `rounded-2xl border-stone-200`, accento ambra per il contesto (corso) e per i contrassegni, verde/giallo/rosso solo per i voti. Etichette di sezione: `text-[10px] font-bold uppercase tracking-widest text-stone-400`. Animazioni leggere in CSS (`fade-in-up`, `sheet-up`) con `prefers-reduced-motion`. Testi dell'interfaccia in italiano, tono diretto, rivolti al "voi" del gruppo per gli studenti.
+
+## Linguaggio visivo comune (token ed effetti)
+
+- Token in `app/globals.css` (`:root`): `--paper`, `--surface`, `--ink`, `--muted`, `--line`, un solo accento ambra (`--accent` per il testo, `--accent-vivo` per superfici e barre, `--accent-tenue`/`--accent-bordo` per i selezionati), font `--f-display` (Helvetica) e `--f-text` (Inter), curve `--ease`, `--out`, `--spring`. Nuove pagine: usare questi, non colori nuovi.
+- Effetti condivisi (classi globali): `entra-cascata` (figli che salgono uno dopo l'altro), `card-viva` (card che si solleva), `zoom-cornice` (immagine che si ingrandisce nella cornice), `filo-sezione`/`entra-sezione` (cambio di sezione docente, in `app/teacher/template.tsx`), `components/PillaScorrevole.tsx` (pillola sotto la voce attiva), `components/NumeroVivo.tsx` (conteggi in diretta).
+- Finestre: le modali scritte a mano (`role="dialog"` + `bg-stone-900/60`) entrano con la stessa molla e su telefono diventano pannelli dal basso, senza toccarne il codice. `BottomSheet` ha `desktop="lato"` per i dettagli lunghi (pannello da destra a tutta altezza).
+- Animazioni di ingresso con `animation-fill-mode: backwards`, mai `both`: un'animazione che resta "attiva" crea un contesto di sovrapposizione e intrappola i pannelli `position: fixed` (la proiezione finiva sotto l'intestazione) e blocca le trasformazioni in hover.
+- Il Contest (`app/contest.css`, classi `.mz-*`) usa gli stessi token, più gli effetti di scena: tendina, forme appese, contatori a cifre rotanti, scena ambra per voto e vincitore.

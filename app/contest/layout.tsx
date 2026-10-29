@@ -1,6 +1,5 @@
-import '../moiso.css';
+import '../contest.css';
 import type { Metadata } from 'next';
-import { FontMoiso } from '@/components/moiso/Moiso';
 
 export const metadata: Metadata = {
   title: 'Contest',
@@ -10,7 +9,6 @@ export const metadata: Metadata = {
 export default function ContestLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="mz" style={{ minHeight: '100vh' }}>
-      <FontMoiso />
       {children}
     </div>
   );

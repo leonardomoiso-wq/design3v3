@@ -25,7 +25,7 @@ function Anello({ quota, etichetta }: { quota: number; etichetta: string }) {
     <svg viewBox="0 0 110 110" width="110" height="110" role="img" aria-label={etichetta}>
       <circle cx="55" cy="55" r={r} fill="none" stroke="var(--line)" strokeWidth="6" />
       <circle
-        cx="55" cy="55" r={r} fill="none" stroke="var(--blue)" strokeWidth="6" strokeLinecap="round"
+        cx="55" cy="55" r={r} fill="none" stroke="var(--accento-vivo)" strokeWidth="6" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, quota))}
         transform="rotate(-90 55 55)" style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)' }}
       />
@@ -90,7 +90,7 @@ function Andamento({ dati, adesso }: { dati: Statistiche['andamento']; adesso: n
               }}
             >
               {s.live > 0 && <div className={ultimo ? 'mz-breathe' : ''} style={{ height: `${(s.live / max) * 100}%`, background: 'var(--ink)', borderRadius: '4px 4px 0 0', transition: 'height 1s cubic-bezier(.2,.8,.2,1)' }} />}
-              <div className={ultimo && s.remoto ? 'mz-breathe' : ''} style={{ height: `${(s.remoto / max) * 100}%`, minHeight: tot ? 0 : 2, background: tot ? 'var(--blue)' : 'var(--line)', borderRadius: s.live ? 0 : '4px 4px 0 0', transition: 'height 1s cubic-bezier(.2,.8,.2,1)' }} />
+              <div className={ultimo && s.remoto ? 'mz-breathe' : ''} style={{ height: `${(s.remoto / max) * 100}%`, minHeight: tot ? 0 : 2, background: tot ? 'var(--accento-vivo)' : 'var(--line)', borderRadius: s.live ? 0 : '4px 4px 0 0', transition: 'height 1s cubic-bezier(.2,.8,.2,1)' }} />
             </div>
           );
         })}
@@ -100,7 +100,7 @@ function Andamento({ dati, adesso }: { dati: Statistiche['andamento']; adesso: n
         <span className="mz-mono">−30 min</span>
         {haLive && (
           <span style={{ display: 'flex', gap: 14 }}>
-            <span className="mz-mono" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--blue)', display: 'inline-block' }} />Da remoto</span>
+            <span className="mz-mono" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accento-vivo)', display: 'inline-block' }} />Da remoto</span>
             <span className="mz-mono" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--ink)', display: 'inline-block' }} />Dal vivo</span>
           </span>
         )}
@@ -132,7 +132,7 @@ function Flusso({ ultimi, adesso }: { ultimi: Statistiche['ultimi']; adesso: num
             Un voto {u.zona ? <>da <strong style={{ fontWeight: 600 }}>{u.zona}</strong></> : 'anonimo'}
             <span className="mz-muted"> · {ETICHETTA_DISPOSITIVO[u.dispositivo] || 'Altro'}</span>
           </span>
-          <span className="mz-mono" style={{ color: u.fase === 'live' ? 'var(--ink)' : 'var(--blue)' }}>{u.fase === 'live' ? 'In aula' : 'Remoto'}</span>
+          <span className="mz-mono" style={{ color: u.fase === 'live' ? 'var(--ink)' : 'var(--accento)' }}>{u.fase === 'live' ? 'In aula' : 'Remoto'}</span>
         </li>
       ))}
     </ul>

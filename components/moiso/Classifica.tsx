@@ -71,17 +71,17 @@ export function Classifica({ righe, coperta = false, scuro = false, compatta = f
             onMouseEnter={() => setHover(r.proposta.id)}
             onMouseLeave={() => setHover(null)}
           >
-            <span className="mz-mono mz-num" style={{ color: primo ? 'var(--blue)' : undefined }}>{coperta ? '··' : String(i + 1).padStart(2, '0')}</span>
+            <span className="mz-mono mz-num" style={{ color: primo ? 'var(--accento)' : undefined }}>{coperta ? '··' : String(i + 1).padStart(2, '0')}</span>
             <button
               type="button"
               onClick={() => onApri?.(r.proposta)}
               aria-label={`Apri ${r.proposta.titolo}`}
-              style={{ all: 'unset', cursor: onApri ? 'pointer' : 'default', width: altezza, height: altezza, borderRadius: 6, overflow: 'hidden', background: 'var(--card)', outline: attivo ? '2px solid var(--blue)' : undefined, outlineOffset: 2, filter: coperta ? 'blur(6px) grayscale(1)' : undefined, transition: 'filter .8s' }}
+              style={{ all: 'unset', cursor: onApri ? 'pointer' : 'default', width: altezza, height: altezza, borderRadius: 12, overflow: 'hidden', background: 'var(--card)', outline: attivo ? '2px solid var(--accento-vivo)' : undefined, outlineOffset: 2, filter: coperta ? 'blur(6px) grayscale(1)' : undefined, transition: 'filter .8s' }}
             >
               {r.proposta.immagine ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={r.proposta.immagine} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              ) : <span style={{ display: 'block', width: '100%', height: '100%', background: 'var(--blue)' }} />}
+              ) : <span style={{ display: 'block', width: '100%', height: '100%', background: 'var(--accento-vivo)' }} />}
             </button>
             <div style={{ minWidth: 0, display: 'grid', gap: 6 }}>
               <span
@@ -90,7 +90,7 @@ export function Classifica({ righe, coperta = false, scuro = false, compatta = f
               >
                 {r.proposta.titolo}
               </span>
-              <div className="mz-track" style={{ height: compatta ? 8 : 12, background: scuro ? 'rgba(255,255,255,.08)' : undefined }}>
+              <div className="mz-track" style={{ height: compatta ? 8 : 12, background: scuro ? 'rgba(250,250,249,.08)' : undefined }}>
                 <div className={`mz-bar ${coperta ? 'mz-breathe' : ''}`} style={{ width: `${Math.max(coperta ? 0 : 1.5, quota * 100)}%`, background: coperta ? 'var(--faint)' : undefined }} />
               </div>
             </div>

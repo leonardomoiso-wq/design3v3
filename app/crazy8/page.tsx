@@ -809,7 +809,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                       <button
                         type="button"
                         onClick={() => setSketchInRevisione(s.id)}
-                        className={`w-full aspect-square rounded-xl border bg-stone-50 overflow-hidden flex items-center justify-center transition ${sketchRevisione?.id === s.id ? 'border-stone-900 ring-2 ring-stone-900' : 'border-stone-200 hover:border-stone-500'}`}
+                        className={`zoom-cornice w-full aspect-square rounded-xl border bg-stone-50 overflow-hidden flex items-center justify-center transition ${sketchRevisione?.id === s.id ? 'border-stone-900 ring-2 ring-stone-900' : 'border-stone-200 hover:border-stone-500'}`}
                       >
                         <img src={s.url_file} alt={`Sketch ${s.ordine + 1}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </button>

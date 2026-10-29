@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { DocenteContext, CHIAVE_PASSWORD_DOCENTE, leggiPasswordSessione, aggiungiPasswordSessione, type CorsoDocente } from '@/lib/docente-context';
 import { normalizzaCorso, messaggioErroreCorso, NOME_PIATTAFORMA } from '@/lib/corsi';
 import { ActionSheet, BottomSheet } from '@/components/PannelliMobile';
+import PillaScorrevole from '@/components/PillaScorrevole';
 
 // L'elenco dei corsi del docente è l'unione dei corsi aperti da ciascuna
 // password della sessione (vedi lib/docente-context.tsx).
@@ -235,7 +236,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   }
 
   const linkClasse = (href: string) =>
-    `px-4 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${pathname === href ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400'}`;
+    `relative z-10 px-4 py-1.5 rounded-full text-xs font-medium transition-colors duration-300 whitespace-nowrap border ${pathname === href ? 'text-white border-transparent' : 'border-stone-200 text-stone-700 hover:border-stone-400'}`;
 
   const amministratore = corsi.some(c => c.amministratore);
 
@@ -261,9 +262,11 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             </button>
           </div>
 
-          <nav className="hidden min-[1680px]:flex items-center space-x-2">
+          <nav className="relative hidden min-[1680px]:flex items-center space-x-2">
+            {/* La voce attiva è una pillola scura che scorre da una sezione all'altra. */}
+            <PillaScorrevole selettore='[aria-current="page"]' classe="bg-stone-900" dipendenze={[pathname]} />
             {SEZIONI.map(s => (
-              <Link key={s.href} href={s.href} className={linkClasse(s.href)}>{s.etichetta}</Link>
+              <Link key={s.href} href={s.href} className={linkClasse(s.href)} aria-current={pathname === s.href ? 'page' : undefined}>{s.etichetta}</Link>
             ))}
             <a href="/manuali" className="px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">📚 Manuali</a>
             <button onClick={logout} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-500 hover:border-red-300 hover:text-red-600">

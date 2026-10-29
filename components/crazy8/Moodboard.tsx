@@ -29,7 +29,7 @@ export function MoodboardGriglia({ submission, scuro = false, grande = false }: 
           key={`${voce.tipo}-${voce.id}`}
           className={`rounded-2xl border overflow-hidden flex flex-col ${sfondo} ${i === 0 ? 'col-span-2 sm:row-span-2' : ''}`}
         >
-          <div className={`flex-1 flex items-center justify-center ${scuro ? 'bg-stone-950' : 'bg-stone-50'} ${i === 0 ? altezzaCopertina : altezzaAltre}`}>
+          <div className={`zoom-cornice flex-1 flex items-center justify-center ${scuro ? 'bg-stone-950' : 'bg-stone-50'} ${i === 0 ? altezzaCopertina : altezzaAltre}`}>
             <img src={img.url} alt={voce.didascalia || img.etichetta} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
           </div>
           {(voce.didascalia || img.sottoAmbito || voce.titolo) && (

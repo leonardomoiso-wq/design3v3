@@ -75,7 +75,7 @@ export function FormProposta({ contest, team, esistente, ammesso, onSalvata }: {
           <p className="mz-muted" style={{ margin: 0 }}>{team.tipo === 'individuale' ? 'Una proposta a testa' : 'Una proposta per team'}: si può modificare finché il voto non si apre.</p>
         </div>
         <CampiProposta dati={dati} onCambia={setDati} />
-        {errore && <p role="alert" style={{ margin: 0, color: '#d22' }}>{errore}</p>}
+        {errore && <p role="alert" style={{ margin: 0, color: '#dc2626' }}>{errore}</p>}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" className="mz-pill b lg" disabled={!valida || invio} onClick={salva}>{invio ? 'Salvo…' : esistente ? 'Salva le modifiche' : 'Candida la proposta →'}</button>
           {!valida && <span className="mz-mono">Servono immagine, titolo, frase, proposta e perché votarla</span>}
@@ -83,7 +83,7 @@ export function FormProposta({ contest, team, esistente, ammesso, onSalvata }: {
           {esistente && ritiro && (
             <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <span style={{ fontSize: 14 }}>Sicuro/a?</span>
-              <button type="button" className="mz-pill sm" style={{ background: '#d22', color: '#fff' }} onClick={ritira}>Sì, ritira</button>
+              <button type="button" className="mz-pill sm" style={{ background: '#dc2626', color: '#fff' }} onClick={ritira}>Sì, ritira</button>
               <button type="button" className="mz-pill sm o" onClick={() => setRitiro(false)}>No</button>
             </span>
           )}

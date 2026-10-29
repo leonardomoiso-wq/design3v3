@@ -2,9 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================
+   Linguaggio visivo della piattaforma (Design Education Lab)
+   Un solo sistema per tutte le attività: carta calda, inchiostro
+   stone, titoli Helvetica, testo Inter, un solo accento (ambra).
+   Dal Moiso design language prende il movimento (curve, tendine,
+   finestre che salgono dal basso, pillole che scorrono, numeri che
+   contano), non i colori né i caratteri.
+   ============================================================= */
+:root {
+  --paper: #FBF9F5;        /* sfondo di tutte le pagine */
+  --surface: #ffffff;      /* card, finestre, pannelli */
+  --ink: #1c1917;          /* testo, pulsanti principali (stone-900) */
+  --ink-2: #44403c;        /* testo secondario forte (stone-700) */
+  --muted: #78716c;        /* testo secondario, etichette (stone-500) */
+  --faint: #d6d3d1;        /* elementi spenti (stone-300) */
+  --line: #e7e5e4;         /* filetti e bordi (stone-200) */
+  --card: #f5f5f4;         /* segnaposto immagini (stone-100) */
+  --accent: #b45309;       /* l'unico accento, per testo (amber-700, 4.8:1 sulla carta) */
+  --accent-vivo: #f59e0b;  /* accento per superfici, barre e scene (amber-500) */
+  --accent-tenue: #fef3c7; /* fondo dei selezionati (amber-100) */
+  --accent-bordo: #fcd34d; /* bordo dei selezionati (amber-300) */
+  --scrim: rgba(28, 25, 23, 0.6);
+  --f-display: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
+  --f-text: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Curve di movimento condivise */
+  --ease: cubic-bezier(0.7, 0, 0.25, 1);    /* tendine, pannelli, espansioni */
+  --out: cubic-bezier(0.16, 1, 0.3, 1);     /* ingressi, zoom delle immagini */
+  --spring: cubic-bezier(0.2, 1.3, 0.35, 1);/* pillole, pulsanti, popover */
+}
+
+::selection { background: var(--accent-tenue); color: var(--ink); }
+
 body {
-  background-color: #FBF9F5;
-  color: #1c1917;
+  background-color: var(--paper);
+  color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   margin: 0;
   overflow-x: hidden;
@@ -17,7 +49,7 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--f-display);
   letter-spacing: -0.025em;
 }
 
@@ -36,8 +68,8 @@ h1, h2, h3, h4 {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.animate-fade-in-up { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in-up { animation: fade-in-up 0.45s var(--out) both; }
+.animate-scale-in { animation: scale-in 0.4s var(--out) both; }
 .animate-fade-in { animation: fade-in 0.5s ease-out both; }
 
 /* Feedback "a impulsi" durante la compressione/upload di un'immagine:
@@ -125,12 +157,17 @@ h1, h2, h3, h4 {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-.animate-sheet-up { animation: sheet-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-sheet-up { animation: sheet-up 0.45s var(--out) both; }
+@keyframes sheet-destra {
+  from { transform: translateX(105%); }
+  to { transform: none; }
+}
 @media (min-width: 768px) {
-  .md\:animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .md\:animate-scale-in { animation: finestra-entra 0.5s var(--out) both; }
+  .md\:animate-sheet-destra { animation: sheet-destra 0.6s var(--ease) both; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheet-up, .md\:animate-scale-in { animation-duration: 0.01ms !important; }
+  .animate-sheet-up, .md\:animate-scale-in, .md\:animate-sheet-destra { animation-duration: 0.01ms !important; }
 }
 
 /* Su mobile 100vh include la barra del browser e taglia il fondo della
@@ -138,4 +175,95 @@ h1, h2, h3, h4 {
 .app-shell {
   height: 100vh;
   height: 100dvh;
+}
+
+/* =============================================================
+   Effetti condivisi da tutte le sezioni
+   ============================================================= */
+
+/* Ingressi a cascata: aggiungere .entra-cascata a un contenitore fa
+   salire i figli uno dopo l'altro (50 ms di scarto, max 12). */
+.entra-cascata > * { animation: fade-in-up 0.6s var(--out) backwards; }
+.entra-cascata > *:nth-child(2) { animation-delay: 50ms; }
+.entra-cascata > *:nth-child(3) { animation-delay: 100ms; }
+.entra-cascata > *:nth-child(4) { animation-delay: 150ms; }
+.entra-cascata > *:nth-child(5) { animation-delay: 200ms; }
+.entra-cascata > *:nth-child(6) { animation-delay: 250ms; }
+.entra-cascata > *:nth-child(7) { animation-delay: 300ms; }
+.entra-cascata > *:nth-child(8) { animation-delay: 350ms; }
+.entra-cascata > *:nth-child(n+9) { animation-delay: 400ms; }
+
+/* Card che si sollevano appena al passaggio del mouse. */
+.card-viva { transition: transform 0.5s var(--spring), box-shadow 0.5s var(--out), border-color 0.3s; }
+@media (hover: hover) {
+  .card-viva:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -18px rgba(28, 25, 23, 0.25); }
+}
+
+/* Immagine che si ingrandisce dentro una cornice ferma. */
+.zoom-cornice { overflow: hidden; }
+.zoom-cornice img { transition: transform 1s var(--out); }
+@media (hover: hover) {
+  .zoom-cornice:hover img, .group:hover .zoom-cornice img { transform: scale(1.06); }
+}
+
+/* Pillola che scorre sotto la voce attiva (menu docente, schede). Il
+   contenitore ha position: relative; la posizione la calcola
+   components/PillaScorrevole.tsx. */
+.pilla-scorrevole {
+  position: absolute; left: 0; top: 0; z-index: 0; border-radius: 9999px; pointer-events: none;
+  transition: transform 0.55s var(--spring), width 0.55s var(--spring), height 0.55s var(--spring), opacity 0.2s;
+}
+
+/* Filo ambra che attraversa la pagina quando si cambia sezione. */
+@keyframes filo-sezione {
+  0% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.filo-sezione {
+  position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 60; pointer-events: none;
+  background: var(--accent-vivo); transform-origin: 0 50%;
+  animation: filo-sezione 0.9s var(--ease) both;
+}
+/* Ingresso del contenuto di sezione: solo opacità, così i pannelli in
+   position: fixed delle pagine non vengono spostati durante l'effetto. */
+.entra-sezione { animation: fade-in 0.45s var(--out) backwards; }
+
+/* Finestre modali: tutte le finestre della piattaforma (anche quelle
+   scritte a mano nelle pagine, riconosciute da role="dialog" e dal fondo
+   scuro) entrano allo stesso modo: il fondo sfuma, la finestra sale con
+   una leggera molla. Su telefono diventano pannelli dal basso, come il
+   BottomSheet. */
+[role="dialog"][aria-modal="true"].bg-stone-900\/60 { animation: fade-in 0.3s var(--out) both; }
+[role="dialog"][aria-modal="true"].bg-stone-900\/60:not(.items-end) > div:first-child { animation: finestra-entra 0.5s var(--out) both; }
+@keyframes finestra-entra {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 767px) {
+  [role="dialog"][aria-modal="true"].bg-stone-900\/60.items-center { align-items: flex-end; padding: 0; }
+  [role="dialog"][aria-modal="true"].bg-stone-900\/60.items-center > div:first-child {
+    max-width: none; width: 100%; border-radius: 24px 24px 0 0;
+    max-height: 90dvh; overflow-y: auto;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    animation: sheet-up 0.45s var(--out) both;
+  }
+}
+
+/* Anello di fuoco uniforme per i controlli che non ne hanno uno proprio. */
+a:focus-visible:not([class*="focus-visible:ring"]),
+button:focus-visible:not([class*="focus-visible:ring"]),
+[role="switch"]:focus-visible:not([class*="focus-visible:ring"]) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entra-cascata > *, .entra-sezione, .filo-sezione,
+  [role="dialog"][aria-modal="true"].bg-stone-900\/60,
+  [role="dialog"][aria-modal="true"].bg-stone-900\/60:not(.items-end) > div:first-child {
+    animation-duration: 0.01ms !important; animation-delay: 0ms !important;
+  }
+  .card-viva, .zoom-cornice img, .pilla-scorrevole { transition: none !important; }
+  .filo-sezione { display: none; }
 }

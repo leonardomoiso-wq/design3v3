@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
+import NumeroVivo from '@/components/NumeroVivo';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
 import { ascoltaCorso } from '@/lib/realtime';
 import StellaScelto from '@/components/StellaScelto';
@@ -428,7 +429,7 @@ export default function ReviewPage() {
         ['rosso', 'Rosso', 'bg-red-500', 'text-red-800'],
       ] as const).map(([colore, etichetta, sfondo, testo]) => (
         <div key={colore} className="flex flex-col items-center space-y-1">
-          <span className={`${grande ? 'w-14 h-14 rounded-2xl text-lg' : 'w-9 h-9 rounded-xl text-sm'} ${sfondo} shadow-lg flex items-center justify-center text-white font-bold`}>{votiCorrente[colore]}</span>
+          <span className={`${grande ? 'w-14 h-14 rounded-2xl text-lg' : 'w-9 h-9 rounded-xl text-sm'} ${sfondo} shadow-lg flex items-center justify-center text-white font-bold`}><NumeroVivo valore={votiCorrente[colore]} /></span>
           {grande && <span className={`text-[10px] font-medium ${testo} uppercase tracking-widest`}>{etichetta}</span>}
         </div>
       ))}

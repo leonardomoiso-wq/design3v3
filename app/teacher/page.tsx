@@ -983,6 +983,7 @@ export default function TeacherPage() {
           etichetta={`Dettaglio esteso: ${casoEspansoCluster.titolo}`}
           larghezzaDesktop="md:max-w-3xl md:rounded-3xl"
           classePannello=""
+          desktop="lato"
         >
             <div className="h-56 md:h-80 bg-stone-100 flex items-center justify-center p-4 md:p-6 md:rounded-t-3xl relative">
               {casoEspansoCluster.immagine ? (

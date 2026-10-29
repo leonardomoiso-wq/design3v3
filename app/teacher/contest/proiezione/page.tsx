@@ -50,15 +50,15 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
 
   if (fase === 'tendina' || fase === 'rullo') {
     return (
-      <div ref={tenda} style={{ position: 'fixed', inset: 0, zIndex: 120, background: '#1d3cf5', color: '#fff', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 40 }}>
+      <div ref={tenda} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 40 }}>
         <div style={{ display: 'grid', gap: 30, justifyItems: 'center' }}>
-          <Solidi colore="#fff" />
+          <Solidi colore="var(--scena-testo)" />
           {fase === 'tendina' ? (
             <span className="mz-display mz-fade" style={{ fontSize: 'clamp(48px, 7vw, 120px)' }}>E il progetto vincitore è…</span>
           ) : (
             <span key={numeroRullo} className="mz-display mz-num" style={{ fontSize: 'clamp(160px, 30vw, 420px)', lineHeight: .8, animation: ridotto ? undefined : 'mz-rullo .9s cubic-bezier(.2,1.3,.35,1) both' }}>{numeroRullo}</span>
           )}
-          <span className="mz-mono" style={{ color: 'rgba(255,255,255,.75)', fontSize: 14 }}>
+          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>
             {base === 'live' ? 'Voti dal vivo' : base === 'remoto' ? 'Voti da remoto' : 'Voti da remoto e dal vivo'}
           </span>
         </div>
@@ -69,10 +69,10 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
 
   if (!vincitore) {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: '#1d3cf5', color: '#fff', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
         <div style={{ display: 'grid', gap: 20, justifyItems: 'center' }}>
           <span className="mz-display" style={{ fontSize: 'clamp(48px, 7vw, 110px)' }}>Ancora nessun voto.</span>
-          <button type="button" className="mz-pill lg" style={{ background: '#fff', color: '#0b0c10' }} onClick={onChiudi}>Torna alla gara</button>
+          <button type="button" className="mz-pill lg" style={{ background: 'var(--scena-testo)', color: 'var(--scena-su-testo)' }} onClick={onChiudi}>Torna alla gara</button>
         </div>
       </div>
     );
@@ -81,13 +81,13 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
   const titolo = vincitore.pari.length > 1 ? vincitore.pari.map(p => p.titolo).join(' · ') : vincitore.p.titolo;
 
   return (
-    <div ref={scena} style={{ position: 'fixed', inset: 0, zIndex: 120, background: '#1d3cf5', color: '#fff', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: 'clamp(24px, 4vw, 64px)', padding: 'clamp(28px, 4vw, 64px)', alignItems: 'center' }}>
-      <div data-img style={{ height: '78vh', borderRadius: 6, overflow: 'hidden', boxShadow: '0 60px 120px rgba(0,0,30,.35)' }}>
+    <div ref={scena} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: 'clamp(24px, 4vw, 64px)', padding: 'clamp(28px, 4vw, 64px)', alignItems: 'center' }}>
+      <div data-img style={{ height: '78vh', borderRadius: 24, overflow: 'hidden', boxShadow: '0 60px 120px rgba(0,0,30,.35)' }}>
         <Cornice src={vincitore.p.immagine} alt="" style={{ width: '100%', height: '100%' }} />
       </div>
       <div style={{ display: 'grid', gap: 22, alignContent: 'center', minWidth: 0 }}>
-        <Solidi cadono colore="#fff" piccoli />
-        <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)', fontSize: 14 }}>{vincitore.pari.length > 1 ? 'Vincitori a pari merito' : 'Il progetto vincitore'}</span>
+        <Solidi cadono colore="var(--scena-testo)" piccoli />
+        <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>{vincitore.pari.length > 1 ? 'Vincitori a pari merito' : 'Il progetto vincitore'}</span>
         <h1 className="mz-display" style={{ fontSize: `clamp(48px, ${titolo.length > 30 ? 5 : 7.5}vw, 150px)`, display: 'flex', flexWrap: 'wrap', columnGap: '.25em', overflowWrap: 'anywhere' }}>
           {titolo.split(' ').map((w, i) => (
             <span key={i} style={{ overflow: 'hidden', display: 'inline-flex', paddingBottom: '.06em' }}>
@@ -98,20 +98,20 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
         <span style={{ fontSize: 'clamp(16px, 1.6vw, 22px)' }} className="mz-break">{vincitore.p.autori}</span>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
           <span className="mz-display" style={{ fontSize: 'clamp(60px, 7vw, 120px)', lineHeight: 1 }}><ContaSu valore={vincitore.n} /></span>
-          <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)', fontSize: 14 }}>voti · {secondi}% del totale</span>
+          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>voti · {secondi}% del totale</span>
         </span>
         {podio.length > 0 && (
-          <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10, borderTop: '1px solid rgba(255,255,255,.4)', paddingTop: 16 }}>
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10, borderTop: '1px solid var(--scena-filo)', paddingTop: 16 }}>
             {podio.map((r, i) => (
               <li key={r.p.id} data-podio style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 'clamp(16px, 1.5vw, 22px)' }}>
-                <span className="mz-break"><span className="mz-mono" style={{ color: 'rgba(255,255,255,.75)' }}>{pad(i + 2)}</span> {r.p.titolo}</span>
+                <span className="mz-break"><span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{pad(i + 2)}</span> {r.p.titolo}</span>
                 <span className="mz-num">{r.n}</span>
               </li>
             ))}
           </ol>
         )}
       </div>
-      <button type="button" onClick={onChiudi} className="mz-pill sm" style={{ position: 'fixed', top: 20, right: 20, background: 'rgba(255,255,255,.15)', color: '#fff' }}>Torna alla gara ✕</button>
+      <button type="button" onClick={onChiudi} className="mz-pill sm" style={{ position: 'fixed', top: 20, right: 20, background: 'rgba(28,25,23,.12)', color: 'var(--scena-testo)' }}>Torna alla gara ✕</button>
     </div>
   );
 }
@@ -252,7 +252,7 @@ export default function ProiezionePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 30, flexWrap: 'wrap' }}>
             <div style={{ position: 'relative' }}>
               {onde.map(k => (
-                <span key={k} aria-hidden="true" style={{ position: 'absolute', left: '18%', top: '50%', width: 160, height: 160, margin: '-80px 0 0 -80px', borderRadius: 999, border: '2px solid var(--blue)', animation: 'mz-onda 1.8s cubic-bezier(.2,.8,.2,1) forwards', pointerEvents: 'none' }} />
+                <span key={k} aria-hidden="true" style={{ position: 'absolute', left: '18%', top: '50%', width: 160, height: 160, margin: '-80px 0 0 -80px', borderRadius: 999, border: '2px solid var(--accento-vivo)', animation: 'mz-onda 1.8s cubic-bezier(.2,.8,.2,1) forwards', pointerEvents: 'none' }} />
               ))}
               <span className="mz-display" style={{ fontSize: 'clamp(110px, 15vw, 260px)', lineHeight: .8, display: 'block' }}>
                 <Odometro valore={totale} cifre={3} />
@@ -271,11 +271,11 @@ export default function ProiezionePage() {
           {base !== 'remoto' ? (
             <div style={{ display: 'grid', gap: 16, justifyItems: 'start' }}>
               <span className="mz-mono" style={{ color: 'var(--ink)', fontSize: 13 }}>Vota ora dal telefono</span>
-              <div className="mz-float"><QR testo={linkVoto} dimensione={Math.min(260, 220)} scuro="#0b0c10" chiaro="#ffffff" /></div>
+              <div className="mz-float"><QR testo={linkVoto} dimensione={Math.min(260, 220)} scuro="#1c1917" chiaro="#ffffff" /></div>
               <span className="mz-mono mz-break" style={{ fontSize: 13 }}>{origine.replace(/^https?:\/\//, '')}/contest/live</span>
               <div style={{ display: 'grid' }}>
                 <span className="mz-mono">Codice</span>
-                <span className="mz-display mz-num" style={{ fontSize: 'clamp(70px, 7vw, 120px)', lineHeight: .9, color: liveAperto ? 'var(--blue)' : 'var(--faint)', letterSpacing: '.02em' }}>{codice || '····'}</span>
+                <span className="mz-display mz-num" style={{ fontSize: 'clamp(70px, 7vw, 120px)', lineHeight: .9, color: liveAperto ? 'var(--accento)' : 'var(--faint)', letterSpacing: '.02em' }}>{codice || '····'}</span>
               </div>
             </div>
           ) : (

@@ -6,6 +6,7 @@ import { comprimiImmagine } from '../../lib/immagine';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '../../lib/cacheCasi';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam, etichettaTeam } from '../../lib/team-context';
+import PillaScorrevole from '../../components/PillaScorrevole';
 import { ascoltaCorso } from '../../lib/realtime';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
@@ -533,14 +534,15 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           )}
           <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setActiveTab('crea')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+        <div className="relative flex flex-wrap gap-2">
+          <PillaScorrevole selettore='[aria-pressed="true"]' classe="bg-stone-900" dipendenze={[activeTab, editId, casi.length]} />
+          <button aria-pressed={activeTab === 'crea'} onClick={() => setActiveTab('crea')} className={`relative z-10 px-4 py-2.5 rounded-full text-xs font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'text-white border border-transparent' : 'border border-stone-200'}`}>
             {editId !== null ? 'Modifica Scheda' : '+ Nuova Consegna'}
           </button>
-          <button onClick={() => setActiveTab('gestisci')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button aria-pressed={activeTab === 'gestisci'} onClick={() => setActiveTab('gestisci')} className={`relative z-10 px-4 py-2.5 rounded-full text-xs font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'gestisci' ? 'text-white border border-transparent' : 'border border-stone-200'}`}>
             Elenco & Modifiche ({casi.length})
           </button>
-          <button onClick={() => setActiveTab('vota')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition relative focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
+          <button aria-pressed={activeTab === 'vota'} onClick={() => setActiveTab('vota')} className={`relative z-10 px-4 py-2.5 rounded-full text-xs font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'vota' ? 'text-white border border-transparent' : 'border border-stone-200'}`}>
             🗳️ Vota in Aula
             {casoInVotazione && activeTab !== 'vota' && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" aria-hidden="true"></span>
@@ -919,10 +921,10 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
               </div>
             ) : (
               casiFiltrati.map(c => (
-                <div key={c.id} className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-stone-300 transition">
+                <div key={c.id} className="group bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-stone-300 transition">
                   <div className="flex items-center space-x-4 min-w-0">
                     {c.immagine ? (
-                      <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
+                      <div className="zoom-cornice w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
                         <img src={c.immagine} alt="" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                       </div>
                     ) : (

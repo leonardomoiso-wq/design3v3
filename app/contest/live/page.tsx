@@ -150,13 +150,13 @@ export default function VotoLivePage() {
     const v = proposte.find(p => p.id === ord[0]?.id);
     if (v) {
       return cornice(
-        <section style={{ background: 'var(--blue)', color: '#fff', display: 'grid', alignContent: 'center', gap: 18, padding: 24 }}>
-          <Solidi cadono colore="#fff" piccoli />
-          <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)' }}>Il progetto vincitore</span>
-          <Cornice src={v.immagine} alt="" style={{ aspectRatio: '16 / 10', borderRadius: 4 }} />
+        <section style={{ background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', alignContent: 'center', gap: 18, padding: 24 }}>
+          <Solidi cadono colore="var(--scena-testo)" piccoli />
+          <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>Il progetto vincitore</span>
+          <Cornice src={v.immagine} alt="" style={{ aspectRatio: '16 / 10' }} />
           <h1 className="mz-display mz-break" style={{ fontSize: 'clamp(44px, 12vw, 120px)' }}>{v.titolo}</h1>
           <span className="mz-break">{v.autori}</span>
-          {mioVoto === v.id && <span className="mz-chip" style={{ background: '#fff', color: '#0b0c10', justifySelf: 'start' }}>Hai votato anche tu questa proposta</span>}
+          {mioVoto === v.id && <span className="mz-chip" style={{ background: 'var(--scena-testo)', color: 'var(--scena-su-testo)', justifySelf: 'start' }}>Hai votato anche tu questa proposta</span>}
         </section>,
       );
     }
@@ -199,7 +199,7 @@ export default function VotoLivePage() {
             />
           ))}
         </div>
-        {erroreCodice && <p role="alert" style={{ margin: 0, color: '#d22' }}>{erroreCodice}</p>}
+        {erroreCodice && <p role="alert" style={{ margin: 0, color: '#dc2626' }}>{erroreCodice}</p>}
         <p className="mz-muted" style={{ margin: 0, fontSize: 14 }}>Un voto per dispositivo, anonimo. Puoi cambiarlo finché il voto resta aperto.</p>
       </section>,
     );
@@ -231,12 +231,12 @@ export default function VotoLivePage() {
           return (
             <li key={p.id} className="mz-in" style={{ animationDelay: `${i * 50}ms` }}>
               <div
-                style={{ borderRadius: 14, overflow: 'hidden', background: 'var(--surface)', boxShadow: sel ? 'inset 0 0 0 3px var(--blue), 0 20px 40px rgba(29,60,245,.18)' : 'inset 0 0 0 1px var(--line)', transform: sel ? 'translateY(-3px)' : 'none', transition: 'box-shadow .35s, transform .5s var(--spring)' }}
+                style={{ borderRadius: 14, overflow: 'hidden', background: 'var(--surface)', boxShadow: sel ? 'inset 0 0 0 3px var(--accento-vivo), 0 20px 40px rgba(245,158,11,.22)' : 'inset 0 0 0 1px var(--line)', transform: sel ? 'translateY(-3px)' : 'none', transition: 'box-shadow .35s, transform .5s var(--spring)' }}
               >
                 <button type="button" onClick={() => setScelta(p.id)} aria-pressed={sel} style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
                   <div style={{ position: 'relative' }}>
                     <Cornice src={p.immagine} alt="" style={{ aspectRatio: '16 / 10' }} />
-                    <span style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 99, display: 'grid', placeItems: 'center', background: sel ? 'var(--blue)' : 'rgba(255,255,255,.85)', color: sel ? '#fff' : '#0b0c10', transition: 'background .3s, transform .5s var(--spring)', transform: sel ? 'scale(1.1)' : 'none', fontSize: 16 }} aria-hidden="true">{sel ? '✓' : String(i + 1)}</span>
+                    <span style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 99, display: 'grid', placeItems: 'center', background: sel ? 'var(--accento-vivo)' : 'rgba(255,255,255,.9)', color: 'var(--ink)', transition: 'background .3s, transform .5s var(--spring)', transform: sel ? 'scale(1.1)' : 'none', fontSize: 16 }} aria-hidden="true">{sel ? '✓' : String(i + 1)}</span>
                   </div>
                   <div style={{ padding: '14px 16px 6px', display: 'grid', gap: 6 }}>
                     <span className="mz-display mz-break" style={{ fontSize: 26 }}>{p.titolo}</span>
@@ -255,7 +255,7 @@ export default function VotoLivePage() {
       </ul>
 
       <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, padding: '14px max(16px, env(safe-area-inset-left)) calc(14px + env(safe-area-inset-bottom))', background: 'color-mix(in srgb, var(--bg) 88%, transparent)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderTop: '1px solid var(--line)', display: 'grid', gap: 8 }}>
-        {errore && <p role="alert" style={{ margin: 0, color: '#d22', fontSize: 14 }}>{errore}</p>}
+        {errore && <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{errore}</p>}
         <button type="button" className="mz-pill b lg" disabled={!sceltaP || invio || scelta === mioVoto} onClick={vota} style={{ width: '100%', maxWidth: 560, justifySelf: 'center' }}>
           {invio ? 'Invio…' : !sceltaP ? 'Tocca un progetto per sceglierlo' : scelta === mioVoto ? 'Hai votato questo progetto' : <span className="mz-break" style={{ whiteSpace: 'normal' }}>{mioVoto ? 'Sposta il voto su' : 'Vota'} «{sceltaP.titolo}»</span>}
         </button>

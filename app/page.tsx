@@ -8,6 +8,7 @@ import { useCorso } from '../lib/corso-context';
 import { caricaCorsiPubblici, caricaCorsoPerCodice, NOME_PIATTAFORMA, type Corso } from '../lib/corsi';
 import { ascoltaCorso } from '../lib/realtime';
 import { ActionSheet, BottomSheet } from '../components/PannelliMobile';
+import PillaScorrevole from '../components/PillaScorrevole';
 
 // Testi di presentazione del corso in cui si trova lo studente.
 function useTestiPiattaforma() {
@@ -91,7 +92,7 @@ function SceltaCorso() {
           <p className="text-stone-600 text-sm sm:text-base max-w-lg mx-auto">Ogni corso ha i propri team, attività e consegne. Scegliete il vostro: potrete cambiarlo in qualsiasi momento.</p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto w-full">
+        <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto w-full entra-cascata">
           {corsi === null && <p className="text-sm text-stone-400 text-center sm:col-span-2">Caricamento dei corsi...</p>}
           {corsi?.length === 0 && (
             <p className="text-sm text-stone-400 text-center sm:col-span-2">Nessun corso in elenco: entrate con il codice che vi ha dato il/la docente.</p>
@@ -100,7 +101,7 @@ function SceltaCorso() {
             <button
               key={c.id}
               onClick={() => scegliCorso(c)}
-              className="text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+              className="card-viva text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
             >
               <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold font-mono">{c.codice}</span>
               <h2 className="text-xl font-serif font-bold mt-1">{c.nome}</h2>
@@ -323,11 +324,12 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
           </p>
         </div>
 
-        <div className="flex bg-stone-100 rounded-full p-1">
-          <button onClick={() => { setScheda('accedi'); setErrore(''); }} className={`flex-1 text-xs font-medium py-2 rounded-full transition ${scheda === 'accedi' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500'}`}>
+        <div className="relative flex bg-stone-100 rounded-full p-1">
+          <PillaScorrevole selettore='[aria-pressed="true"]' classe="bg-white shadow-sm" dipendenze={[scheda]} />
+          <button aria-pressed={scheda === 'accedi'} onClick={() => { setScheda('accedi'); setErrore(''); }} className={`relative z-10 flex-1 text-xs font-medium py-2 rounded-full transition-colors duration-300 ${scheda === 'accedi' ? 'text-stone-900' : 'text-stone-500'}`}>
             Accedi
           </button>
-          <button onClick={() => { setScheda('crea'); setErrore(''); }} className={`flex-1 text-xs font-medium py-2 rounded-full transition ${scheda === 'crea' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500'}`}>
+          <button aria-pressed={scheda === 'crea'} onClick={() => { setScheda('crea'); setErrore(''); }} className={`relative z-10 flex-1 text-xs font-medium py-2 rounded-full transition-colors duration-300 ${scheda === 'crea' ? 'text-stone-900' : 'text-stone-500'}`}>
             Iscriviti
           </button>
         </div>
@@ -567,16 +569,16 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
         </p>
       </div>
 
-      <div className="flex-1 grid sm:grid-cols-2 gap-6 pb-16">
+      <div className="flex-1 grid sm:grid-cols-2 gap-6 pb-16 content-start entra-cascata">
         {attivita.map(a => {
           const modulo = moduloDi(a.tipo);
           const avviabile = a.stato === 'attiva';
           return (
             <div
               key={a.id}
-              className={`rounded-3xl border p-8 flex flex-col justify-between transition ${
+              className={`rounded-3xl border p-8 flex flex-col justify-between ${
                 avviabile
-                  ? 'bg-white border-stone-200 shadow-sm hover:border-stone-300'
+                  ? 'card-viva bg-white border-stone-200 shadow-sm hover:border-stone-300'
                   : 'bg-stone-100/60 border-dashed border-stone-300'
               }`}
             >

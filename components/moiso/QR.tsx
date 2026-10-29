@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
-export function QR({ testo, scuro = '#0b0c10', chiaro = '#ffffff', dimensione = 180 }: { testo: string; scuro?: string; chiaro?: string; dimensione?: number }) {
+export function QR({ testo, scuro = '#1c1917', chiaro = '#ffffff', dimensione = 180 }: { testo: string; scuro?: string; chiaro?: string; dimensione?: number }) {
   const [svg, setSvg] = useState('');
   useEffect(() => {
     QRCode.toString(testo, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: scuro, light: chiaro } })

@@ -5,20 +5,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { riduciMovimento } from '@/lib/contest';
 
-export function FontMoiso() {
-  return (
-    <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&family=Funnel+Sans:wght@300..800&family=Geist+Mono:wght@400;500&display=swap"
-      />
-    </>
-  );
-}
-
 // Numero che sale con le cifre che ruotano come un contachilometri.
 export function Odometro({ valore, cifre = 0, className = '' }: { valore: number; cifre?: number; className?: string }) {
   const testo = String(Math.max(0, Math.round(valore))).padStart(cifre, '0');
@@ -40,27 +26,9 @@ export function Odometro({ valore, cifre = 0, className = '' }: { valore: number
   );
 }
 
-// Conta da 0 (o dal valore precedente) al valore, ease-out cubico, 1.1 s.
-export function useContaSu(valore: number, durata = 1100) {
-  const [mostrato, setMostrato] = useState(0);
-  const da = useRef(0);
-  useEffect(() => {
-    if (riduciMovimento()) { setMostrato(valore); da.current = valore; return; }
-    const inizio = da.current;
-    const t0 = performance.now();
-    let raf = 0;
-    const f = (now: number) => {
-      const k = Math.min(1, (now - t0) / durata);
-      const v = inizio + (valore - inizio) * (1 - Math.pow(1 - k, 3));
-      setMostrato(v);
-      da.current = v;
-      if (k < 1) raf = requestAnimationFrame(f);
-    };
-    raf = requestAnimationFrame(f);
-    return () => cancelAnimationFrame(raf);
-  }, [valore, durata]);
-  return mostrato;
-}
+// Conteggio animato condiviso con il resto della piattaforma.
+export { useContaSu } from '@/lib/useContaSu';
+import { useContaSu } from '@/lib/useContaSu';
 
 export function ContaSu({ valore, className = '' }: { valore: number; className?: string }) {
   const v = useContaSu(valore);
@@ -247,7 +215,7 @@ export function Cornice({ src, alt, className = '', style, etichettaVuota = 'Imm
         // eslint-disable-next-line @next/next/no-img-element
         <img ref={img} src={src} alt={alt} loading="lazy" draggable={false} />
       ) : (
-        <div className="mz-placeholder"><span className="mz-mono" style={{ color: '#fff' }}>{etichettaVuota}</span></div>
+        <div className="mz-placeholder"><span className="mz-mono" style={{ color: 'var(--accento)' }}>{etichettaVuota}</span></div>
       )}
     </div>
   );

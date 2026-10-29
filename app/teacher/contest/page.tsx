@@ -37,9 +37,9 @@ const inLocale = (iso: string | null) => {
 
 function Riquadro({ n, titolo, children, azioni }: { n: string; titolo: string; children: React.ReactNode; azioni?: React.ReactNode }) {
   return (
-    <section className="mz-in" style={{ display: 'grid', gap: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, borderTop: '1px solid var(--ink)', paddingTop: 10, flexWrap: 'wrap' }}>
-        <span className="mz-mono" style={{ color: 'var(--ink)' }}>{titolo} <span className="mz-blue">({n})</span></span>
+    <section className="mz-in" style={{ display: 'grid', gap: 18, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 24, padding: 'clamp(18px, 2.4vw, 28px)', boxShadow: '0 1px 2px rgba(28,25,23,.04)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <span className="mz-mono" style={{ color: 'var(--ink-2)' }}><span className="mz-blue">{n}</span> · {titolo}</span>
         {azioni}
       </div>
       {children}
@@ -214,13 +214,13 @@ export default function ContestDocentePage() {
             </div>
           ) : <span className="mz-muted" style={{ fontSize: 13 }}>Attività non trovata: esegui la migrazione 20261012.</span>}
           {attivitaContest && attivitaContest.stato !== 'attiva' && <span className="mz-muted" style={{ fontSize: 12.5 }}>Finché non è «Attiva» gli studenti non votano da remoto. Il voto dal vivo funziona comunque.</span>}
-          <a href="/contest" target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--blue)' }}>Apri la pagina studenti ↗</a>
+          <a href="/contest" target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
         </div>
       </aside>
 
       <div style={{ padding: 'clamp(20px, 4vw, 44px)', display: 'grid', alignContent: 'start', gap: 36, minWidth: 0 }}>
         {messaggio && (
-          <div role="status" className="mz-in" style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 80, padding: '12px 16px', borderRadius: 12, background: messaggio.errore ? '#d22' : 'var(--ink)', color: messaggio.errore ? '#fff' : 'var(--bg)', fontSize: 14, maxWidth: 360 }}>{messaggio.testo}</div>
+          <div role="status" className="mz-in" style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 80, padding: '12px 16px', borderRadius: 12, background: messaggio.errore ? '#dc2626' : 'var(--ink)', color: messaggio.errore ? '#fff' : 'var(--bg)', fontSize: 14, maxWidth: 360 }}>{messaggio.testo}</div>
         )}
         {!sel ? (
           <div style={{ display: 'grid', gap: 16, justifyItems: 'start', paddingTop: 40 }}>
@@ -254,7 +254,7 @@ export default function ContestDocentePage() {
                       return (
                         <li key={f}>
                           <button type="button" onClick={() => f !== 'voto' && impostaFase(f)} disabled={f === 'voto'}
-                            style={{ all: 'unset', cursor: f === 'voto' ? 'default' : 'pointer', boxSizing: 'border-box', width: '100%', height: '100%', display: 'grid', gap: 6, padding: 16, borderRadius: 14, background: corrente ? 'var(--blue)' : 'var(--surface)', color: corrente ? '#fff' : 'inherit', boxShadow: corrente ? 'none' : 'inset 0 0 0 1px var(--line)', transition: 'background .4s' }}>
+                            style={{ all: 'unset', cursor: f === 'voto' ? 'default' : 'pointer', boxSizing: 'border-box', width: '100%', height: '100%', display: 'grid', gap: 6, padding: 16, borderRadius: 14, background: corrente ? 'var(--accento-tenue)' : 'var(--paper)', color: 'inherit', boxShadow: corrente ? 'inset 0 0 0 2px var(--accento-vivo)' : 'inset 0 0 0 1px var(--line)', transition: 'background .4s' }}>
                             <span className="mz-mono" style={{ color: 'inherit', opacity: .75 }}>{pad(i + 1)}{corrente ? ' · ora' : ''}</span>
                             <span style={{ fontFamily: 'var(--f-display)', fontSize: 22, letterSpacing: '-.02em' }}>{ETICHETTA_FASE[f]}</span>
                             <span style={{ fontSize: 13, opacity: .8 }}>{DESCR_FASE[f]}</span>
@@ -263,7 +263,7 @@ export default function ContestDocentePage() {
                       );
                     })}
                   </ol>
-                  <div style={{ display: 'grid', gap: 12, padding: 18, borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', background: 'var(--surface)' }}>
+                  <div style={{ display: 'grid', gap: 12, padding: 18, borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', background: 'var(--paper)' }}>
                     <span className="mz-mono" style={{ color: 'var(--ink)' }}>Voto da remoto · scadenza del countdown</span>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                       <input type="datetime-local" className="mz-input" style={{ width: 'auto' }} value={scadenza} onChange={e => setScadenza(e.target.value)} aria-label="Scadenza del voto" />
@@ -294,17 +294,17 @@ export default function ContestDocentePage() {
                           ? <button type="button" className="mz-pill ghost" onClick={() => live('copri')}>Copri di nuovo il vincitore</button>
                           : <button type="button" className="mz-pill ghost" onClick={() => live('rivela')}>Svela il vincitore a tutti</button>}
                         {conferma === 'azzera-live'
-                          ? <button type="button" className="mz-pill" style={{ background: '#d22', color: '#fff' }} onClick={() => { live('azzera'); setConferma(null); }}>Sicuro? Cancella i voti dal vivo</button>
+                          ? <button type="button" className="mz-pill" style={{ background: '#dc2626', color: '#fff' }} onClick={() => { live('azzera'); setConferma(null); }}>Sicuro? Cancella i voti dal vivo</button>
                           : <button type="button" className="mz-pill ghost danger" onClick={() => setConferma('azzera-live')}>Azzera voto dal vivo</button>}
                       </div>
                       {liveAperto && sel.live_fine && <Countdown fine={sel.live_fine} adesso={adesso} grande={false} finito="Tempo scaduto" />}
                     </div>
                     {codiceLive && (
-                      <div style={{ display: 'flex', gap: 18, alignItems: 'center', padding: 16, borderRadius: 14, background: 'var(--surface)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
+                      <div style={{ display: 'flex', gap: 18, alignItems: 'center', padding: 16, borderRadius: 14, background: 'var(--paper)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
                         <QR testo={linkLive} dimensione={120} />
                         <div style={{ display: 'grid', gap: 4 }}>
                           <span className="mz-mono">Codice</span>
-                          <span className="mz-display mz-num" style={{ fontSize: 52, lineHeight: 1, color: liveAperto ? 'var(--blue)' : 'var(--muted)' }}>{codiceLive}</span>
+                          <span className="mz-display mz-num" style={{ fontSize: 52, lineHeight: 1, color: liveAperto ? 'var(--accento)' : 'var(--muted)' }}>{codiceLive}</span>
                           <span className="mz-mono mz-break">{origine.replace(/^https?:\/\//, '')}/contest/live</span>
                         </div>
                       </div>
@@ -330,7 +330,7 @@ export default function ContestDocentePage() {
                         opzioni={[{ id: 'individuale', label: 'Individui' }, { id: 'gruppo', label: 'Gruppi' }, { id: 'entrambe', label: 'Entrambi' }]} />
                     </div>
                     <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
-                      <input type="checkbox" checked={bozza.mostra_classifica} onChange={e => setBozza({ ...bozza, mostra_classifica: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--blue)' }} />
+                      <input type="checkbox" checked={bozza.mostra_classifica} onChange={e => setBozza({ ...bozza, mostra_classifica: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
                       Mostra la classifica agli studenti durante il voto (di solito resta coperta fino alla scadenza)
                     </label>
                   </div>
@@ -339,10 +339,10 @@ export default function ContestDocentePage() {
                 <Riquadro n="04" titolo="Zona pericolosa">
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {conferma === 'azzera-remoto'
-                      ? <button type="button" className="mz-pill" style={{ background: '#d22', color: '#fff' }} onClick={() => { rpc('docente_azzera_voti_remoti', { p_id: sel.id }, 'Voti da remoto azzerati'); setConferma(null); }}>Sicuro? Cancella i voti da remoto</button>
+                      ? <button type="button" className="mz-pill" style={{ background: '#dc2626', color: '#fff' }} onClick={() => { rpc('docente_azzera_voti_remoti', { p_id: sel.id }, 'Voti da remoto azzerati'); setConferma(null); }}>Sicuro? Cancella i voti da remoto</button>
                       : <button type="button" className="mz-pill ghost danger" onClick={() => setConferma('azzera-remoto')}>Azzera i voti da remoto</button>}
                     {conferma === 'elimina-contest'
-                      ? <button type="button" className="mz-pill" style={{ background: '#d22', color: '#fff' }} onClick={() => { rpc('docente_elimina_contest', { p_id: sel.id }, 'Contest eliminato'); setConferma(null); }}>Sicuro? Elimina contest, proposte e voti</button>
+                      ? <button type="button" className="mz-pill" style={{ background: '#dc2626', color: '#fff' }} onClick={() => { rpc('docente_elimina_contest', { p_id: sel.id }, 'Contest eliminato'); setConferma(null); }}>Sicuro? Elimina contest, proposte e voti</button>
                       : <button type="button" className="mz-pill ghost danger" onClick={() => setConferma('elimina-contest')}>Elimina il contest</button>}
                   </div>
                 </Riquadro>
@@ -356,7 +356,7 @@ export default function ContestDocentePage() {
                     const v = votiPer.get(p.id);
                     return (
                       <li key={p.id} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr) auto', gap: 16, alignItems: 'center', padding: '14px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: p.nascosta ? .45 : 1 }}>
-                        <Cornice src={p.immagine} alt="" style={{ width: 96, aspectRatio: '4 / 3', borderRadius: 4 }} etichettaVuota="—" />
+                        <Cornice src={p.immagine} alt="" style={{ width: 96, aspectRatio: '4 / 3', borderRadius: 12 }} etichettaVuota="—" />
                         <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                           <span className="mz-mono mz-break">({pad(i + 1)}) · {p.autori || 'Senza autori'}{p.nascosta ? ' · nascosta' : ''}{p.team_id ? ' · candidata dagli studenti' : ''}</span>
                           <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 22, letterSpacing: '-.02em' }}>{p.titolo}</span>
@@ -368,7 +368,7 @@ export default function ContestDocentePage() {
                             <button type="button" className="mz-pill sm ghost" onClick={() => setModifica({ id: p.id, dati: { titolo: p.titolo, sintesi: p.sintesi, problema: p.problema, proposta: p.proposta, perche: p.perche, immagine: p.immagine, galleria: p.galleria, autori: p.autori } })}>Modifica</button>
                             <button type="button" className="mz-pill sm ghost" onClick={() => azioneProposta('docente_nascondi_proposta', { p_id: p.id, p_nascosta: !p.nascosta }, p.nascosta ? 'Proposta di nuovo visibile' : 'Proposta nascosta')}>{p.nascosta ? 'Mostra' : 'Nascondi'}</button>
                             {conferma === `p${p.id}`
-                              ? <button type="button" className="mz-pill sm" style={{ background: '#d22', color: '#fff' }} onClick={() => azioneProposta('docente_elimina_proposta', { p_id: p.id }, 'Proposta eliminata')}>Conferma</button>
+                              ? <button type="button" className="mz-pill sm" style={{ background: '#dc2626', color: '#fff' }} onClick={() => azioneProposta('docente_elimina_proposta', { p_id: p.id }, 'Proposta eliminata')}>Conferma</button>
                               : <button type="button" className="mz-pill sm ghost danger" onClick={() => setConferma(`p${p.id}`)}>Elimina</button>}
                           </div>
                         </div>

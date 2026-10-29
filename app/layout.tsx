@@ -5,7 +5,7 @@ import { TeamProvider } from '../lib/team-context';
 import { CorsoProvider } from '../lib/corso-context';
 import { NOME_PIATTAFORMA } from '../lib/brand';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: NOME_PIATTAFORMA,
@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body className={inter.className}>
+      <body className={`${inter.className} ${inter.variable}`}>
         <CorsoProvider>
           <TeamProvider>{children}</TeamProvider>
         </CorsoProvider>
