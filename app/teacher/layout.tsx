@@ -79,7 +79,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   }
 
   const linkClasse = (href: string) =>
-    `px-4 py-1.5 rounded-full text-xs font-medium transition ${pathname === href ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400'}`;
+    `px-4 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${pathname === href || (href !== '/teacher' && pathname.startsWith(href)) ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400'}`;
 
   return (
     <DocenteContext.Provider value={{ passcode, logout }}>
@@ -91,10 +91,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <h1 className="font-serif text-base font-medium">Area Docente</h1>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 overflow-x-auto">
             <Link href="/teacher" className={linkClasse('/teacher')}>Dashboard &amp; Matrice</Link>
             <Link href="/teacher/radar" className={linkClasse('/teacher/radar')}>🕸️ Radar Multicriterio</Link>
             <Link href="/teacher/review" className={linkClasse('/teacher/review')}>🗳️ Peer Review in Aula</Link>
+            <Link href="/teacher/contest" className={linkClasse('/teacher/contest')}>🏆 Contest</Link>
+            <Link href="/teacher/attivita" className={linkClasse('/teacher/attivita')}>Attività</Link>
             <button onClick={logout} className="px-4 py-1.5 rounded-full text-xs font-medium transition bg-white border border-stone-200 text-stone-500 hover:border-red-300 hover:text-red-600">
               Esci
             </button>

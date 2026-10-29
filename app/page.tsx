@@ -1,6 +1,9 @@
-import { ATTIVITA } from '../lib/attivita';
+'use client';
+import { ATTIVITA, useStatiAttivita } from '../lib/attivita';
 
 export default function LandingPage() {
+  const { statoDi, pronto } = useStatiAttivita();
+  const visibili = ATTIVITA.map(a => ({ ...a, stato: statoDi(a) })).filter(a => a.stato !== 'nascosta');
   return (
     <main className="min-h-screen px-8 py-12 max-w-5xl mx-auto flex flex-col">
       <nav className="flex justify-between items-center border-b border-stone-200 pb-6">
@@ -19,8 +22,8 @@ export default function LandingPage() {
         </p>
       </div>
 
-      <div className="flex-1 grid sm:grid-cols-2 gap-6 pb-16">
-        {ATTIVITA.map(attivita => (
+      <div className={`flex-1 grid sm:grid-cols-2 gap-6 pb-16 transition-opacity duration-500 ${pronto ? 'opacity-100' : 'opacity-0'}`}>
+        {visibili.map(attivita => (
           <div
             key={attivita.id}
             className={`rounded-3xl border p-8 flex flex-col justify-between transition ${
@@ -32,6 +35,11 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-3xl" aria-hidden="true">{attivita.icona}</span>
+                {attivita.stato === 'attiva' && attivita.accesso && (
+                  <span className="text-[10px] uppercase tracking-widest bg-stone-100 text-stone-500 px-2.5 py-1 rounded-full font-bold">
+                    Accesso {attivita.accesso.toLowerCase()}
+                  </span>
+                )}
                 {attivita.stato === 'prossimamente' && (
                   <span className="text-[10px] uppercase tracking-widest bg-stone-200 text-stone-500 px-2.5 py-1 rounded-full font-bold">
                     Prossimamente
