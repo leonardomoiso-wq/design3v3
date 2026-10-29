@@ -57,7 +57,7 @@ export function elementiDaSubmission(riga: any): ElementoConcept[] {
       chiave,
       gruppoNome: s.gruppo_nome,
       gruppoNum: s.gruppo_num,
-      titolo: voce.titolo?.trim() || `${conceptTitolo || 'Concept'} · immagine ${i + 1}`,
+      titolo: voce.titolo?.trim() || `${conceptTitolo || 'Concept'}, immagine ${i + 1}`,
       descrizione,
       immagine: img.url,
       tags: voce.tags || [],

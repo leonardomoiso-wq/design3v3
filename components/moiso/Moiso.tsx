@@ -41,19 +41,25 @@ export function useTendina() {
   const rif = useRef<HTMLDivElement>(null);
   const testo = useRef<HTMLSpanElement>(null);
   const occupata = useRef(false);
-  const mostra = useCallback(async (nome: string, cambia: () => void, pausa = 320) => {
+  const mostra = useCallback(async (nome: string, cambia: () => void, pausa = 140) => {
     const c = rif.current, t = testo.current;
     if (!c || !t || riduciMovimento()) { cambia(); return; }
     if (occupata.current) { cambia(); return; }
     occupata.current = true;
     t.textContent = nome;
     const E = 'cubic-bezier(.7,0,.25,1)';
-    await c.animate([{ transform: 'translateY(-101%)' }, { transform: 'none' }], { duration: 560, easing: E, fill: 'forwards' }).finished;
-    t.animate([{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+    // Discesa più breve; il testo compare insieme alla tendina.
+    const discesa = c.animate([{ transform: 'translateY(-101%)' }, { transform: 'none' }], { duration: 420, easing: E, fill: 'forwards' });
+    t.animate([{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'none' }], { duration: 360, delay: 160, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
+    await discesa.finished;
+    // Il cambio di contenuto avviene a tendina chiusa; l'uscita parte solo
+    // dopo che il browser ha disegnato la nuova schermata (due frame), così
+    // il lavoro di React non "inceppa" l'animazione di uscita.
     cambia();
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     await new Promise(r => setTimeout(r, pausa));
-    await c.animate([{ transform: 'none' }, { transform: 'translateY(101%)' }], { duration: 620, easing: E, fill: 'forwards' }).finished;
+    await c.animate([{ transform: 'none' }, { transform: 'translateY(101%)' }], { duration: 480, easing: E, fill: 'forwards' }).finished;
     c.getAnimations().forEach(a => a.cancel());
     t.getAnimations().forEach(a => a.cancel());
     occupata.current = false;

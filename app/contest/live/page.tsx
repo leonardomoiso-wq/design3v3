@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { NOME_PIATTAFORMA } from '@/lib/brand';
 import {
-  COLONNE_PROPOSTA, idDispositivo, messaggioErroreContest, rilevaDispositivo,
+  COLONNE_PROPOSTA, idDispositivo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Cornice, Odometro, Solidi, Sheet } from '@/components/moiso/Moiso';
@@ -28,6 +28,8 @@ export default function VotoLivePage() {
   const [festa, setFesta] = useState<{ x: number; y: number; cambio: boolean } | null>(null);
   const [dettaglio, setDettaglio] = useState<Proposta | null>(null);
   const caselle = useRef<(HTMLInputElement | null)[]>([]);
+  const [posizione, setPosizione] = useState<Posizione | null>(null);
+  useEffect(() => { ottieniPosizione().then(setPosizione); }, []);
   const { stat, scarto } = useStatistiche(contest?.id || null, 2000);
   const adesso = useAdesso(scarto, 500);
 
@@ -117,7 +119,8 @@ export default function VotoLivePage() {
     setErrore('');
     const { error } = await supabase.rpc('vota_live', {
       p_contest_id: contest.id, p_proposta_id: scelta, p_dispositivo_id: idDispositivo(), p_codice: codice,
-      p_dispositivo: rilevaDispositivo(), p_zona: 'In aula',
+      p_dispositivo: rilevaDispositivo(), p_zona: posizione?.zona || 'In aula',
+      p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
     });
     setInvio(false);
     if (error) {
@@ -170,7 +173,6 @@ export default function VotoLivePage() {
           <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 9vw, 84px)' }}>
             {mioVoto ? <>Voto chiuso. <span className="mz-blue">Guarda lo schermo</span>.</> : <>Il voto dal vivo <span className="mz-blue">non è aperto</span>.</>}
           </h1>
-          <p className="mz-muted" style={{ margin: 0 }}>Questa pagina si aggiorna da sola: quando il/la docente riapre il voto, compare qui.</p>
           <button type="button" className="mz-pill sm ghost" onClick={() => { try { sessionStorage.removeItem(CHIAVE); } catch {} setContest(null); setContestId(null); setCodiceOk(false); setCodice(''); setMioVoto(null); setScelta(null); }}>Ho un nuovo codice</button>
         </div>
       </section>,
@@ -180,7 +182,6 @@ export default function VotoLivePage() {
   if (!codiceOk) {
     return cornice(
       <section style={{ display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 22, padding: 24, textAlign: 'center' }}>
-        <span className="mz-mono">Voto dal vivo</span>
         <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 10vw, 84px)' }}>Inserisci il <span className="mz-blue">codice</span> sullo schermo.</h1>
         <div style={{ display: 'flex', gap: 10 }}>
           {[0, 1, 2, 3].map(i => (
@@ -200,7 +201,6 @@ export default function VotoLivePage() {
           ))}
         </div>
         {erroreCodice && <p role="alert" style={{ margin: 0, color: '#dc2626' }}>{erroreCodice}</p>}
-        <p className="mz-muted" style={{ margin: 0, fontSize: 14 }}>Un voto per dispositivo, anonimo. Puoi cambiarlo finché il voto resta aperto.</p>
       </section>,
     );
   }

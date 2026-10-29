@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente, aggiungiPasswordSessione } from '@/lib/docente-context';
 import { MAX_DRIVER } from '@/lib/driver';
@@ -128,11 +129,11 @@ export default function CorsoPage() {
     <div className="flex-1 overflow-y-auto p-4 md:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Ecosistema del corso</span>
-          <h1 className="text-2xl font-serif font-bold mt-1">{corso.nome}</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Studenti, team, consegne, attività e votazioni di questo corso sono separati da quelli degli altri corsi.
-          </p>
+          <h1 className="text-2xl font-serif font-bold">
+            {corso.nome}
+            <span className="apice">(Ecosistema del corso)</span>
+            <Info>Studenti, team, consegne, attività e votazioni di questo corso sono separati da quelli degli altri corsi.</Info>
+          </h1>
         </div>
 
         <Sezione titolo="Corso e accesso studenti" sottotitolo="Come gli studenti trovano ed entrano in questo corso.">

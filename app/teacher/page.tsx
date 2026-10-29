@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import Info from '@/components/Info';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, driverDaCoordinate, MAX_DRIVER } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
@@ -505,7 +507,7 @@ export default function TeacherPage() {
       <div className="flex justify-between items-start md:mt-1">
         <div className="min-w-0">
           <h2 className="text-lg md:text-2xl font-serif font-medium truncate md:whitespace-normal">{selezionato.titolo}</h2>
-          <p className="text-xs text-stone-500 truncate"><span className="md:hidden">Gruppo {selezionato.gruppoNum} &middot; </span>{selezionato.gruppoNome}</p>
+          <p className="text-xs text-stone-500 truncate"><span className="md:hidden">Gruppo {selezionato.gruppoNum} — </span>{selezionato.gruppoNome}</p>
           <MetaCaso anno={selezionato.anno} provenienza={selezionato.provenienza} className="mt-1.5" />
         </div>
         <StellaScelto
@@ -569,7 +571,6 @@ export default function TeacherPage() {
           <button onClick={() => spostaConTastiera(selezionato.id, 0, -10)} aria-label={`Sposta verso il basso (più ${et('responsabilita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">↓</button>
           <button onClick={() => spostaConTastiera(selezionato.id, 10, 0)} aria-label={`Sposta a destra (più ${et('fattibilita')})`} className="bg-white border border-stone-200 rounded-lg py-1.5 hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">→</button>
         </div>
-        <p className="text-[10px] text-stone-400 text-center">{mobile ? 'Da touch il trascinamento non è disponibile: usa le frecce.' : 'Alternativa al trascinamento per chi usa la tastiera.'}</p>
       </div>
 
       <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-3">
@@ -722,7 +723,7 @@ export default function TeacherPage() {
                   )}
                   {c.immagine ? (
                     <div className="w-9 h-9 max-md:w-8 max-md:h-8 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
-                      <img src={c.immagine} alt={c.titolo} title={mobile ? `${c.titolo} · G.${c.gruppoNum}` : undefined} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
+                      <img src={c.immagine} alt={c.titolo} title={mobile ? `${c.titolo} (G.${c.gruppoNum})` : undefined} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
                     <div className="w-9 h-9 max-md:w-8 max-md:h-8 rounded-xl bg-stone-100 flex items-center justify-center text-[10px] font-bold text-stone-400 flex-shrink-0">IMG</div>
@@ -731,7 +732,7 @@ export default function TeacherPage() {
                       miniatura: titolo e gruppo sono nel pannello dal basso. */}
                   <div className="overflow-hidden max-md:hidden">
                     <div className="text-xs font-bold truncate text-stone-900">{c.titolo}</div>
-                    <div className="text-[9px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}</div>
+                    <div className="text-[9px] text-stone-500 truncate">G.{c.gruppoNum} — {c.gruppoNome}</div>
                     {testoMeta(c.anno, c.provenienza) && (
                       <div className="text-[9px] text-stone-400 truncate tabular-nums">{testoMeta(c.anno, c.provenienza)}</div>
                     )}
@@ -781,11 +782,11 @@ export default function TeacherPage() {
 
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-stone-500 bg-white/90 backdrop-blur px-3.5 py-1.5 rounded-full border border-stone-200 shadow-sm whitespace-nowrap max-md:max-w-[calc(100%-1.5rem)] max-md:truncate">
               {casi.length.toLocaleString('it-IT')} {casi.length === 1 ? 'caso studio trovato' : 'casi studio trovati'}
-              {' '}&middot;{' '}
+              <Sep />
               {tuttiITag.length.toLocaleString('it-IT')} {tuttiITag.length === 1 ? 'tema diverso' : 'temi diversi'}
               {tempoCaricamentoMs !== null && (
                 <>
-                  {' '}&middot;{' '}
+                  <Sep />
                   caricati in {(tempoCaricamentoMs / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s
                 </>
               )}
@@ -839,8 +840,7 @@ export default function TeacherPage() {
         <div className="printable-area flex-1 p-4 md:p-12 overflow-y-auto bg-stone-200 space-y-6 md:space-y-12">
           <div className="print:hidden max-w-4xl mx-auto flex flex-col md:flex-row gap-4 md:justify-between md:items-center bg-white p-5 md:p-6 rounded-2xl shadow-sm">
             <div>
-              <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)</h2>
-              <p className="text-xs text-stone-500 mt-0.5">Ogni caso studio è impaginato come slide orizzontale indipendente. Clicca sotto per stampare o salvare in PDF.</p>
+              <h2 className="text-xl font-serif font-bold">Anteprima Pacchetto Slide (PDF)<Info>Ogni caso studio è impaginato come slide orizzontale indipendente. Clicca sotto per stampare o salvare in PDF.</Info></h2>
             </div>
             <button 
               onClick={() => window.print()}
@@ -857,7 +857,7 @@ export default function TeacherPage() {
               casi.map((c, index) => (
                 <div key={c.id} className="bg-white md:min-h-[28rem] print:min-h-[28rem] p-5 md:p-10 print:p-10 rounded-2xl shadow-lg border border-stone-300 flex flex-col page-break">
                   <div className="flex flex-wrap gap-2 justify-between items-center border-b border-stone-200 pb-3">
-                    <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">{corso.nome} &middot; Scheda {index + 1} di {casi.length}</span>
+                    <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">{corso.nome}<Sep />{String(index + 1).padStart(2, '0')} / {String(casi.length).padStart(2, '0')}</span>
                     <div className="flex items-center gap-2">
                       <StellaScelto valore={c.scelto} onCambia={v => impostaScelto(c, v)} className="text-lg" />
                       <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium flex items-center gap-1">
@@ -920,8 +920,7 @@ export default function TeacherPage() {
       {activeTab === 'analitica' && (
         <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-6xl mx-auto w-full space-y-6">
           <div>
-            <h2 className="text-2xl font-serif">Analitica e Cluster dei Casi Studio</h2>
-            <p className="text-stone-500 text-xs mt-1">Raggruppamento automatico dei progetti in base alle affinità di posizionamento strategico.</p>
+            <h2 className="text-2xl font-serif">Analitica e Cluster dei Casi Studio<Info>Raggruppamento automatico dei progetti in base alle affinità di posizionamento strategico.</Info></h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -930,7 +929,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.innovatori.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"><Sep />{testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -942,7 +941,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.sociali.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"><Sep />{testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -954,7 +953,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.strategici.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"><Sep />{testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -966,7 +965,7 @@ export default function TeacherPage() {
               <div className="space-y-2 pt-2">
                 {clusters.esplorativi.map(c => (
                   <button key={c.id} onClick={() => setCasoEspansoCluster(c)} className="w-full p-3 bg-stone-50 hover:bg-stone-100 hover:border-stone-300 rounded-xl border border-stone-200 text-xs flex justify-between items-center text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"> &middot; {testoMeta(c.anno, c.provenienza)}</span>}</span>
+                    <span><b>{c.titolo}</b> (Gruppo {c.gruppoNum}){testoMeta(c.anno, c.provenienza) && <span className="text-stone-400"><Sep />{testoMeta(c.anno, c.provenienza)}</span>}</span>
                     <span className="text-[10px] bg-stone-200 px-2 py-0.5 rounded flex-shrink-0 ml-2">X: {c.x}, Y: {c.y}</span>
                   </button>
                 ))}
@@ -1003,7 +1002,7 @@ export default function TeacherPage() {
             <div className="p-5 md:p-8 space-y-5">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} &middot; {casoEspansoCluster.gruppoNome}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {casoEspansoCluster.gruppoNum} — {casoEspansoCluster.gruppoNome}</span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspansoCluster.titolo}</h2>
                   <MetaCaso anno={casoEspansoCluster.anno} provenienza={casoEspansoCluster.provenienza} className="mt-2" />
                 </div>
@@ -1100,8 +1099,7 @@ export default function TeacherPage() {
 
           <div className="bg-white p-5 md:p-8 rounded-2xl border border-stone-200 shadow-sm space-y-4">
             <div>
-              <h2 className="text-lg font-serif font-bold">Gestione Codici di Gruppo</h2>
-              <p className="text-stone-500 text-xs mt-1">I codici non sono mai leggibili (nemmeno da qui): se un gruppo lo dimentica, imposta qui uno nuovo e comunicaglielo.</p>
+              <h2 className="text-lg font-serif font-bold">Gestione Codici di Gruppo<Info>I codici non sono mai leggibili (nemmeno da qui): se un gruppo lo dimentica, imposta qui uno nuovo e comunicaglielo.</Info></h2>
             </div>
 
             {casi.length === 0 ? (

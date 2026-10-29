@@ -5,6 +5,7 @@
 // tendina blu → 3, 2, 1 → immagine che si apre, titolo che sale lettera
 // per lettera, voti che contano, solidi che cadono e oscillano.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import {
@@ -78,7 +79,7 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
     );
   }
 
-  const titolo = vincitore.pari.length > 1 ? vincitore.pari.map(p => p.titolo).join(' · ') : vincitore.p.titolo;
+  const titolo = vincitore.pari.length > 1 ? vincitore.pari.map(p => p.titolo).join(' e ') : vincitore.p.titolo;
 
   return (
     <div ref={scena} style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'var(--scena)', color: 'var(--scena-testo)', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: 'clamp(24px, 4vw, 64px)', padding: 'clamp(28px, 4vw, 64px)', alignItems: 'center' }}>
@@ -98,7 +99,7 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
         <span style={{ fontSize: 'clamp(16px, 1.6vw, 22px)' }} className="mz-break">{vincitore.p.autori}</span>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
           <span className="mz-display" style={{ fontSize: 'clamp(60px, 7vw, 120px)', lineHeight: 1 }}><ContaSu valore={vincitore.n} /></span>
-          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>voti · {secondi}% del totale</span>
+          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>voti, {secondi}% del totale</span>
         </span>
         {podio.length > 0 && (
           <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10, borderTop: '1px solid var(--scena-filo)', paddingTop: 16 }}>
@@ -237,7 +238,7 @@ export default function ProiezionePage() {
       {/* Barra alta */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, padding: '22px clamp(24px, 3vw, 48px)', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', gap: 18, alignItems: 'baseline', minWidth: 0 }}>
-          <span className="mz-mono">{corso.nome} · Contest</span>
+          <span className="mz-mono">{corso.nome}</span>
           <span className="mz-display mz-break" style={{ fontSize: 'clamp(22px, 2.2vw, 34px)', lineHeight: 1.2, paddingBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{contest?.titolo || '…'}</span>
         </div>
         <span className="mz-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
@@ -275,7 +276,7 @@ export default function ProiezionePage() {
               <span className="mz-mono mz-break" style={{ fontSize: 13 }}>{origine.replace(/^https?:\/\//, '')}/contest/live</span>
               <div style={{ display: 'grid' }}>
                 <span className="mz-mono">Codice</span>
-                <span className="mz-display mz-num" style={{ fontSize: 'clamp(70px, 7vw, 120px)', lineHeight: .9, color: liveAperto ? 'var(--accento)' : 'var(--faint)', letterSpacing: '.02em' }}>{codice || '····'}</span>
+                <span className="mz-display mz-num" style={{ fontSize: 'clamp(70px, 7vw, 120px)', lineHeight: .9, color: liveAperto ? 'var(--accento)' : 'var(--faint)', letterSpacing: '.02em' }}>{codice || '— — — —'}</span>
               </div>
             </div>
           ) : (
@@ -291,7 +292,7 @@ export default function ProiezionePage() {
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {(stat?.ultimi || []).filter(u => base === 'combinato' || u.fase === base).slice(0, 7).map((u, i) => (
                 <li key={u.id + u.t} className={i === 0 ? 'mz-flash' : ''} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '9px 6px', borderTop: i ? '1px solid var(--line)' : undefined, borderRadius: 6, opacity: 1 - i * 0.11, fontSize: 15 }}>
-                  <span>{u.zona || 'Anonimo'} · <span className="mz-muted">{ETICHETTA_DISPOSITIVO[u.dispositivo] || 'Altro'}</span></span>
+                  <span>{u.zona || 'Anonimo'}<Sep /><span className="mz-muted">{ETICHETTA_DISPOSITIVO[u.dispositivo] || 'Altro'}</span></span>
                   <span className="mz-mono mz-num">{tempoFa(u.t, adesso)}</span>
                 </li>
               ))}

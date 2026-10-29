@@ -160,7 +160,7 @@ begin
     ('Design Case Studies', 'Sottomissione dei progetti, matrice a 4 driver, radar multicriterio e peer review con voto di gruppo in tempo reale.', 'design_case_studies', 0, 'attiva', false, false),
     ('Crazy 8 + Co-creazione Generativa', 'Sketch rapidi evoluti con AI image-to-image: caricamento sketch + generate, galleria di revisione e commenti per immagine.', 'crazy8_ai', 1, 'bozza', true, true),
     ('HMW + Role-Prompting', 'Stress test multi-ruolo degli How Might We: libreria di ruoli proposti dagli studenti, evoluzione da v1 a v2 con changelog visibile.', 'hmw_role_prompting', 2, 'bozza', true, true),
-    ('Contest · Il progetto migliore', 'Le proposte in gara e il voto anonimo: da remoto con countdown e dal vivo con il pubblico in aula, fino al vincitore svelato sullo schermo.', 'contest_voto', 3, 'bozza', false, false)
+    ('Contest del progetto migliore', 'Le proposte in gara e il voto anonimo, da remoto e dal vivo in aula.', 'contest_voto', 3, 'bozza', false, false)
   ) as v(titolo, descrizione, tipo, ordine, stato, log, rifl)
   where not exists (select 1 from attivita a where a.corso_id = p_corso_id and a.tipo = v.tipo);
 end;
@@ -168,8 +168,8 @@ $$;
 revoke execute on function semina_attivita_corso(uuid) from public, anon, authenticated;
 
 insert into attivita (corso_id, titolo, descrizione, tipo, ordine, stato, richiedi_log_prompt, richiedi_riflessione)
-select c.id, 'Contest · Il progetto migliore',
-  'Le proposte in gara e il voto anonimo: da remoto con countdown e dal vivo con il pubblico in aula, fino al vincitore svelato sullo schermo.',
+select c.id, 'Contest del progetto migliore',
+  'Le proposte in gara e il voto anonimo, da remoto e dal vivo in aula.',
   'contest_voto', coalesce((select max(a.ordine) + 1 from attivita a where a.corso_id = c.id), 0), 'bozza', false, false
 from corsi c
 where not exists (select 1 from attivita a where a.corso_id = c.id and a.tipo = 'contest_voto');

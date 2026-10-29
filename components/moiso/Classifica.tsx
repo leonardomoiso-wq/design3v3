@@ -71,7 +71,7 @@ export function Classifica({ righe, coperta = false, scuro = false, compatta = f
             onMouseEnter={() => setHover(r.proposta.id)}
             onMouseLeave={() => setHover(null)}
           >
-            <span className="mz-mono mz-num" style={{ color: primo ? 'var(--accento)' : undefined }}>{coperta ? '··' : String(i + 1).padStart(2, '0')}</span>
+            <span className="mz-mono mz-num" style={{ color: primo ? 'var(--accento)' : undefined }}>{coperta ? '—' : String(i + 1).padStart(2, '0')}</span>
             <button
               type="button"
               onClick={() => onApri?.(r.proposta)}
@@ -111,7 +111,7 @@ export function Classifica({ righe, coperta = false, scuro = false, compatta = f
             ))}
             {hover === r.proposta.id && !coperta && (
               <span className="mz-tip" style={{ left: '50%', top: 0 }}>
-                {r.proposta.titolo}: {r.voti} {r.voti === 1 ? 'voto' : 'voti'} · {perc}%
+                {r.proposta.titolo}: {r.voti} {r.voti === 1 ? 'voto' : 'voti'} ({perc}%)
               </span>
             )}
           </li>

@@ -151,7 +151,7 @@ export default function Valutazione({
                       <div key={c.id} className="space-y-1.5">
                         <p className="text-[11px] text-stone-500">
                           <b className="text-stone-700">{c.nome}</b>{c.obbligatoria && <span className="text-red-600"> *</span>}
-                          <span className="text-stone-400"> · {singola ? 'una sola voce' : 'una o più voci'}</span>
+                          <span className="text-stone-400"> ({singola ? 'una sola voce' : 'una o più voci'})</span>
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {c.tag.map(t => {
@@ -175,7 +175,7 @@ export default function Valutazione({
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">I 4 driver · da 0 a {MAX_DRIVER}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">I 4 driver, da 0 a {MAX_DRIVER}</p>
                   {driverCorso.map(d => {
                     const valore = v.driver?.[d.chiave]?.valore;
                     return (

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Sep from '@/components/Sep';
 import { MoodboardGriglia } from './Moodboard';
 import type { ChiaveDriver } from '@/lib/driver';
 import { CHIAVI_DRIVER_C8, MIN_MOODBOARD, risolviVoceMoodboard, sottoAmbitiDi, visioniDi, type Submission } from './shared';
@@ -22,7 +23,7 @@ function SchedaScenario({ s, scuro = false }: { s: Submission; scuro?: boolean }
   return (
     <div className={`rounded-2xl p-4 space-y-3 ${scuro ? 'bg-amber-400/10 border border-amber-400/30' : 'bg-amber-50 border border-amber-200'}`}>
       <p className={`text-[10px] font-bold uppercase tracking-widest ${scuro ? 'text-amber-300' : 'text-amber-800'}`}>
-        I sotto-ambiti{orizzonte ? ` · verso il ${orizzonte}` : ''}
+        I sotto-ambiti{orizzonte ? ` (verso il ${orizzonte})` : ''}
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
         {voci.map(v => (
@@ -68,7 +69,7 @@ function ProfiloDriver({ s, etichettaDriver, scuro = false }: { s: Submission; e
 }
 
 // Modalità share: ogni team presenta la propria moodboard e motiva le
-// scelte. La traccia "1. concept · 2. caratteristiche · 3. perché" è
+// scelte. La traccia "1. concept, 2. caratteristiche, 3. perché" è
 // sempre visibile, così chi presenta ha una scaletta e chi ascolta sa
 // cosa aspettarsi.
 
@@ -119,7 +120,7 @@ function Presentazione({ elenco, indiceIniziale, onChiudi, etichettaDriver }: { 
     <div className="fixed inset-0 z-50 bg-stone-950 text-white overflow-y-auto animate-fade-in" role="dialog" aria-modal="true" aria-label="Presentazione dei concept">
       <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800 sticky top-0 bg-stone-950/95 backdrop-blur z-10">
         <span className="text-xs uppercase tracking-widest text-stone-400">
-          Gruppo {s.gruppo_num} — {s.gruppo_nome} · {indice + 1}/{elenco.length}
+          Gruppo {s.gruppo_num} — {s.gruppo_nome}<Sep />{indice + 1} / {elenco.length}
         </span>
         <div className="flex items-center gap-2">
           <button onClick={() => setIndice(i => Math.max(0, i - 1))} disabled={indice === 0} className="h-9 w-9 rounded-full bg-stone-800 hover:bg-stone-700 disabled:opacity-30" aria-label="Team precedente">‹</button>
@@ -185,8 +186,8 @@ export default function Share({ submissions, propriaId, etichettaDriver }: { sub
             </div>
           </div>
           <div className="text-xs text-stone-500 bg-stone-50 rounded-xl p-3 border border-stone-100">
-            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) i sotto-ambiti: cosa sta cambiando e come potrebbe essere ·
-            2) il concept, immagine per immagine · 3) perché queste scelte, cosa avete scartato e come le avete valutate. Chiudete con una domanda alla classe.
+            <b className="text-stone-700">Traccia per la presentazione (2-3 minuti):</b> 1) i sotto-ambiti: cosa sta cambiando e come potrebbe essere;
+            2) il concept, immagine per immagine; 3) perché queste scelte, cosa avete scartato e come le avete valutate. Chiudete con una domanda alla classe.
           </div>
         </section>
       ) : (
@@ -212,7 +213,7 @@ export default function Share({ submissions, propriaId, etichettaDriver }: { sub
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-bold text-stone-900 truncate">{s.concept_titolo || 'Concept senza titolo'}</p>
-                  <p className="text-xs text-stone-500 truncate">Gruppo {s.gruppo_num} — {s.gruppo_nome}{s.id === propriaId ? ' · voi' : ''}</p>
+                  <p className="text-xs text-stone-500 truncate">Gruppo {s.gruppo_num} — {s.gruppo_nome}{s.id === propriaId ? ' (voi)' : ''}</p>
                 </div>
               </button>
             );

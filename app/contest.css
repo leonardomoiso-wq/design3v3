@@ -125,7 +125,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 }
 
 /* --- Tendina tra le schede del contest --- */
-.mz-curtain { position: fixed; inset: 0; z-index: 90; background: var(--ink); color: var(--bg); display: grid; place-items: center; pointer-events: none; transform: translateY(-101%); }
+.mz-curtain { position: fixed; inset: 0; z-index: 90; background: var(--ink); color: var(--bg); display: grid; place-items: center; pointer-events: none; transform: translateY(-101%); will-change: transform; contain: layout paint; backface-visibility: hidden; }
 .mz-curtain::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--accento-vivo); }
 .mz-curtain span { font-family: var(--f-display); font-weight: 500; font-size: clamp(40px, 7vw, 104px); letter-spacing: -.04em; text-align: center; padding: 0 20px; line-height: .95; }
 
@@ -182,3 +182,10 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
   .mz *, .mz *::before, .mz *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .mz-ticker-track { animation: none; }
 }
+
+/* --- Mappa del voto --- */
+.mz-mappa-pulsa { transform-box: fill-box; transform-origin: center; animation: mz-mappa-pulsa 2.4s var(--out) infinite; }
+@keyframes mz-mappa-pulsa { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.2); opacity: 0; } }
+.mz-mappa-onda { transform-box: fill-box; transform-origin: center; animation: mz-mappa-onda 1.6s var(--out) forwards; }
+@keyframes mz-mappa-onda { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.4); opacity: 0; } }
+@media (max-width: 700px) { .mz-mappa-col { grid-column: auto !important; } }

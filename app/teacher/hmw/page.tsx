@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 
@@ -87,8 +88,7 @@ export default function HmwDocentePage() {
     <div className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-serif">🎭 HMW + Role-Prompting</h1>
-          <p className="text-stone-500 text-xs mt-1">Libreria ruoli e cronologia HMW dei team.</p>
+          <h1 className="text-2xl font-serif">🎭 HMW + Role-Prompting<Info>Libreria ruoli e cronologia HMW dei team.</Info></h1>
         </div>
         <div className="space-x-2">
           <button onClick={() => setActiveTab('ruoli')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${activeTab === 'ruoli' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>Libreria Ruoli</button>

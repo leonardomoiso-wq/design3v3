@@ -4,6 +4,7 @@
 // dettaglio in uno sheet (problema → proposta → perché votarla), e la
 // modalità "Presenta" a copertine in profondità.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Sep from '@/components/Sep';
 import type { Proposta } from '@/lib/contest';
 import { pad, riduciMovimento } from '@/lib/contest';
 import { Cornice } from './Moiso';
@@ -68,7 +69,7 @@ function Blocco({ n, titolo, testo, blu }: { n: string; titolo: string; testo: s
   if (!testo.trim()) return null;
   return (
     <section className="mz-blocco" style={blu ? { borderTopColor: 'var(--accento-vivo)' } : undefined}>
-      <span className="mz-mono" style={{ color: blu ? 'var(--accento)' : undefined }}>{n} · {titolo}</span>
+      <span className="mz-mono" style={{ color: blu ? 'var(--accento)' : undefined }}>{titolo}<span style={{ marginLeft: 6, opacity: .7 }}>({n})</span></span>
       <p className="mz-break" style={{ margin: 0, fontSize: blu ? 19 : 16.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: blu ? 'var(--ink)' : undefined }}>{testo}</p>
     </section>
   );
@@ -80,7 +81,7 @@ export function DettaglioProposta({ p, indice }: { p: Proposta; indice: number }
   return (
     <article style={{ display: 'grid', gap: 'clamp(22px, 3vw, 36px)', padding: 'clamp(20px, 4vw, 44px)' }}>
       <header className="mz-in" style={{ display: 'grid', gap: 12 }}>
-        <span className="mz-mono">({pad(indice + 1)}) · {p.autori || 'Proposta'}</span>
+        <span className="mz-mono">{p.autori || 'Proposta'}<span className="mz-blue" style={{ marginLeft: 6 }}>({pad(indice + 1)})</span></span>
         <h2 className="mz-display mz-break" style={{ fontSize: 'clamp(40px, 6vw, 84px)' }}>{p.titolo}</h2>
         {p.sintesi && <p className="mz-break" style={{ margin: 0, fontSize: 'clamp(19px, 2.2vw, 26px)', lineHeight: 1.3, maxWidth: 700 }}>{p.sintesi}</p>}
       </header>
@@ -224,7 +225,7 @@ export function StackProposte({ proposte, onApri, mioVoto }: { proposte: Propost
           >
             <Cornice src={p.immagine} alt="" style={{ position: 'absolute', inset: 0 }} />
             <span style={{ position: 'absolute', inset: 'auto 0 0 0', padding: '40px 18px 16px', background: 'linear-gradient(transparent, rgba(5,7,15,.78))', color: '#fff', display: 'grid', gap: 4 }}>
-              <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)' }}>({pad(i + 1)}){mioVoto === p.id ? ' · il tuo voto' : ''}</span>
+              <span className="mz-mono" style={{ color: 'rgba(255,255,255,.8)' }}>({pad(i + 1)}){mioVoto === p.id && <><Sep />il tuo voto</>}</span>
               <span className="mz-display mz-break" style={{ fontSize: 'clamp(24px, 3vw, 40px)' }}>{p.titolo}</span>
             </span>
           </button>
@@ -232,7 +233,7 @@ export function StackProposte({ proposte, onApri, mioVoto }: { proposte: Propost
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 16, alignItems: 'end' }}>
         <div key={corrente.id} className="mz-fade" style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-          <span className="mz-mono mz-num">{pad(indice + 1)} / {pad(N)} · {corrente.autori}</span>
+          <span className="mz-mono mz-num">{pad(indice + 1)} / {pad(N)}<Sep />{corrente.autori}</span>
           <span className="mz-display mz-break" style={{ fontSize: 'clamp(26px, 3.4vw, 44px)' }}>{corrente.titolo}</span>
           {corrente.sintesi && <span className="mz-muted mz-break" style={{ fontSize: 16, maxWidth: 640 }}>{corrente.sintesi}</span>}
         </div>

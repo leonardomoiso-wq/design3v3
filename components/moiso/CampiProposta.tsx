@@ -42,7 +42,7 @@ export function CampiProposta({ dati, onCambia, conAutori = false }: {
         </label>
       )}
       <div className="mz-field">
-        <span className="mz-mono">01 · Immagine di copertina</span>
+        <span className="mz-mono">Immagine di copertina<span className="mz-blue" style={{ marginLeft: 6 }}>(01)</span></span>
         <span className="mz-muted" style={{ fontSize: 13.5 }}>È la prima cosa che si vede: scegline una grande e leggibile, orizzontale.</span>
         <label style={{ cursor: 'pointer', display: 'block', borderRadius: 14, overflow: 'hidden', boxShadow: 'inset 0 0 0 1px var(--line)', background: 'var(--surface)', aspectRatio: '16 / 9', position: 'relative' }}>
           {dati.immagine
@@ -70,14 +70,14 @@ export function CampiProposta({ dati, onCambia, conAutori = false }: {
       </div>
 
       <label className="mz-field">
-        <span className="mz-mono">02 · Titolo</span>
+        <span className="mz-mono">Titolo<span className="mz-blue" style={{ marginLeft: 6 }}>(02)</span></span>
         <input className="mz-input" value={dati.titolo} onChange={e => set('titolo', e.target.value)} maxLength={90}
           style={{ fontFamily: 'var(--f-display)', fontSize: 24, letterSpacing: '-.02em' }} placeholder="Un nome che si ricorda" />
       </label>
 
       <label className="mz-field">
         <span className="mz-mono" style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>03 · In una frase</span>
+          <span>In una frase<span className="mz-blue" style={{ marginLeft: 6 }}>(03)</span></span>
           <span className="mz-num" style={{ color: dati.sintesi.length > LIMITE_SINTESI - 20 ? 'var(--accento)' : undefined }}>{dati.sintesi.length}/{LIMITE_SINTESI}</span>
         </span>
         <span className="mz-muted" style={{ fontSize: 13.5 }}>Cosa fa e per chi. È la riga che chi vota legge sotto il titolo.</span>
@@ -86,15 +86,15 @@ export function CampiProposta({ dati, onCambia, conAutori = false }: {
       </label>
 
       <label className="mz-field">
-        <span className="mz-mono">04 · Il problema</span>
+        <span className="mz-mono">Il problema<span className="mz-blue" style={{ marginLeft: 6 }}>(04)</span></span>
         <textarea className="mz-input" value={dati.problema} onChange={e => set('problema', e.target.value)} maxLength={1200} placeholder="Quale situazione volete cambiare? Per chi è un problema?" />
       </label>
       <label className="mz-field">
-        <span className="mz-mono">05 · La proposta</span>
+        <span className="mz-mono">La proposta<span className="mz-blue" style={{ marginLeft: 6 }}>(05)</span></span>
         <textarea className="mz-input" value={dati.proposta} onChange={e => set('proposta', e.target.value)} maxLength={2000} style={{ minHeight: 130 }} placeholder="Come funziona, con quali materiali o servizi, cosa cambia rispetto a oggi." />
       </label>
       <label className="mz-field">
-        <span className="mz-mono mz-blue">06 · Perché votarla</span>
+        <span className="mz-mono mz-blue">Perché votarla<span style={{ marginLeft: 6 }}>(06)</span></span>
         <textarea className="mz-input" value={dati.perche} onChange={e => set('perche', e.target.value)} maxLength={600} placeholder="Il motivo più forte, in due o tre righe. Comparirà evidenziato in blu." />
       </label>
     </div>

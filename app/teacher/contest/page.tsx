@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import type { StatoAttivita } from '@/lib/attivita';
@@ -13,6 +14,7 @@ import { DashboardVoto } from '@/components/moiso/DashboardVoto';
 import { Countdown } from '@/components/moiso/Countdown';
 import { CampiProposta, PROPOSTA_VUOTA, type DatiProposta } from '@/components/moiso/CampiProposta';
 import { QR } from '@/components/moiso/QR';
+import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
 type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string };
@@ -22,10 +24,10 @@ const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
 
 const FASI: FaseContest[] = ['bozza', 'anteprima', 'voto', 'chiuso'];
 const DESCR_FASE: Record<FaseContest, string> = {
-  bozza: 'Solo tu lo vedi. Prepara testi e proposte.',
-  anteprima: 'Gli studenti vedono le proposte (e, se previsto, candidano la loro). Il voto non è ancora aperto.',
-  voto: 'Gli iscritti votano da remoto fino alla scadenza.',
-  chiuso: 'Voto chiuso, risultati visibili a tutti.',
+  bozza: 'Visibile solo a te.',
+  anteprima: 'Proposte visibili, voto chiuso.',
+  voto: 'Voto aperto fino alla scadenza.',
+  chiuso: 'Risultati visibili a tutti.',
 };
 const DURATE = [{ s: 60, l: '1 min' }, { s: 120, l: '2 min' }, { s: 180, l: '3 min' }, { s: 300, l: '5 min' }, { s: 0, l: 'Senza limite' }];
 
@@ -35,11 +37,11 @@ const inLocale = (iso: string | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-function Riquadro({ n, titolo, children, azioni }: { n: string; titolo: string; children: React.ReactNode; azioni?: React.ReactNode }) {
+function Riquadro({ n, titolo, children, azioni, info }: { n: string; titolo: string; children: React.ReactNode; azioni?: React.ReactNode; info?: React.ReactNode }) {
   return (
     <section className="mz-in" style={{ display: 'grid', gap: 18, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 24, padding: 'clamp(18px, 2.4vw, 28px)', boxShadow: '0 1px 2px rgba(28,25,23,.04)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <span className="mz-mono" style={{ color: 'var(--ink-2)' }}><span className="mz-blue">{n}</span> · {titolo}</span>
+        <span className="mz-mono" style={{ color: 'var(--ink-2)' }}>{titolo}<span className="mz-blue" style={{ marginLeft: 6 }}>({n})</span>{info && <Info lato="destra">{info}</Info>}</span>
         {azioni}
       </div>
       {children}
@@ -197,7 +199,7 @@ export default function ContestDocentePage() {
             <li key={c.id}>
               <button type="button" onClick={() => setSelId(c.id)} aria-current={c.id === selId}
                 style={{ all: 'unset', cursor: 'pointer', display: 'grid', gap: 2, width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, background: c.id === selId ? 'var(--ink)' : 'transparent', color: c.id === selId ? 'var(--bg)' : 'inherit', transition: 'background .3s' }}>
-                <span className="mz-mono" style={{ color: 'inherit', opacity: .7 }}>({pad(lista.length - i)}) · {ETICHETTA_FASE[c.fase]}{c.live_stato === 'aperto' ? ' · live' : ''}</span>
+                <span className="mz-mono" style={{ color: 'inherit', opacity: .7 }}>({pad(lista.length - i)})<Sep />{ETICHETTA_FASE[c.fase]}{c.live_stato === 'aperto' && <><Sep />live</>}</span>
                 <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 18, letterSpacing: '-.02em' }}>{c.titolo}</span>
               </button>
             </li>
@@ -205,7 +207,7 @@ export default function ContestDocentePage() {
           {lista.length === 0 && <li className="mz-muted" style={{ fontSize: 14 }}>Nessun contest. Creane uno.</li>}
         </ul>
         <div className="mz-hair" style={{ paddingTop: 14, display: 'grid', gap: 8 }}>
-          <span className="mz-mono">Attività in home · come nel pannello Attività</span>
+          <span className="mz-mono">Attività in home</span>
           {attivitaContest ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {STATI_ATTIVITA.map(o => (
@@ -225,7 +227,7 @@ export default function ContestDocentePage() {
         {!sel ? (
           <div style={{ display: 'grid', gap: 16, justifyItems: 'start', paddingTop: 40 }}>
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 6vw, 80px)' }}>Crea il primo <span className="mz-blue">contest</span>.</h1>
-            <p className="mz-muted" style={{ margin: 0, maxWidth: 520 }}>Nasce in bozza: lo vedi solo tu. Carica le proposte, poi mettilo in anteprima o apri il voto.</p>
+            <p className="mz-muted" style={{ margin: 0, maxWidth: 520 }}>Nasce in bozza, visibile solo a te.</p>
             <button type="button" className="mz-pill b lg" onClick={nuovo}>+ Nuovo contest</button>
           </div>
         ) : (
@@ -233,11 +235,10 @@ export default function ContestDocentePage() {
             <header style={{ display: 'grid', gap: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
                 <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-                  <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-                    <span className={`mz-live-dot ${sel.fase === 'voto' || liveAperto ? '' : 'off'}`} />
-                    {ETICHETTA_FASE[sel.fase]}{liveAperto ? ' · voto dal vivo aperto' : ''} · {ETICHETTA_ISCRIZIONE[sel.iscrizione]}
-                  </span>
-                  <h1 className="mz-display mz-break" style={{ fontSize: 'clamp(38px, 5vw, 72px)' }}>{sel.titolo}<span className="mz-sup">({pad(visibili.length)})</span></h1>
+                  <h1 className="mz-display mz-break" style={{ fontSize: 'clamp(38px, 5vw, 72px)' }}>
+                    {(sel.fase === 'voto' || liveAperto) && <span className="mz-live-dot" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 18 }} aria-label="Voto in corso" />}
+                    {sel.titolo}<span className="mz-sup">({pad(visibili.length)})</span>
+                  </h1>
                 </div>
                 <a href={`/teacher/contest/proiezione?id=${sel.id}`} target="_blank" rel="noreferrer" className="mz-pill lg">Proietta in aula ⤢</a>
               </div>
@@ -255,7 +256,7 @@ export default function ContestDocentePage() {
                         <li key={f}>
                           <button type="button" onClick={() => f !== 'voto' && impostaFase(f)} disabled={f === 'voto'}
                             style={{ all: 'unset', cursor: f === 'voto' ? 'default' : 'pointer', boxSizing: 'border-box', width: '100%', height: '100%', display: 'grid', gap: 6, padding: 16, borderRadius: 14, background: corrente ? 'var(--accento-tenue)' : 'var(--paper)', color: 'inherit', boxShadow: corrente ? 'inset 0 0 0 2px var(--accento-vivo)' : 'inset 0 0 0 1px var(--line)', transition: 'background .4s' }}>
-                            <span className="mz-mono" style={{ color: 'inherit', opacity: .75 }}>{pad(i + 1)}{corrente ? ' · ora' : ''}</span>
+                            <span className="mz-mono" style={{ color: 'inherit', opacity: .75 }}>{pad(i + 1)}{corrente && <><Sep />ora</>}</span>
                             <span style={{ fontFamily: 'var(--f-display)', fontSize: 22, letterSpacing: '-.02em' }}>{ETICHETTA_FASE[f]}</span>
                             <span style={{ fontSize: 13, opacity: .8 }}>{DESCR_FASE[f]}</span>
                           </button>
@@ -264,7 +265,7 @@ export default function ContestDocentePage() {
                     })}
                   </ol>
                   <div style={{ display: 'grid', gap: 12, padding: 18, borderRadius: 14, boxShadow: 'inset 0 0 0 1px var(--line)', background: 'var(--paper)' }}>
-                    <span className="mz-mono" style={{ color: 'var(--ink)' }}>Voto da remoto · scadenza del countdown</span>
+                    <span className="mz-mono" style={{ color: 'var(--ink)' }}>Scadenza del voto da remoto</span>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                       <input type="datetime-local" className="mz-input" style={{ width: 'auto' }} value={scadenza} onChange={e => setScadenza(e.target.value)} aria-label="Scadenza del voto" />
                       {[{ l: '+1 ora', ms: 3600e3 }, { l: '+1 giorno', ms: 86400e3 }, { l: '+3 giorni', ms: 3 * 86400e3 }, { l: '+1 settimana', ms: 7 * 86400e3 }].map(x => (
@@ -280,10 +281,9 @@ export default function ContestDocentePage() {
                   </div>
                 </Riquadro>
 
-                <Riquadro n="02" titolo="Voto dal vivo, dal pubblico">
+                <Riquadro n="02" titolo="Voto dal vivo, dal pubblico" info="Il pubblico vota dal telefono senza iscriversi, un voto per dispositivo, con il QR o il codice proiettato. Un voto dal vivo aperto alla volta.">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 24, alignItems: 'start' }}>
                     <div style={{ display: 'grid', gap: 14 }}>
-                      <p style={{ margin: 0, fontSize: 14.5 }}>Il pubblico vota dal telefono senza iscriversi (un voto per dispositivo), inquadrando il QR o scrivendo il codice proiettato. Si apre un voto dal vivo alla volta.</p>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {DURATE.map(d => <button key={d.s} type="button" className="mz-chip" aria-pressed={durata === d.s} onClick={() => setDurata(d.s)}>{d.l}</button>)}
                       </div>
@@ -331,7 +331,7 @@ export default function ContestDocentePage() {
                     </div>
                     <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
                       <input type="checkbox" checked={bozza.mostra_classifica} onChange={e => setBozza({ ...bozza, mostra_classifica: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
-                      Mostra la classifica agli studenti durante il voto (di solito resta coperta fino alla scadenza)
+                      Classifica visibile durante il voto
                     </label>
                   </div>
                 </Riquadro>
@@ -358,12 +358,12 @@ export default function ContestDocentePage() {
                       <li key={p.id} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr) auto', gap: 16, alignItems: 'center', padding: '14px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: p.nascosta ? .45 : 1 }}>
                         <Cornice src={p.immagine} alt="" style={{ width: 96, aspectRatio: '4 / 3', borderRadius: 12 }} etichettaVuota="—" />
                         <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                          <span className="mz-mono mz-break">({pad(i + 1)}) · {p.autori || 'Senza autori'}{p.nascosta ? ' · nascosta' : ''}{p.team_id ? ' · candidata dagli studenti' : ''}</span>
+                          <span className="mz-mono mz-break">({pad(i + 1)})<Sep />{p.autori || 'Senza autori'}{p.nascosta && <><Sep />nascosta</>}{p.team_id && <><Sep />candidata dagli studenti</>}</span>
                           <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 22, letterSpacing: '-.02em' }}>{p.titolo}</span>
                           <span className="mz-muted mz-break" style={{ fontSize: 13.5 }}>{p.sintesi}</span>
                         </div>
                         <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-                          <span className="mz-mono mz-num" style={{ color: 'var(--ink)' }}>{v ? `${v.remoto} remoto · ${v.live} live` : '0 voti'}</span>
+                          <span className="mz-mono mz-num" style={{ color: 'var(--ink)' }}>{v ? <>{v.remoto} remoto<Sep />{v.live} live</> : '0 voti'}</span>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'end' }}>
                             <button type="button" className="mz-pill sm ghost" onClick={() => setModifica({ id: p.id, dati: { titolo: p.titolo, sintesi: p.sintesi, problema: p.problema, proposta: p.proposta, perche: p.perche, immagine: p.immagine, galleria: p.galleria, autori: p.autori } })}>Modifica</button>
                             <button type="button" className="mz-pill sm ghost" onClick={() => azioneProposta('docente_nascondi_proposta', { p_id: p.id, p_nascosta: !p.nascosta }, p.nascosta ? 'Proposta di nuovo visibile' : 'Proposta nascosta')}>{p.nascosta ? 'Mostra' : 'Nascondi'}</button>
@@ -385,8 +385,7 @@ export default function ContestDocentePage() {
               : <p className="mz-muted">Carico i dati…</p>)}
 
             {sezione === 'iscritti' && (
-              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
-                <p className="mz-muted" style={{ margin: 0, fontSize: 14 }}>Gli iscritti del corso: team e accessi individuali. Ognuno ha un voto per contest ({ETICHETTA_ISCRIZIONE[sel.iscrizione].toLowerCase()}).</p>
+              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`Team e accessi individuali del corso, un voto per contest (${ETICHETTA_ISCRIZIONE[sel.iscrizione].toLowerCase()}).`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {iscritti.map((s, i) => {
                     const puo = sel.iscrizione === 'entrambe' || sel.iscrizione === (s.tipo || 'gruppo');
@@ -394,7 +393,7 @@ export default function ContestDocentePage() {
                       <li key={s.numero} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: puo ? 1 : .45 }}>
                         <div style={{ minWidth: 0 }}>
                           <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
-                          <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero} · ${s.membri.length} membri`}</span>
+                          <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}</span>
                           {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
                         </div>
                         <span className="mz-mono">{puo ? 'vota' : 'non vota in questo contest'}</span>

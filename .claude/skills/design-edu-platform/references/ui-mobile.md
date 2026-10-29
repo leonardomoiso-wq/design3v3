@@ -73,3 +73,9 @@ Tailwind, palette neutra calda (`stone`, sfondo `#FBF9F5`), titoli in `font-seri
 - Finestre: le modali scritte a mano (`role="dialog"` + `bg-stone-900/60`) entrano con la stessa molla e su telefono diventano pannelli dal basso, senza toccarne il codice. `BottomSheet` ha `desktop="lato"` per i dettagli lunghi (pannello da destra a tutta altezza).
 - Animazioni di ingresso con `animation-fill-mode: backwards`, mai `both`: un'animazione che resta "attiva" crea un contesto di sovrapposizione e intrappola i pannelli `position: fixed` (la proiezione finiva sotto l'intestazione) e blocca le trasformazioni in hover.
 - Il Contest (`app/contest.css`, classi `.mz-*`) usa gli stessi token, più gli effetti di scena: tendina, forme appese, contatori a cifre rotanti, scena ambra per voto e vincitore.
+
+## Testi: solo i livelli di lettura che servono
+
+- Niente occhiello sopra il titolo né riga grigia di spiegazione sotto: l'etichetta va in apice al titolo (`<span className="apice">(Design 3)</span>`, contatori come `(01 / 06)`), la spiegazione dietro `components/Info.tsx` (icona ⓘ che si apre al tocco).
+- Niente "·" come separatore: nelle interfacce si usa spazio (`components/Sep.tsx`, con virgola per i lettori di schermo); nei testi semplici virgola, trattino lungo o parentesi.
+- Resta visibile solo ciò che serve per agire: etichette dei campi, avvisi d'errore, conferme di azioni irreversibili, guide didattiche del form (es. la descrizione critica).

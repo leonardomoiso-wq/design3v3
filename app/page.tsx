@@ -9,6 +9,7 @@ import { caricaCorsiPubblici, caricaCorsoPerCodice, NOME_PIATTAFORMA, type Corso
 import { ascoltaCorso } from '../lib/realtime';
 import { ActionSheet, BottomSheet } from '../components/PannelliMobile';
 import PillaScorrevole from '../components/PillaScorrevole';
+import Info from '../components/Info';
 
 // Testi di presentazione del corso in cui si trova lo studente.
 function useTestiPiattaforma() {
@@ -88,8 +89,10 @@ function SceltaCorso() {
 
       <div className="flex-1 py-10 sm:py-14 space-y-8 animate-fade-in-up">
         <div className="text-center space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-serif leading-tight">In quale corso siete?</h1>
-          <p className="text-stone-600 text-sm sm:text-base max-w-lg mx-auto">Ogni corso ha i propri team, attività e consegne. Scegliete il vostro: potrete cambiarlo in qualsiasi momento.</p>
+          <h1 className="text-3xl sm:text-4xl font-serif leading-tight">
+            In quale corso siete?
+            <Info>Ogni corso ha team, attività e consegne propri. Si può cambiare in qualsiasi momento.</Info>
+          </h1>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto w-full entra-cascata">
@@ -179,10 +182,10 @@ function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => v
 
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
-          <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
-            {testi.incipit_badge}
-          </div>
-          <h1 className="text-4xl font-serif leading-tight">{testi.incipit_titolo}</h1>
+          <h1 className="text-4xl font-serif leading-tight">
+            {testi.incipit_titolo}
+            {testi.incipit_badge && <span className="apice">({testi.incipit_badge})</span>}
+          </h1>
           <p className="text-stone-600 text-base leading-relaxed whitespace-pre-line">
             {testi.incipit_testo}
           </p>
@@ -192,11 +195,7 @@ function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => v
           >
             Entra: in team o da soli →
           </button>
-          {accessoDirettoOn && (
-            <p className="text-[11px] text-stone-400 whitespace-pre-line">
-              {testi.incipit_nota}
-            </p>
-          )}
+          {accessoDirettoOn && testi.incipit_nota && <Info><span className="whitespace-pre-line">{testi.incipit_nota}</span></Info>}
         </div>
       </div>
     </main>
@@ -316,12 +315,12 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
       <div className="flex-1 flex items-center justify-center py-12">
       <div className="max-w-md w-full space-y-5 animate-fade-in-up">
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-serif">{individuale ? 'Il tuo accesso' : 'Il vostro team'}</h1>
-          <p className="text-sm text-stone-500">
-            {individuale
-              ? 'Per le attività in cui l’impegno è individuale. Nome e password sono a tua scelta: tienili a mente.'
-              : 'Nome e password sono a vostra scelta: teneteli a mente, vi serviranno per ritrovare il team (o il vostro accesso individuale).'}
-          </p>
+          <h1 className="text-2xl font-serif">
+            {individuale ? 'Il tuo accesso' : 'Il vostro team'}
+            <Info>{individuale
+              ? 'Per le attività individuali. Nome e password li scegli tu: tienili a mente.'
+              : 'Nome e password li scegliete voi: servono per ritrovare il team da qualsiasi dispositivo.'}</Info>
+          </h1>
         </div>
 
         <div className="relative flex bg-stone-100 rounded-full p-1">
@@ -362,11 +361,10 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
           {scheda === 'crea' && (
             <>
               <select value={domandaSegreta} onChange={e => setDomandaSegreta(e.target.value)} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900">
-                <option value="">Scegliete una domanda segreta...</option>
+                <option value="">Domanda segreta, per recuperare la password</option>
                 {DOMANDE_SUGGERITE.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-              <p className="text-[11px] text-stone-400">Vi servirà solo se dimenticate la password.</p>
 
               {!individuale && <div className="border-t border-stone-100 pt-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Chi c&apos;è nel team?</p>
@@ -558,15 +556,11 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
       )}
 
       <div className="pt-16 pb-10 text-center space-y-5">
-        <div className="inline-block text-xs uppercase tracking-widest bg-stone-200/60 px-3 py-1 rounded-full text-stone-600">
-          {testi.home_badge}
-        </div>
         <h1 className="text-5xl md:text-6xl font-serif max-w-3xl mx-auto leading-tight">
           {testi.home_titolo}
+          {testi.home_badge && <span className="apice">({testi.home_badge})</span>}
+          {testi.home_sottotitolo && <Info>{testi.home_sottotitolo}</Info>}
         </h1>
-        <p className="text-stone-600 max-w-xl mx-auto text-base leading-relaxed">
-          {testi.home_sottotitolo}
-        </p>
       </div>
 
       <div className="flex-1 grid sm:grid-cols-2 gap-6 pb-16 content-start entra-cascata">
@@ -618,17 +612,12 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
                     </a>
                   )}
                 </div>
-              ) : (
-                <div className="mt-6 text-xs text-stone-400 font-medium">In arrivo</div>
-              )}
+              ) : null}
             </div>
           );
         })}
       </div>
 
-      <footer className="text-center text-xs text-stone-400 border-t border-stone-200 pt-6">
-        {NOME_PIATTAFORMA}
-      </footer>
     </main>
   );
 }

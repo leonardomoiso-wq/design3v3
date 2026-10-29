@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '../../lib/supabase';
 import { useTeam, etichettaTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
@@ -236,8 +237,7 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
         </div>
       </div>
 
-      <h1 className="text-2xl font-serif mb-1">🎭 HMW + Role-Prompting</h1>
-      <p className="text-sm text-stone-500 mb-6">Scrivete il vostro How Might We, fatelo evolvere da v1 a v2, e mettetelo alla prova con punti di vista diversi.</p>
+      <h1 className="text-2xl font-serif mb-6">🎭 HMW + Role-Prompting<Info>Scrivete il vostro How Might We, fatelo evolvere da v1 a v2 e mettetelo alla prova con punti di vista diversi.</Info></h1>
 
       <div className="space-y-5">
         {!team && (
@@ -293,9 +293,8 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
             <textarea rows={2} value={riflessione} onChange={e => setRiflessione(e.target.value)} placeholder="Cosa è cambiato rispetto alla versione precedente e perché?" className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
           </div>
           <div>
-            <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+            <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo{iterazioniDelTeam.length === 0 && <Info lato="destra">Serve per salvare le versioni successive. Conservatelo: non è recuperabile.</Info>}</label>
             <input type="password" minLength={4} value={codiceGruppo} onChange={e => setCodiceGruppo(e.target.value)} placeholder={iterazioniDelTeam.length === 0 ? 'Scegli un codice (min. 4 caratteri)...' : 'Il codice scelto alla v1...'} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-            {iterazioniDelTeam.length === 0 && <p className="text-[11px] text-stone-400 mt-1">Vi servirà per salvare le versioni successive: conservatelo, non è recuperabile.</p>}
           </div>
 
           {erroreSalvataggio && <p className="text-xs text-red-600 font-medium text-center bg-red-50 border border-red-200 rounded-xl p-3">{erroreSalvataggio}</p>}
@@ -340,8 +339,7 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
         )}
 
         <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Proponi un Ruolo per la Libreria</h2>
-          <p className="text-xs text-stone-500">Ogni ruolo passa da un template fisso: voi scegliete solo chi è, il/la docente lo approva prima che si possa usare.</p>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Proponi un Ruolo per la Libreria<Info>Ogni ruolo passa da un template fisso: voi scegliete solo chi è, il/la docente lo approva prima che si possa usare.</Info></h2>
           <div>
             <label className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Ruolo</label>
             <input type="text" value={nomeRuoloProposto} onChange={e => setNomeRuoloProposto(e.target.value)} placeholder="Es. Ingegnere dei materiali" className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />

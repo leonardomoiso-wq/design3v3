@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
@@ -30,7 +32,7 @@ function immaginiFlat(submission: any): ImmagineLightbox[] {
         label: 'Sketch',
         gruppoNum: submission.gruppo_num,
         gruppoNome: submission.gruppo_nome,
-        contatore: totaleRound > 0 ? `Sketch di partenza · ${totaleRound} round a seguire` : 'Sketch di partenza · nessun round ancora',
+        contatore: totaleRound > 0 ? `Sketch di partenza, poi ${totaleRound} round` : 'Sketch di partenza, nessun round ancora',
         prompt: null,
         deduzione: null,
       },
@@ -68,7 +70,7 @@ function Lightbox({ immagini, indice, onCambiaIndice, onChiudi }: { immagini: Im
       onClick={onChiudi}
     >
       <div className="flex items-center justify-between w-full mb-3 text-stone-400 text-xs uppercase tracking-widest flex-shrink-0" onClick={e => e.stopPropagation()}>
-        <span>{corrente.label} · {indice + 1} / {immagini.length}</span>
+        <span>{corrente.label}<Sep />{indice + 1} / {immagini.length}</span>
         <button onClick={onChiudi} className="text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
       </div>
       <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row gap-4" onClick={e => e.stopPropagation()}>
@@ -202,10 +204,9 @@ function GestionePromptSuggeriti({ passcode, corsoId, onChiudi }: { passcode: st
     <div className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" onClick={onChiudi}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center">
-          <h2 className="font-serif font-bold text-lg">Prompt suggeriti per Crazy 8</h2>
+          <h2 className="font-serif font-bold text-lg">Prompt suggeriti per Crazy 8<Info>Direzioni di prompt che gli studenti vedono come ispirazione mentre scrivono un nuovo round (es. &ldquo;ambientazione&rdquo;, &ldquo;gamme cromatiche&rdquo;, &ldquo;close up&rdquo;, &ldquo;raggi X dei componenti interni&rdquo;).</Info></h2>
           <button onClick={onChiudi} className="text-stone-400 hover:text-stone-900 text-xl leading-none">✕</button>
         </div>
-        <p className="text-xs text-stone-500">Direzioni di prompt che gli studenti vedono come ispirazione mentre scrivono un nuovo round (es. &ldquo;ambientazione&rdquo;, &ldquo;gamme cromatiche&rdquo;, &ldquo;close up&rdquo;, &ldquo;raggi X dei componenti interni&rdquo;).</p>
 
         <div className="space-y-2">
           {lista.map(p => (
@@ -501,8 +502,8 @@ export default function Crazy8DocentePage() {
             className={`w-full text-left p-3 rounded-xl border transition ${selezionataId === s.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-400'}`}
           >
             <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</div>
-            <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} · {s.gruppo_nome}</div>
-            <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')} · {s.immagini.length} sketch</div>
+            <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} — {s.gruppo_nome}</div>
+            <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')}<Sep />{s.immagini.length} sketch</div>
           </button>
         ))}
       </div>
@@ -517,7 +518,7 @@ export default function Crazy8DocentePage() {
                 <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
                 <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza sotto-ambito'}</h1>
                 {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
-                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} · {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
+                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} — {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
               </div>
               <div className="flex gap-1.5">
                 {STATI.map(st => (
@@ -567,7 +568,7 @@ export default function Crazy8DocentePage() {
             {visioniDi(selezionata as Submission).length > 0 && (
               <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2 text-xs text-stone-700">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
-                  Sotto-ambiti{selezionata.scenario?.orizzonte ? ` · verso il ${selezionata.scenario.orizzonte}` : ''}
+                  Sotto-ambiti{selezionata.scenario?.orizzonte ? ` (verso il ${selezionata.scenario.orizzonte})` : ''}
                 </h3>
                 {visioniDi(selezionata as Submission).map(v => (
                   <p key={v.sottoAmbito || 'unico'}>
@@ -606,7 +607,7 @@ export default function Crazy8DocentePage() {
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-stone-600">
                           {sketch.selezionato && <span className="text-amber-500 mr-1" title="Selezionato dal team">★</span>}
-                          Sketch{sketch.sotto_ambito ? ` · ${sketch.sotto_ambito}` : ''} — {sketch.generazioni_crazy8.length} round di generazione
+                          Sketch{sketch.sotto_ambito ? `: ${sketch.sotto_ambito}` : ''} — {sketch.generazioni_crazy8.length} round di generazione
                         </p>
                         {sketch.interpretazione && <p className="text-xs text-stone-500 mt-0.5 italic">Interpretazione: &ldquo;{sketch.interpretazione}&rdquo;</p>}
                       </div>
@@ -620,7 +621,7 @@ export default function Crazy8DocentePage() {
                               <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                             </button>
                             <div>
-                              <p className="font-bold text-stone-700">Round {g.ordine}{g.motore ? ` · ${g.motore}` : ''}</p>
+                              <p className="font-bold text-stone-700">Round {g.ordine}{g.motore ? ` (${g.motore})` : ''}</p>
                               <p className="text-stone-600"><b>Prompt:</b> {g.prompt_usato}</p>
                               {g.positivo && <p className="text-emerald-700">👍 {g.positivo}</p>}
                               {g.negativo && <p className="text-rose-700">👎 {g.negativo}</p>}

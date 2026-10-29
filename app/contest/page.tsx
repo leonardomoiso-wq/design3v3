@@ -1,12 +1,14 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useTeam, etichettaTeam } from '@/lib/team-context';
+import Info from '@/components/Info';
 import RichiedeCorso from '@/components/RichiedeCorso';
 import type { Corso } from '@/lib/corsi';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  COLONNE_PROPOSTA, ETICHETTA_FASE, messaggioErroreContest, rilevaDispositivo, rilevaZona,
+  COLONNE_PROPOSTA, ETICHETTA_FASE, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Solidi, Ticker, useTendina, Cornice } from '@/components/moiso/Moiso';
@@ -40,6 +42,9 @@ function ContestCorso({ corso }: { corso: Corso }) {
   const [invio, setInvio] = useState(false);
   const [festa, setFesta] = useState<{ origine: { x: number; y: number } | null; numero: number | null; titolo: string } | null>(null);
   const tendina = useTendina();
+  // Posizione approssimata (città) chiesta subito, così il voto non aspetta.
+  const [posizione, setPosizione] = useState<Posizione | null>(null);
+  useEffect(() => { ottieniPosizione().then(setPosizione); }, []);
 
   const contest = contestLista.find(c => c.id === contestId) || null;
   const { stat, scarto } = useStatistiche(contest && (contest.fase === 'voto' || contest.fase === 'chiuso' || contest.live_stato !== 'chiuso') ? contest.id : null, 3000);
@@ -133,7 +138,8 @@ function ContestCorso({ corso }: { corso: Corso }) {
     setErrore('');
     const cambio = mioVoto !== null;
     const { error } = await supabase.rpc('vota_remoto', {
-      p_team_id: io.id, p_password: io.password, p_proposta_id: aperta.id, p_dispositivo: rilevaDispositivo(), p_zona: rilevaZona(),
+      p_team_id: io.id, p_password: io.password, p_proposta_id: aperta.id, p_dispositivo: rilevaDispositivo(), p_zona: (posizione ?? await ottieniPosizione()).zona,
+      p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
     });
     setInvio(false);
     if (error) {
@@ -191,9 +197,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
         <section style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
           <div style={{ display: 'grid', gap: 18, justifyItems: 'center', maxWidth: 640 }}>
             <Solidi />
-            <span className="mz-mono">{statoAttivita === 'prossimamente' ? 'In arrivo' : 'Non disponibile'}</span>
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 6vw, 80px)' }}>Il contest <span className="mz-blue">non è ancora aperto</span>.</h1>
-            <p className="mz-muted" style={{ margin: 0 }}>Il/la docente lo attiva dal pannello Attività. Questa pagina si aggiorna da sola.</p>
             <a href="/" className="mz-pill o">← Torna alle attività</a>
           </div>
         </section>
@@ -209,7 +213,6 @@ function ContestCorso({ corso }: { corso: Corso }) {
           <div style={{ display: 'grid', gap: 18, justifyItems: 'center' }}>
             <Solidi />
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 6vw, 80px)' }}>Il contest sta per <span className="mz-blue">aprire</span>.</h1>
-            <p className="mz-muted" style={{ margin: 0 }}>Quando il/la docente lo attiva, le proposte compaiono qui.</p>
           </div>
         </section>
       </main>
@@ -223,17 +226,11 @@ function ContestCorso({ corso }: { corso: Corso }) {
         <section style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
           <div className="mz-in" style={{ display: 'grid', gap: 18, justifyItems: 'center', maxWidth: 680 }}>
             <Solidi cadono />
-            <span className="mz-mono">{contest.titolo}</span>
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 6vw, 84px)' }}>
               Per votare serve <span className="mz-blue">il tuo accesso</span>.
             </h1>
             <p style={{ margin: 0, fontSize: 17, maxWidth: 520 }}>
-              {contest.iscrizione === 'individuale'
-                ? <>Questo contest è <strong>individuale</strong>: dalla home scegli «Iscriviti» e poi «Da solo/a».</>
-                : contest.iscrizione === 'gruppo'
-                  ? <>Questo contest è <strong>di gruppo</strong>: entrate con l’accesso del vostro team.</>
-                  : <>Puoi entrare con l’accesso del tuo team oppure iscriverti <strong>da solo/a</strong>.</>}
-              {' '}Il voto resta anonimo: nessuno vede chi ha votato cosa.
+              {contest.iscrizione === 'individuale' ? <>Dalla home: «Iscriviti», poi «Da solo/a».</> : contest.iscrizione === 'gruppo' ? <>Entrate con l’accesso del vostro team.</> : <>Con l’accesso del tuo team, oppure da solo/a.</>}
             </p>
             <a href="/" className="mz-pill b lg">Vai all’accesso →</a>
           </div>
@@ -252,38 +249,36 @@ function ContestCorso({ corso }: { corso: Corso }) {
 
       {/* Eroe */}
       <section style={{ padding: 'clamp(36px, 7vw, 96px) max(20px, env(safe-area-inset-left)) clamp(28px, 4vw, 48px)', maxWidth: 1440, margin: '0 auto', display: 'grid', gap: 26 }}>
-        <div className="mz-in" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className={`mz-live-dot ${votoAperto ? '' : 'off'}`} />
-          <span className="mz-mono">{votoFinito ? 'Votazione conclusa' : votoAperto ? 'Votazione aperta' : ETICHETTA_FASE[contest.fase]} · {proposte.length} proposte</span>
-          {contestLista.length > 1 && (
+        {contestLista.length > 1 && (
+          <div className="mz-in">
             <select aria-label="Scegli il contest" value={contest.id} onChange={e => { setContestId(e.target.value); setScheda('proposte'); }} className="mz-chip" style={{ appearance: 'none', background: 'transparent', color: 'inherit', font: 'inherit', fontSize: 12 }}>
               {contestLista.map(c => <option key={c.id} value={c.id}>{c.titolo}</option>)}
             </select>
-          )}
-        </div>
+          </div>
+        )}
         <h1 className="mz-display mz-in mz-break" style={{ fontSize: scheda === 'proposte' ? 'clamp(44px, 7.5vw, 112px)' : 'clamp(40px, 6vw, 84px)', animationDelay: '60ms', maxWidth: 1200 }}>
           {contest.titolo}<span className="mz-sup">({String(proposte.length).padStart(2, '0')})</span>
+          {contest.descrizione && <span style={{ fontSize: 16, verticalAlign: 'middle' }}><Info><span style={{ whiteSpace: 'pre-line' }}>{contest.descrizione}</span></Info></span>}
         </h1>
         {scheda === 'proposte' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 28, alignItems: 'end' }}>
           <div className="mz-in" style={{ display: 'grid', gap: 16, animationDelay: '120ms' }}>
             {contest.sottotitolo && <p className="mz-break" style={{ margin: 0, fontSize: 'clamp(19px, 2vw, 24px)', lineHeight: 1.3, maxWidth: 620 }}>{contest.sottotitolo}</p>}
-            {contest.descrizione && <p className="mz-muted mz-break" style={{ margin: 0, fontSize: 15, maxWidth: 620, whiteSpace: 'pre-line' }}>{contest.descrizione}</p>}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {candidatureAperte && tipoAmmesso && <button type="button" className="mz-pill b" onClick={() => cambiaScheda('mia')}>{mia ? 'Modifica la mia proposta' : 'Candida la tua proposta'}</button>}
-              {(contest.fase === 'voto' || contest.fase === 'chiuso') && <button type="button" className="mz-pill o" onClick={() => cambiaScheda('dati')}>Guarda il voto dal vivo</button>}
             </div>
           </div>
           <div className="mz-in" style={{ animationDelay: '180ms', display: 'grid', gap: 10 }}>
             {contest.fase === 'voto' && contest.voto_fine && (
               <>
-                <span className="mz-mono">{votoAperto ? 'Il voto si chiude tra' : ''}</span>
+                {votoAperto && <span className="mz-mono" style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><span className="mz-live-dot" />Il voto si chiude tra</span>}
                 <Countdown fine={contest.voto_fine} inizio={contest.voto_inizio} adesso={adesso} />
               </>
             )}
-            {contest.fase === 'anteprima' && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">{candidatureAperte ? 'Candidature aperte: ogni ' + (contest.iscrizione === 'gruppo' ? 'team' : contest.iscrizione === 'individuale' ? 'persona' : 'team o persona') + ' può caricare la propria proposta. Il voto si apre più avanti.' : 'Anteprima: potete già leggere le proposte. Il voto si apre più avanti.'}</p>}
+            {contest.fase === 'anteprima' && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">{candidatureAperte ? 'Candidature aperte' : 'Il voto si apre più avanti'}</p>}
+            {votoFinito && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">Votazione conclusa</p>}
             {votoAperto && tipoAmmesso && (
               <p style={{ margin: 0, fontSize: 14 }}>
-                {mioVoto ? <>Hai già votato. Puoi <strong>cambiare il voto</strong> fino alla scadenza.</> : <>Hai <strong>un voto</strong>, anonimo. Apri una proposta per votarla.</>}
+                {mioVoto ? <>Hai votato. Puoi cambiarlo fino alla scadenza.</> : <>Hai <strong>un voto</strong>. Apri una proposta per votarla.</>}
               </p>
             )}
           </div>
@@ -294,7 +289,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
 
       {!tipoAmmesso && (
         <p role="note" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))', fontSize: 14 }} className="mz-muted">
-          In questo contest votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}: con questo accesso puoi guardare le proposte e i dati, ma non votare né candidare proposte.{contest.iscrizione === 'individuale' ? ' Per votare, dalla home iscriviti scegliendo «Da solo/a».' : ''}
+          Qui votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}.
         </p>
       )}
 
@@ -305,7 +300,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
               <section className="mz-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(20px, 3vw, 40px)', alignItems: 'end', background: 'var(--scena)', color: 'var(--scena-testo)', borderRadius: 6, padding: 'clamp(18px, 3vw, 32px)' }}>
                 <Cornice src={vincitore.p.immagine} alt="" style={{ aspectRatio: '16 / 10' }} />
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'} · {vincitore.n} voti</span>
+                  <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'}<Sep />{vincitore.n} voti</span>
                   <h2 className="mz-display mz-break" style={{ fontSize: 'clamp(40px, 6vw, 88px)' }}>{vincitore.p.titolo}</h2>
                   <span className="mz-break" style={{ fontSize: 15 }}>{vincitore.p.autori}</span>
                   <button type="button" className="mz-pill" style={{ background: 'var(--scena-testo)', color: 'var(--scena-su-testo)', justifySelf: 'start' }} onClick={() => apri(vincitore.p)}>Apri la proposta →</button>
@@ -330,7 +325,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
           ) : (
             <div style={{ display: 'grid', gap: 18, justifyItems: 'start' }}>
               <Solidi piccoli />
-              <p style={{ fontSize: 18, margin: 0 }}>I dati del voto compaiono quando la votazione si apre.</p>
+              <p style={{ fontSize: 18, margin: 0 }}>I dati compaiono quando si apre il voto.</p>
             </div>
           )
         )}
@@ -353,16 +348,15 @@ function ContestCorso({ corso }: { corso: Corso }) {
               {!tipoAmmesso ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">In questo contest votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}.</p>
               ) : propria ? (
-                <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla. Il tuo voto va a un'altra.</p>
+                <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla.</p>
               ) : !votoAperto ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">
-                  {votoFinito ? 'La votazione è conclusa.' : contest.fase === 'anteprima' ? 'Il voto non è ancora aperto: per ora puoi leggere le proposte.' : 'La votazione non è aperta.'}
+                  {votoFinito ? 'Votazione conclusa.' : 'Il voto non è ancora aperto.'}
                   {mioVoto === aperta.id && ' Hai votato questa proposta.'}
                 </p>
               ) : mioVoto === aperta.id ? (
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                   <span className="mz-chip on" style={{ cursor: 'default' }}>● Hai votato questa proposta</span>
-                  <span className="mz-mono">Voto anonimo · modificabile fino alla scadenza</span>
                 </div>
               ) : !conferma ? (
                 <button type="button" className="mz-pill b lg" onClick={() => setConferma(true)}>
@@ -371,7 +365,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
               ) : (
                 <div className="mz-in" style={{ display: 'grid', gap: 10 }}>
                   <p style={{ margin: 0, fontSize: 14.5 }}>
-                    Confermi il voto a <strong>«{aperta.titolo}»</strong>? È anonimo: nessuno saprà che sei stato/a tu.
+                    Confermi il voto a <strong>«{aperta.titolo}»</strong>? È anonimo.
                   </p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button type="button" className="mz-pill b lg" disabled={invio} onClick={vota}>{invio ? 'Invio…' : 'Sì, confermo il voto'}</button>
@@ -389,7 +383,7 @@ function ContestCorso({ corso }: { corso: Corso }) {
           origine={festa.origine}
           titolo={festa.titolo}
           numero={festa.numero}
-          sottotitolo={`${rilevaZona() ? `Da ${rilevaZona()} · ` : ''}Il tuo voto è nel conteggio, in forma anonima. Ora guarda come sta andando.`}
+          sottotitolo={`${posizione?.zona ? `Da ${posizione.zona}. ` : ''}Il tuo voto è nel conteggio, anonimo.`}
           onFine={fineFesta}
         />
       )}

@@ -99,9 +99,6 @@ function NuovoCorso({ corsoAttuale, onCreato, onChiudi }: { corsoAttuale: CorsoD
 
   return (
     <BottomSheet aperto onChiudi={onChiudi} etichetta="Aggiungi corso" titolo="Aggiungi un corso">
-      <p className="text-xs text-stone-500">
-        Ogni corso è uno spazio separato: studenti, team, casi studio, attività e votazioni non si mescolano con quelli degli altri corsi.
-      </p>
       <div className="space-y-3">
         <label className="block">
           <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Nome del corso</span>
@@ -305,7 +302,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             ...corsi.map(c => ({
               chiave: c.id,
               etichetta: c.nome,
-              descrizione: `codice ${c.codice}${c.archiviato ? ' · archiviato' : ''}`,
+              descrizione: `codice ${c.codice}${c.archiviato ? ', archiviato' : ''}`,
               attiva: c.id === corso.id,
               onSeleziona: () => cambiaCorso(c.id),
             })),
@@ -327,7 +324,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         )}
 
         <BottomSheet aperto={altraPasswordAperta} onChiudi={() => setAltraPasswordAperta(false)} etichetta="Entra in un altro corso" titolo="Entra in un altro corso" larghezzaDesktop="md:max-w-sm">
-          <p className="text-xs text-stone-500">Il corso si aggiungerà al selettore in alto, insieme a quelli già aperti.</p>
           <FormPassword onEntra={pw => entra(pw, () => setAltraPasswordAperta(false))} errore={erroreLogin} inCorso={loginInCorso} etichettaPulsante="Aggiungi accesso" />
         </BottomSheet>
 

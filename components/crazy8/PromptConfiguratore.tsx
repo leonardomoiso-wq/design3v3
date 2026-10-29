@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Sep from '@/components/Sep';
 import { Miniatura, scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
 
 type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string };
@@ -394,7 +395,7 @@ export default function PromptConfiguratore({
             <div className="space-y-4 animate-fade-in">
               {GRUPPI.filter(g => !g.soloPer || g.soloPer.includes(config.obiettivo)).map(g => (
                 <div key={g.id} className="space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">{g.titolo}{g.multiplo && <span className="font-normal normal-case tracking-normal"> · anche più di uno</span>}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">{g.titolo}{g.multiplo && <span className="font-normal normal-case tracking-normal"> (anche più di uno)</span>}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {g.opzioni.map(o => (
                       <Chip key={o.id} attivo={(config.scelte[g.id] || []).includes(o.id)} onClick={() => toggleScelta(g.id, o.id, g.multiplo)}>{o.etichetta}</Chip>
@@ -457,7 +458,7 @@ export default function PromptConfiguratore({
             <textarea rows={8} value={config.manuale} onChange={e => aggiorna({ manuale: e.target.value })} className="w-full rounded-xl bg-stone-800 border border-stone-700 p-3 text-sm text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
           )}
           <p className="text-[10px] text-stone-500">
-            <span className="bg-amber-400/25 text-amber-200 rounded px-1">evidenziato</span> = parole vostre · <span className="text-white">bianco</span> = scelte del configuratore
+            <span className="bg-amber-400/25 text-amber-200 rounded px-1">evidenziato</span> = parole vostre<Sep /><span className="text-white">bianco</span> = scelte del configuratore
           </p>
 
           {/* indicatore di personalizzazione */}

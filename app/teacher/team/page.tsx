@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 
@@ -85,11 +86,11 @@ export default function TeamPannelloPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
-            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Teambuilding</span>
-            <h1 className="text-2xl font-serif font-bold mt-1">Team formati</h1>
-            <p className="text-sm text-stone-500 mt-1">
-              L&apos;accesso condiviso che gli studenti usano per entrare nell&apos;app, prima di scegliere un&apos;attività.
-            </p>
+            <h1 className="text-2xl font-serif font-bold">
+              Team formati
+              <span className="apice">(Teambuilding)</span>
+              <Info>L&apos;accesso condiviso che gli studenti usano per entrare nell&apos;app, prima di scegliere un&apos;attività.</Info>
+            </h1>
           </div>
           <div className="flex gap-2">
             <button

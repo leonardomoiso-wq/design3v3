@@ -145,7 +145,7 @@ export function risolviVoceMoodboard(s: Submission, voce: VoceMoodboard): { url:
     }
     if (voce.tipo === 'generata') {
       const g = sketch.generazioni_crazy8.find(x => x.id === voce.id);
-      if (g) return { url: g.url_immagine, etichetta: `Sketch ${sketch.ordine + 1} · round ${g.ordine}`, sottoAmbito: sketch.sotto_ambito };
+      if (g) return { url: g.url_immagine, etichetta: `Sketch ${sketch.ordine + 1}, round ${g.ordine}`, sottoAmbito: sketch.sotto_ambito };
     }
   }
   return null;

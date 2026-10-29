@@ -24,9 +24,9 @@ export function hrefFonte(fonte: string | null | undefined): string | null {
   return null;
 }
 
-// Versione compatta per le card: "2021 · Italia" (niente se i campi sono vuoti).
+// Versione compatta per le card: "2021, Italia" (niente se i campi sono vuoti).
 export function testoMeta(anno: number | null | undefined, provenienza: Provenienza | null | undefined): string {
-  return [anno ?? null, provenienza ? ETICHETTA_PROVENIENZA[provenienza] : null].filter(Boolean).join(' · ');
+  return [anno ?? null, provenienza ? ETICHETTA_PROVENIENZA[provenienza] : null].filter(Boolean).join(', ');
 }
 
 export function MetaCaso({

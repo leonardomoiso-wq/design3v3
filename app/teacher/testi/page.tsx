@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { CAMPI_TESTI, unisciTestiPiattaforma, accessoDirettoAbilitato, CHIAVE_ACCESSO_DIRETTO, type ChiaveTestoPiattaforma } from '@/lib/testi-piattaforma';
@@ -59,11 +60,11 @@ export default function TestiPiattaformaPage() {
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Storytelling</span>
-          <h1 className="text-2xl font-serif font-bold mt-1">Testi della piattaforma</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            I testi di presentazione di questo corso, mostrati agli studenti nella schermata iniziale e nella home, prima che scelgano un&apos;attività.
-          </p>
+          <h1 className="text-2xl font-serif font-bold">
+            Testi della piattaforma
+            <span className="apice">(Storytelling)</span>
+            <Info>I testi di presentazione di questo corso, mostrati agli studenti nella schermata iniziale e nella home, prima che scelgano un&apos;attività.</Info>
+          </h1>
         </div>
 
         {errore && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{errore}</p>}

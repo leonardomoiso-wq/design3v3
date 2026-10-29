@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { moduloDi, type AttivitaRow, type StatoAttivita } from '@/lib/attivita';
 import { useDocente } from '@/lib/docente-context';
@@ -190,8 +191,7 @@ export default function AttivitaPannelloPage() {
     <div className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-serif">Pannello Attività</h1>
-          <p className="text-stone-500 text-xs mt-1">Attiva, disattiva e configura le attività visibili in home page.</p>
+          <h1 className="text-2xl font-serif">Pannello Attività<Info>Attiva, disattiva e configura le attività visibili in home page.</Info></h1>
         </div>
         <button
           onClick={apriNuovo}

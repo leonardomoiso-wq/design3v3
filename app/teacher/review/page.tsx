@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { useDocente } from '@/lib/docente-context';
@@ -263,8 +264,7 @@ export default function ReviewPage() {
       <div className="printable-area flex-1 overflow-y-auto p-4 md:p-12 bg-stone-200 space-y-6 md:space-y-12">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-4 md:justify-between md:items-center bg-white p-5 md:p-6 rounded-2xl shadow-sm print:hidden">
           <div>
-            <h2 className="text-xl font-serif font-bold">Archivio Peer Review</h2>
-            <p className="text-xs text-stone-500 mt-0.5">Esito e conteggio voti dei gruppi per ciascun caso studio discusso in aula.</p>
+            <h2 className="text-xl font-serif font-bold">Archivio Peer Review<Info>Esito e conteggio voti dei gruppi per ciascun caso studio discusso in aula.</Info></h2>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setModalitaStampa(false)} className="bg-stone-100 px-5 py-2.5 rounded-xl text-xs font-medium hover:bg-stone-200 transition">
@@ -284,7 +284,7 @@ export default function ReviewPage() {
             return (
               <div key={c.id} className="bg-white p-5 md:p-10 print:p-10 rounded-2xl shadow-sm border border-stone-300 page-break" style={{ backgroundColor: SFONDO[esito] }}>
                 <div className="flex flex-wrap gap-2 justify-between items-center border-b border-stone-200 pb-4 mb-6">
-                  <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Peer Review &middot; Scheda {i + 1} di {casi.length}</span>
+                  <span className="text-xs uppercase tracking-widest text-stone-400 font-bold">Scheda {String(i + 1).padStart(2, '0')} / {String(casi.length).padStart(2, '0')}</span>
                   <span className="text-xs bg-stone-900 text-white px-3 py-1 rounded-full font-medium">Gruppo {c.gruppoNum} &mdash; {c.gruppoNome}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-5 md:gap-8 items-start">
@@ -389,9 +389,6 @@ export default function ReviewPage() {
           </div>
         </div>
       ))}
-      {totaleVoti > 0 && (
-        <p className="text-[10px] text-stone-400 pt-1">Chiedi direttamente a un gruppo perché ha assegnato quel voto, per avviare il confronto in aula.</p>
-      )}
     </div>
   );
 
@@ -650,9 +647,6 @@ export default function ReviewPage() {
         titolo="Seleziona Casi per la Peer Review"
         larghezzaDesktop="md:max-w-2xl md:rounded-3xl"
       >
-        <p className="text-xs text-stone-500">
-          Scegli quali consegne discutere in aula. Quelli deselezionati restano salvati ma non compaiono nella sequenza delle slide.
-        </p>
             {casi.some(c => c.scelto > 0) && (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-stone-500 flex items-center gap-1">

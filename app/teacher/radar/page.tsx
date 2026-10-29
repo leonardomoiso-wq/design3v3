@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { normalizzaDriver, estraiNote, MAX_DRIVER, type NoteDriver } from '@/lib/driver';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '@/lib/cacheCasi';
@@ -392,7 +393,7 @@ export default function RadarPage() {
     cardRefs.current[casoHoverId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [casoHoverId]);
 
-  const ordinamentoCorrente = filtroDriver === 'nessuno' ? 'Ordina' : `Top 5 · ${ASSI.find(a => a.chiave === filtroDriver)?.etichetta}`;
+  const ordinamentoCorrente = filtroDriver === 'nessuno' ? 'Ordina' : `Top 5: ${ASSI.find(a => a.chiave === filtroDriver)?.etichetta}`;
 
   const elencoProgetti = (
     <>
@@ -447,7 +448,7 @@ export default function RadarPage() {
                     {c.origine === 'concept' && <span title="Concept Crazy 8" aria-label="Concept Crazy 8">🔭</span>}
                     <span className="truncate">{c.titolo}</span>
                   </div>
-                  <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} &middot; {c.gruppoNome}{testoMeta(c.anno, c.provenienza) && <> &middot; {testoMeta(c.anno, c.provenienza)}</>}</div>
+                  <div className="text-[10px] text-stone-500 truncate">G.{c.gruppoNum} — {c.gruppoNome}{testoMeta(c.anno, c.provenienza) && <><Sep />{testoMeta(c.anno, c.provenienza)}</>}</div>
                 </div>
               </button>
             );
@@ -556,7 +557,7 @@ export default function RadarPage() {
           >
             <option value="nessuno">Nessun ordinamento</option>
             {ASSI.map(a => (
-              <option key={a.chiave} value={a.chiave}>Top 5 &middot; {a.etichetta}</option>
+              <option key={a.chiave} value={a.chiave}>Top 5: {a.etichetta}</option>
             ))}
           </select>
           <label className="sr-only" htmlFor="radar-limite-attivi">Numero massimo di casi studio da confrontare insieme</label>
@@ -746,8 +747,8 @@ export default function RadarPage() {
 
           <div className="absolute bottom-3 left-3 md:bottom-5 md:left-5 max-md:right-16 text-[10px] text-stone-400 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-stone-200 pointer-events-none">
             {mobile
-              ? <>Trascina &middot; pizzica per lo zoom &middot; tocca un punto</>
-              : <>Trascina per spostarti &middot; rotellina per zoomare &middot; clicca un punto per i dettagli</>}
+              ? <>Trascina, pizzica per lo zoom, tocca un punto</>
+              : <>Trascina per spostarti, rotellina per lo zoom, clic su un punto per i dettagli</>}
           </div>
         </div>
 
@@ -761,7 +762,7 @@ export default function RadarPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-sm font-serif font-bold">Progetti attivi ({casiAttivi.length})</h2>
-                  <p className="text-[11px] text-stone-500 truncate">{casiAttivi.length ? casiAttivi.map(c => c.titolo).join(' · ') : 'Nessun progetto sul radar'}</p>
+                  <p className="text-[11px] text-stone-500 truncate">{casiAttivi.length ? casiAttivi.map(c => c.titolo).join(', ') : 'Nessun progetto sul radar'}</p>
                 </div>
                 <div className="flex -space-x-1 flex-shrink-0" aria-hidden="true">
                   {casiAttivi.slice(0, 6).map(c => (
@@ -814,7 +815,7 @@ export default function RadarPage() {
         titolo="Ordina i progetti"
         azioni={[
           { chiave: 'nessuno', etichetta: 'Nessun ordinamento', attiva: filtroDriver === 'nessuno', onSeleziona: () => setFiltroDriver('nessuno') },
-          ...ASSI.map(a => ({ chiave: a.chiave, etichetta: `Top 5 · ${a.etichetta}`, descrizione: `I cinque progetti con ${a.etichetta.toLowerCase()} più alta`, attiva: filtroDriver === a.chiave, onSeleziona: () => setFiltroDriver(a.chiave) })),
+          ...ASSI.map(a => ({ chiave: a.chiave, etichetta: `Top 5: ${a.etichetta}`, descrizione: `I cinque progetti con ${a.etichetta.toLowerCase()} più alta`, attiva: filtroDriver === a.chiave, onSeleziona: () => setFiltroDriver(a.chiave) })),
         ]}
       />
 
@@ -885,8 +886,8 @@ export default function RadarPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
-                    {casoEspanso.origine === 'concept' && <span className="text-amber-700">🔭 Concept Crazy 8 &middot; </span>}
-                    Gruppo {casoEspanso.gruppoNum} &middot; {casoEspanso.gruppoNome}
+                    {casoEspanso.origine === 'concept' && <span className="text-amber-700">🔭 Concept Crazy 8 — </span>}
+                    Gruppo {casoEspanso.gruppoNum} — {casoEspanso.gruppoNome}
                   </span>
                   <h2 className="text-2xl md:text-3xl font-serif font-bold mt-1">{casoEspanso.titolo}</h2>
                   <MetaCaso anno={casoEspanso.anno} provenienza={casoEspanso.provenienza} className="mt-2" />

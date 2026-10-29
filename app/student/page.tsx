@@ -12,6 +12,7 @@ import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
 import { MetaCaso, FonteCaso, metaDaRiga, type Provenienza } from '../../components/MetaCaso';
 import TagRaggruppati from '../../components/TagRaggruppati';
+import Info from '../../components/Info';
 import { caricaTagCorso, testiTag, TAG_VUOTI, type TagCorso, type TagDefault } from '../../lib/tag';
 
 const DRIVER_DEFAULT = Math.round(MAX_DRIVER / 2);
@@ -556,9 +557,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontate il caso studio'}</h1>
-            <p className="text-stone-600 text-sm mt-1">
-              {team ? 'Caso studio, temi, valutazione e un riepilogo finale prima di inviare.' : 'Cinque passaggi brevi: gruppo, caso studio, temi, valutazione e un riepilogo finale prima di inviare.'}
-            </p>
           </div>
 
           <nav aria-label="Passaggi della consegna" className="flex items-center justify-between bg-white p-3 rounded-2xl border border-stone-200 shadow-sm">
@@ -591,7 +589,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           <div className="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm space-y-6">
             {stepEffettivo === 'gruppo' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Chi siete, e come farete a dimostrare in futuro che questa scheda è vostra.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="gruppo-nome" className="block text-xs font-medium uppercase text-stone-500 mb-1">Nome Gruppo</label>
@@ -610,7 +607,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   </div>
                 ) : (
                   <div>
-                    <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo</label>
+                    <label htmlFor="codice-gruppo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Codice di Gruppo<Info lato="destra">Serve per modificare la scheda in futuro. Conservatelo: non è recuperabile.</Info></label>
                     <input
                       id="codice-gruppo"
                       type="password"
@@ -621,9 +618,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                       placeholder="Scegli un codice (min. 4 caratteri)..."
                       className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900"
                     />
-                    <p className="text-[11px] text-stone-400 mt-1">
-                      Vi servirà per modificare questa scheda in futuro: conservatelo, non è recuperabile.
-                    </p>
                   </div>
                 )}
               </div>
@@ -631,7 +625,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
             {stepEffettivo === 'contenuti' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Il cuore della consegna: quale caso studio avete scelto e perché.</p>
                 <div>
                   <label htmlFor="titolo" className="block text-xs font-medium uppercase text-stone-500 mb-1">Titolo del Caso Studio</label>
                   <input id="titolo" type="text" required value={titolo} onChange={e => setTitolo(e.target.value)} placeholder="Es. Superleggera" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
@@ -675,7 +668,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                 <div>
                   <label htmlFor="fonte" className="block text-xs font-medium uppercase text-stone-500 mb-1">Sito web / Fonte</label>
                   <input id="fonte" type="text" inputMode="url" required value={fonte} onChange={e => setFonte(e.target.value)} placeholder="Es. https://www.studio-esempio.it oppure &quot;Domus n. 1080, 2023&quot;" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  <p className="text-[11px] text-stone-400 mt-1">Un link al progetto o il riferimento bibliografico da cui l&apos;avete tratto.</p>
                 </div>
 
                 <div>
@@ -708,7 +700,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
             {stepEffettivo === 'tag' && (
               <div className="space-y-4">
-                <p className="text-sm text-stone-500">Come classificate il caso studio? Scegliete le voci per ogni categoria{tagCorso.categorie.some(c => c.obbligatoria) ? ' (quelle con * sono obbligatorie)' : ''}, o aggiungete un tag vostro.</p>
+                {tagCorso.categorie.some(c => c.obbligatoria) && <p className="text-[11px] text-stone-400">* obbligatoria</p>}
                 {[
                   ...tagCorso.categorie.filter(c => c.tag.length > 0),
                   ...(tagCorso.senzaCategoria.length > 0
@@ -722,7 +714,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                       <legend className="flex flex-wrap items-baseline gap-x-2 text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
                         <span>{categoria.nome}{categoria.obbligatoria && <span className="text-red-600" aria-hidden="true"> *</span>}</span>
                         <span className="text-[10px] font-normal normal-case tracking-normal text-stone-400">
-                          {singola ? 'una sola voce' : 'una o più voci'}{categoria.obbligatoria ? ' · obbligatoria' : ''}
+                          {singola ? 'una sola voce' : 'una o più voci'}{categoria.obbligatoria ? ', obbligatoria' : ''}
                         </span>
                       </legend>
                       <div className="grid grid-cols-2 gap-2" role={singola ? 'radiogroup' : 'group'} aria-label={categoria.nome}>
@@ -765,7 +757,10 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
             {stepEffettivo === 'driver' && (
               <div className="space-y-6">
-                <p className="text-sm text-stone-500">Ponderate il caso studio sui 4 driver ({corso.configurazione.framework}), da 0 a {MAX_DRIVER}, e aggiungete un commento per ciascuno. Non esiste una combinazione &ldquo;giusta&rdquo;: riflettete onestamente su ogni domanda.</p>
+                <p className="text-sm text-stone-500">
+                  {corso.configurazione.framework}, da 0 a {MAX_DRIVER}
+                  <Info lato="destra">Un punteggio e un commento per ogni driver. Non esiste una combinazione giusta: rispondete con onestà a ogni domanda.</Info>
+                </p>
                 {corso.configurazione.istruzioni && (
                   <p className="text-sm text-stone-700 bg-amber-50 border border-amber-200 rounded-xl p-3 whitespace-pre-line">{corso.configurazione.istruzioni}</p>
                 )}
@@ -819,7 +814,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
 
             {stepEffettivo === 'riepilogo' && (
               <div className="space-y-5">
-                <p className="text-sm text-stone-500">Ultimo sguardo prima di inviare. Potete tornare indietro a qualsiasi passaggio per correggere.</p>
 
                 <div className="flex items-start space-x-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
                   <div className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 p-1">
@@ -902,9 +896,6 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
             <div>
               <h1 className="text-2xl font-serif">{team ? 'Le tue Schede' : 'Elenco Casi Studio'}</h1>
-              <p className="text-stone-500 text-xs mt-0.5">
-                {team ? 'Le schede inviate dal tuo gruppo: apri per verificare o modificare.' : 'Filtra per numero di gruppo per verificare o modificare la tua scheda.'}
-              </p>
             </div>
             {!team && (
               <div className="w-40">
@@ -952,8 +943,8 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
       ) : (
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-serif">Vota in Aula</h1>
-            <p className="text-stone-500 text-xs mt-1">Quando il/la docente apre la votazione su un caso studio, esprimete il vostro cartellino come gruppo.</p>
+            <h1 className="text-2xl font-serif">Vota in Aula<Info>Quando il/la docente apre la votazione su un caso studio, date il vostro cartellino come gruppo.</Info></h1>
+
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
@@ -1014,7 +1005,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
                   )}
 
                   <div className="space-y-2 pt-1">
-                    <p className="text-[10px] text-stone-400">Come si sono autovalutati (scala 0-{MAX_DRIVER}) e perché:</p>
+                    <p className="text-[10px] text-stone-400">Autovalutazione, da 0 a {MAX_DRIVER}</p>
                     {(['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'] as const).map(chiave => {
                       const valore = casoInVotazione.driver?.[chiave] ?? 0;
                       const nota = casoInVotazione.driverNote?.[chiave];
@@ -1145,7 +1136,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
             <div>
               <h2 className="font-serif font-bold text-lg text-red-700">Elimina definitivamente</h2>
               <p className="text-xs text-stone-500 mt-1">
-                Stai per cancellare &ldquo;{casoDaEliminare.titolo}&rdquo; e tutti i voti ricevuti. Questa azione non si può annullare. Inserisci il codice di gruppo per confermare.
+                &ldquo;{casoDaEliminare.titolo}&rdquo; e i suoi voti verranno cancellati per sempre. Serve il codice di gruppo.
               </p>
             </div>
 

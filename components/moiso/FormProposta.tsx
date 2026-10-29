@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { messaggioErroreContest, type Contest, type Proposta } from '@/lib/contest';
 import type { TeamInfo } from '@/lib/team-context';
 import { GalleriaProposte } from './Proposte';
+import Info from '@/components/Info';
 import { CampiProposta, PROPOSTA_VUOTA, type DatiProposta } from './CampiProposta';
 
 export function FormProposta({ contest, team, esistente, ammesso, onSalvata }: {
@@ -71,8 +72,7 @@ export function FormProposta({ contest, team, esistente, ammesso, onSalvata }: {
       <div className="mz-in" style={{ display: 'grid', gap: 24 }}>
         <div style={{ display: 'grid', gap: 8 }}>
           <span className="mz-mono">{esistente ? 'Modifica la candidatura' : 'Nuova candidatura'}</span>
-          <h2 className="mz-display" style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}>La tua proposta, <span className="mz-blue">pronta da votare</span>.</h2>
-          <p className="mz-muted" style={{ margin: 0 }}>{team.tipo === 'individuale' ? 'Una proposta a testa' : 'Una proposta per team'}: si può modificare finché il voto non si apre.</p>
+          <h2 className="mz-display" style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}>La tua proposta, <span className="mz-blue">pronta da votare</span>.<span style={{ fontSize: 16, verticalAlign: 'middle' }}><Info>{team.tipo === 'individuale' ? 'Una proposta a testa' : 'Una proposta per team'}, modificabile finché il voto non si apre.</Info></span></h2>
         </div>
         <CampiProposta dati={dati} onCambia={setDati} />
         {errore && <p role="alert" style={{ margin: 0, color: '#dc2626' }}>{errore}</p>}

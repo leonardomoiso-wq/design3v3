@@ -56,6 +56,7 @@ export type Statistiche = {
   totale: { remoto: number; live: number };
   dispositivi: Record<string, number>;
   zone: { zona: string; n: number }[];
+  punti?: { lat: number; lon: number; zona: string; n: number; ultimo: string }[];
   andamento: { t: string; remoto: number; live: number }[];
   ultimi: { id: number; t: string; fase: 'remoto' | 'live'; dispositivo: string; zona: string }[];
   per_proposta: { id: number; remoto: number; live: number }[] | null;
@@ -106,7 +107,7 @@ export function rilevaDispositivo(): string {
   return 'computer';
 }
 
-const CITTA_IT: Record<string, string> = { Rome: 'Roma', Turin: 'Torino', Milan: 'Milano', Naples: 'Napoli', Florence: 'Firenze', Venice: 'Venezia', Genoa: 'Genova', Paris: 'Parigi', London: 'Londra', Lisbon: 'Lisbona', Brussels: 'Bruxelles', Zurich: 'Zurigo', Vienna: 'Vienna', Berlin: 'Berlino', Madrid: 'Madrid', Athens: 'Atene', Copenhagen: 'Copenaghen', Warsaw: 'Varsavia', Prague: 'Praga', Moscow: 'Mosca' };
+const CITTA_IT: Record<string, string> = { Rome: 'Roma', Turin: 'Torino', Milan: 'Milano', Naples: 'Napoli', Florence: 'Firenze', Venice: 'Venezia', Genoa: 'Genova', Padua: 'Padova', Mantua: 'Mantova', Syracuse: 'Siracusa', Leghorn: 'Livorno', Geneva: 'Ginevra', Munich: 'Monaco di Baviera', Cologne: 'Colonia', Nice: 'Nizza', Marseille: 'Marsiglia', Lyon: 'Lione', Barcelona: 'Barcellona', Seville: 'Siviglia', 'The Hague': "L'Aia", Antwerp: 'Anversa', Bucharest: 'Bucarest', Paris: 'Parigi', London: 'Londra', Lisbon: 'Lisbona', Brussels: 'Bruxelles', Zurich: 'Zurigo', Vienna: 'Vienna', Berlin: 'Berlino', Madrid: 'Madrid', Athens: 'Atene', Copenhagen: 'Copenaghen', Warsaw: 'Varsavia', Prague: 'Praga', Moscow: 'Mosca' };
 
 export function rilevaZona(): string {
   try {
@@ -115,6 +116,38 @@ export function rilevaZona(): string {
     const citta = (tz.split('/').pop() || '').replace(/_/g, ' ');
     return CITTA_IT[citta] || citta;
   } catch { return ''; }
+}
+
+// Posizione approssimata dalla rete (vedi app/api/posizione): città e
+// coordinate arrotondate, mai l'indirizzo IP. Si chiede una volta per
+// sessione; se non è disponibile resta la città del fuso orario, senza
+// punto sulla mappa.
+export type Posizione = { zona: string; lat: number | null; lon: number | null };
+
+function nomePaese(codice: string): string {
+  try { return new Intl.DisplayNames(['it'], { type: 'region' }).of(codice) || codice; } catch { return codice; }
+}
+
+export async function ottieniPosizione(): Promise<Posizione> {
+  const CHIAVE = 'design3_posizione_voto';
+  try {
+    const salvata = sessionStorage.getItem(CHIAVE);
+    if (salvata) return JSON.parse(salvata);
+  } catch {}
+  let pos: Posizione = { zona: rilevaZona(), lat: null, lon: null };
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3500);
+    const r = await fetch('/api/posizione', { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(t);
+    const d = await r.json();
+    if (d && (d.citta || d.paese)) {
+      const citta = CITTA_IT[d.citta] || d.citta;
+      pos = { zona: citta || nomePaese(d.paese), lat: typeof d.lat === 'number' ? d.lat : null, lon: typeof d.lon === 'number' ? d.lon : null };
+    }
+  } catch {}
+  try { sessionStorage.setItem(CHIAVE, JSON.stringify(pos)); } catch {}
+  return pos;
 }
 
 export function idDispositivo(): string {

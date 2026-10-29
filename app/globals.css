@@ -267,3 +267,33 @@ button:focus-visible:not([class*="focus-visible:ring"]),
   .card-viva, .zoom-cornice img, .pilla-scorrevole { transition: none !important; }
   .filo-sezione { display: none; }
 }
+
+/* Icona ⓘ con nota breve (components/Info.tsx). */
+.info-ancora { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.info-punto {
+  width: 18px; height: 18px; border-radius: 9999px; display: inline-grid; place-items: center;
+  font: italic 700 11px/1 Georgia, "Times New Roman", serif; color: var(--muted);
+  border: 1px solid var(--faint); background: var(--surface); cursor: pointer;
+  transition: color .2s, border-color .2s, transform .4s var(--spring);
+}
+.info-punto:hover, .info-punto[aria-expanded="true"] { color: var(--ink); border-color: var(--ink); }
+.info-punto[aria-expanded="true"] { transform: scale(1.1); }
+.info-nota {
+  position: absolute; top: calc(100% + 8px); z-index: 50; width: max-content; max-width: min(300px, 80vw);
+  padding: 10px 12px; border-radius: 12px; background: var(--ink); color: var(--paper);
+  font: 400 12.5px/1.45 var(--f-text); letter-spacing: 0; text-transform: none; text-align: left; white-space: normal;
+  box-shadow: 0 14px 30px -12px rgba(28, 25, 23, .45);
+  animation: finestra-entra .35s var(--out) both;
+}
+.info-centro { left: 50%; transform: translateX(-50%); }
+.info-centro.info-nota { animation-name: info-entra-centro; }
+@keyframes info-entra-centro { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.info-sinistra { right: -6px; }
+.info-destra { left: -6px; }
+
+/* Separatore tra informazioni affiancate (components/Sep.tsx): spazio, non puntini. */
+.sep { display: inline-block; width: 0.9em; }
+
+/* Etichetta in apice al titolo, come gli indici del linguaggio visivo:
+   "Titolo (Design 3)" invece di un occhiello sopra il titolo. */
+.apice { font-family: var(--f-text); font-size: 0.3em; font-weight: 600; letter-spacing: 0.02em; color: var(--accent); vertical-align: top; position: relative; top: 0.45em; margin-left: 0.35em; white-space: nowrap; }

@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Info from '@/components/Info';
+import Sep from '@/components/Sep';
 import { supabase } from '../../lib/supabase';
 import { comprimiImmagine } from '../../lib/immagine';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
@@ -904,7 +906,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 <div className="flex items-start gap-4">
                   <Miniatura url={s.url_file} className="w-20 h-20 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Sketch {s.ordine + 1}{s.sotto_ambito ? ` · ${s.sotto_ambito}` : ''}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Sketch {s.ordine + 1}{s.sotto_ambito ? `: ${s.sotto_ambito}` : ''}</p>
                     {s.interpretazione && <p className="text-xs text-stone-500 mt-1 line-clamp-2">{s.interpretazione}</p>}
                     <p className="text-xs text-stone-700 mt-1 font-medium">{s.generazioni_crazy8.length} immagini generate caricate</p>
                   </div>
@@ -914,7 +916,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     {s.generazioni_crazy8.map(g => (
                       <div key={g.id} className="relative flex-shrink-0">
                         <Miniatura url={g.url_immagine} className="w-28 h-28" />
-                        <span className="absolute bottom-1 left-1 text-[9px] bg-white/90 px-1 rounded text-stone-600">#{g.ordine}{g.motore ? ` · ${g.motore}` : ''}</span>
+                        <span className="absolute bottom-1 left-1 text-[9px] bg-white/90 px-1 rounded text-stone-600">#{g.ordine}{g.motore ? ` ${g.motore}` : ''}</span>
                         <button onClick={() => rimuoviGenerazione(g.id)} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-white/90 text-stone-400 hover:text-red-600 text-[10px]" aria-label="Elimina immagine">✕</button>
                       </div>
                     ))}
@@ -934,14 +936,14 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               <section key={s.id} className="bg-white rounded-3xl border border-stone-200 p-5 space-y-4">
                 <div className="flex items-center gap-3">
                   <Miniatura url={s.url_file} className="w-14 h-14 flex-shrink-0" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Dallo sketch {s.ordine + 1}{s.sotto_ambito ? ` · ${s.sotto_ambito}` : ''}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Dallo sketch {s.ordine + 1}{s.sotto_ambito ? `: ${s.sotto_ambito}` : ''}</p>
                 </div>
                 <div className="space-y-4">
                   {s.generazioni_crazy8.map(g => (
                     <div key={g.id} className="grid md:grid-cols-[220px_1fr] gap-4 border-t border-stone-100 pt-4">
                       <div className="space-y-2">
                         <Miniatura url={g.url_immagine} className="w-full aspect-square" />
-                        <p className="text-[10px] text-stone-400">Round {g.ordine}{g.motore ? ` · ${g.motore}` : ''}</p>
+                        <p className="text-[10px] text-stone-400">Round {g.ordine}{g.motore ? ` (${g.motore})` : ''}</p>
                         <details className="text-[11px] text-stone-500">
                           <summary className="cursor-pointer hover:text-stone-900">Prompt usato</summary>
                           <p className="mt-1 leading-relaxed">{g.prompt_usato}</p>
@@ -1069,11 +1071,11 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           <div className="min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-10">
             <div className="max-w-md w-full space-y-4 animate-fade-in-up">
               <div className="text-center mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase 1 di {NUMERO_FASI}</p>
-                <h1 className="text-3xl font-serif mt-1">🧭 Su cosa lavorate?</h1>
-                <p className="text-sm text-stone-500 mt-1">
-                  {team ? 'Su quali sotto-ambiti progettuali lavora il team? Uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}
-                </p>
+                <h1 className="text-3xl font-serif">
+                  🧭 Su cosa lavorate?
+                  <span className="apice">(01 / {String(NUMERO_FASI).padStart(2, '0')})</span>
+                  <Info>{team ? 'Su quali sotto-ambiti progettuali lavora il team? Uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}</Info>
+                </h1>
               </div>
               {!team && (
                 <div className="grid grid-cols-2 gap-3">
@@ -1094,8 +1096,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               </div>
               {!team && (
                 <>
-                  <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Scegli un codice (min. 4 caratteri)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  <p className="text-[11px] text-stone-400">Vi servirà per tornare a lavorarci: conservatelo, non è recuperabile.</p>
+                  <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Codice per ritrovare la consegna (min. 4 caratteri)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
                 </>
               )}
               {erroreCreazione && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreCreazione}</p>}
@@ -1119,9 +1120,11 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <Stepper fase={fase} raggiunta={raggiunta} onVai={vaiAFase} />
 
             <header key={fase} className="animate-fade-in-up">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Fase {fase} di {NUMERO_FASI}</p>
-              <h1 className="text-2xl sm:text-3xl font-serif font-bold mt-1"><span aria-hidden="true">{infoFase.icona}</span> {infoFase.titolo}</h1>
-              <p className="text-sm text-stone-500 mt-1 max-w-2xl">{infoFase.sottotitolo}</p>
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold">
+                <span aria-hidden="true">{infoFase.icona}</span> {infoFase.titolo}
+                <span className="apice">({String(fase).padStart(2, '0')} / {String(NUMERO_FASI).padStart(2, '0')})</span>
+                {infoFase.sottotitolo && <Info>{infoFase.sottotitolo}</Info>}
+              </h1>
             </header>
 
             {erroreAzione && (
@@ -1139,8 +1142,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       {activeTab === 'share' && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4">
           <header>
-            <h1 className="text-2xl font-serif font-bold">📣 I concept dei team</h1>
-            <p className="text-sm text-stone-500 mt-1">Le moodboard composte da ogni team, pronte per la presentazione in aula.</p>
+            <h1 className="text-2xl font-serif font-bold">📣 I concept dei team<Info>Le moodboard composte da ogni team, pronte per la presentazione in aula.</Info></h1>
           </header>
           <Share submissions={submissions} propriaId={attiva?.id || null} etichettaDriver={k => corso.configurazione.driver.find(d => d.chiave === k)?.etichetta || k} />
         </div>
@@ -1176,7 +1178,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     <div className="min-w-0">
                       <h3 className="font-bold text-sm text-stone-900 truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</h3>
                       <p className="text-xs text-stone-500">
-                        Gruppo {s.gruppo_num} — {s.gruppo_nome} · Fase {faseEffettiva(s)}/{NUMERO_FASI} {FASI[faseEffettiva(s) - 1].breve}
+                        Gruppo {s.gruppo_num} — {s.gruppo_nome}<Sep />Fase {faseEffettiva(s)}/{NUMERO_FASI} {FASI[faseEffettiva(s) - 1].breve}
                       </p>
                     </div>
                   </div>

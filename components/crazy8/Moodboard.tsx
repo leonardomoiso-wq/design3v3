@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Sep from '@/components/Sep';
 import {
   MAX_MOODBOARD, MIN_MOODBOARD, Miniatura, TestoAutosalvato, risolviVoceMoodboard, sottoAmbitiDi,
   type Submission, type VoceMoodboard,
@@ -110,7 +111,7 @@ export function MoodboardEditor({
   const sketchDisponibili = submission.immagini.some(s => s.selezionato) ? submission.immagini.filter(s => s.selezionato) : submission.immagini;
   const disponibili = sketchDisponibili.flatMap(s => [
     { tipo: 'sketch' as const, id: s.id, url: s.url_file, etichetta: `Sketch ${s.ordine + 1}`, sottoAmbito: s.sotto_ambito },
-    ...s.generazioni_crazy8.map(g => ({ tipo: 'generata' as const, id: g.id, url: g.url_immagine, etichetta: `Sketch ${s.ordine + 1} · round ${g.ordine}`, sottoAmbito: s.sotto_ambito })),
+    ...s.generazioni_crazy8.map(g => ({ tipo: 'generata' as const, id: g.id, url: g.url_immagine, etichetta: `Sketch ${s.ordine + 1}, round ${g.ordine}`, sottoAmbito: s.sotto_ambito })),
   ]).filter(x => filtro === 'tutte' || x.tipo === filtro);
 
   const sottoAmbiti = sottoAmbitiDi(submission);
@@ -177,7 +178,7 @@ export function MoodboardEditor({
                     <Miniatura url={img.url} className={i === 0 ? 'w-24 h-24 flex-shrink-0' : 'w-16 h-16 flex-shrink-0'} />
                     <div className="flex-1 min-w-0 space-y-1">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
-                        {i === 0 ? '★ Copertina' : `Immagine ${i + 1}`} · {img.etichetta}
+                        {i === 0 ? '★ Copertina' : `Immagine ${i + 1}`}<Sep />{img.etichetta}
                       </p>
                       <TestoAutosalvato
                         key={`${v.tipo}-${v.id}`}
