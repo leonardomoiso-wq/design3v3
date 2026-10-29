@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
-import { useTeam, type TeamInfo } from '../lib/team-context';
+import { useTeam, etichettaTeam, type TeamInfo, type TipoTeam } from '../lib/team-context';
 import { unisciTestiPiattaforma, accessoDirettoAbilitato } from '../lib/testi-piattaforma';
 import { useCorso } from '../lib/corso-context';
 import { caricaCorsiPubblici, caricaCorsoPerCodice, NOME_PIATTAFORMA, type Corso } from '../lib/corsi';
@@ -132,13 +132,13 @@ function SceltaCorso() {
 
 const messaggioErroreTeam = (codice: string) => {
   switch (codice) {
-    case 'nome_troppo_corto': return 'Il nome del team deve avere almeno 2 caratteri.';
+    case 'nome_troppo_corto': return 'Il nome deve avere almeno 2 caratteri.';
     case 'password_troppo_corta': return 'La password deve avere almeno 4 caratteri.';
     case 'domanda_mancante': return 'Scegliete una domanda segreta.';
     case 'risposta_mancante': return 'Scrivete la risposta alla domanda segreta.';
-    case 'nome_gia_usato': return 'Questo nome team è già stato scelto da un altro gruppo del corso.';
+    case 'nome_gia_usato': return 'Questo nome è già usato da un altro team o studente del corso.';
     case 'corso_non_trovato': return 'Il corso non è più attivo. Sceglietene un altro.';
-    case 'credenziali_errate': return 'Nome team o password errati.';
+    case 'credenziali_errate': return 'Nome o password errati.';
     case 'team_non_trovato': return 'Nessun team trovato con questo nome.';
     case 'risposta_errata': return 'Risposta segreta errata.';
     default: return 'Qualcosa è andato storto. Riprova.';
@@ -189,7 +189,7 @@ function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => v
             onClick={onAvanti}
             className="bg-stone-900 text-white px-8 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
           >
-            Formiamo il team →
+            Entra: in team o da soli →
           </button>
           {accessoDirettoOn && (
             <p className="text-[11px] text-stone-400 whitespace-pre-line">
@@ -214,6 +214,10 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
   const testi = useTestiPiattaforma();
   const accessoDirettoOn = accessoDirettoAbilitato(testi);
   const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
+  // Iscrizione di gruppo o individuale: per alcune attività (es. il
+  // Contest) l'impegno è di una persona sola.
+  const [tipo, setTipo] = useState<TipoTeam>('gruppo');
+  const individuale = scheda === 'crea' && tipo === 'individuale';
   const [nome, setNome] = useState('');
   const [password, setPassword] = useState('');
   const [domandaSegreta, setDomandaSegreta] = useState('');
@@ -238,7 +242,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
   const invia = async () => {
     setErrore('');
     if (!nome.trim() || !password.trim()) {
-      setErrore('Compilate nome team e password.');
+      setErrore(individuale ? 'Compila nome e password.' : 'Compilate nome e password.');
       return;
     }
     setInCorso(true);
@@ -247,7 +251,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || 'credenziali_errate')); return; }
       const riga = data[0];
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [] });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : 'gruppo' });
     } else {
       if (!domandaSegreta.trim() || !rispostaSegreta.trim()) {
         setInCorso(false);
@@ -256,12 +260,13 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
       }
       const { data, error } = await supabase.rpc('crea_team', {
         p_corso_id: corsoId, p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
-        p_membri: membri.map(m => m.trim()).filter(Boolean),
+        p_membri: tipo === 'individuale' ? [] : membri.map(m => m.trim()).filter(Boolean),
+        p_tipo: tipo,
       });
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || '')); return; }
       const riga = data[0];
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [] });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : tipo });
     }
   };
 
@@ -310,8 +315,12 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
       <div className="flex-1 flex items-center justify-center py-12">
       <div className="max-w-md w-full space-y-5 animate-fade-in-up">
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-serif">Il vostro team</h1>
-          <p className="text-sm text-stone-500">Nome e password sono a vostra scelta: teneteli a mente, vi serviranno per ritrovare il team.</p>
+          <h1 className="text-2xl font-serif">{individuale ? 'Il tuo accesso' : 'Il vostro team'}</h1>
+          <p className="text-sm text-stone-500">
+            {individuale
+              ? 'Per le attività in cui l’impegno è individuale. Nome e password sono a tua scelta: tienili a mente.'
+              : 'Nome e password sono a vostra scelta: teneteli a mente, vi serviranno per ritrovare il team (o il vostro accesso individuale).'}
+          </p>
         </div>
 
         <div className="flex bg-stone-100 rounded-full p-1">
@@ -319,13 +328,34 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
             Accedi
           </button>
           <button onClick={() => { setScheda('crea'); setErrore(''); }} className={`flex-1 text-xs font-medium py-2 rounded-full transition ${scheda === 'crea' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500'}`}>
-            Crea il tuo team
+            Iscriviti
           </button>
         </div>
 
+        {scheda === 'crea' && (
+          <div role="radiogroup" aria-label="Come partecipi" className="grid grid-cols-2 gap-2">
+            {([
+              { v: 'gruppo', t: 'In team', d: 'Un accesso per tutto il gruppo' },
+              { v: 'individuale', t: 'Da solo/a', d: 'Per le attività individuali' },
+            ] as { v: TipoTeam; t: string; d: string }[]).map(o => (
+              <button
+                key={o.v}
+                type="button"
+                role="radio"
+                aria-checked={tipo === o.v}
+                onClick={() => { setTipo(o.v); setErrore(''); }}
+                className={`text-left rounded-2xl border p-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${tipo === o.v ? 'border-stone-900 bg-white shadow-sm' : 'border-stone-200 bg-stone-50 hover:border-stone-400'}`}
+              >
+                <span className="block text-sm font-medium">{o.t}</span>
+                <span className="block text-[11px] text-stone-500">{o.d}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-3" aria-hidden={mostraRecupero || undefined}>
-          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder="Nome del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} placeholder="Password del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? 'Nome del team (o nome e cognome)' : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} aria-label="Password" placeholder={individuale ? 'La tua password' : 'Password'} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
 
           {scheda === 'crea' && (
             <>
@@ -336,7 +366,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
               <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
               <p className="text-[11px] text-stone-400">Vi servirà solo se dimenticate la password.</p>
 
-              <div className="border-t border-stone-100 pt-3 space-y-2">
+              {!individuale && <div className="border-t border-stone-100 pt-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Chi c&apos;è nel team?</p>
                 {membri.map((m, i) => (
                   <div key={i} className="flex gap-1.5">
@@ -347,14 +377,14 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
                   </div>
                 ))}
                 <button type="button" onClick={aggiungiCampoMembro} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi studente</button>
-              </div>
+              </div>}
             </>
           )}
 
           {errore && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{errore}</p>}
 
           <button onClick={invia} disabled={inCorso || mostraRecupero} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
-            {inCorso ? 'Un attimo...' : scheda === 'accedi' ? 'Entra' : 'Crea team ed entra'}
+            {inCorso ? 'Un attimo...' : scheda === 'accedi' ? 'Entra' : individuale ? 'Iscriviti ed entra' : 'Crea team ed entra'}
           </button>
 
           {scheda === 'accedi' && (
@@ -378,7 +408,7 @@ function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team
               </>
             ) : (
               <>
-                <input type="text" value={nomeRecupero} onChange={e => setNomeRecupero(e.target.value)} placeholder="Nome del team" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                <input type="text" value={nomeRecupero} onChange={e => setNomeRecupero(e.target.value)} placeholder="Nome del team (o nome e cognome)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
                 {domandaRecuperata === null ? (
                   <button onClick={chiediDomanda} disabled={recuperoInCorso} className="w-full bg-stone-100 hover:bg-stone-200 transition text-xs font-medium py-2.5 rounded-xl disabled:opacity-50">
                     {recuperoInCorso ? 'Verifica...' : 'Avanti'}
@@ -487,11 +517,13 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
           {team ? (
             <>
               <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-                Gruppo {team.numero} — {team.nome}
+                {etichettaTeam(team)}
               </span>
-              <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
-                👥 Membri
-              </button>
+              {team.tipo !== 'individuale' && (
+                <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
+                  👥 Membri
+                </button>
+              )}
             </>
           ) : (
             <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 pl-3 pr-1.5 py-1.5 rounded-full text-stone-500 font-medium">

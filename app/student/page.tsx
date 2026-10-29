@@ -5,7 +5,7 @@ import { normalizzaDriver, estraiNote, costruisciDriver, coordinateDaDriver, MAX
 import { comprimiImmagine } from '../../lib/immagine';
 import { caricaCasiConCache, aggiornaCacheCaso, rimuoviCasoDallaCache } from '../../lib/cacheCasi';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
-import { useTeam } from '../../lib/team-context';
+import { useTeam, etichettaTeam } from '../../lib/team-context';
 import { ascoltaCorso } from '../../lib/realtime';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
@@ -528,7 +528,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
           {team && (
             <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-              Gruppo {team.numero} — {team.nome}
+              {etichettaTeam(team)}
             </span>
           )}
           <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
@@ -957,7 +957,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
             {team ? (
               <p className="text-xs text-stone-500">
-                Voti come <span className="font-medium text-stone-700">Gruppo {team.numero} — {team.nome}</span>.
+                Voti come <span className="font-medium text-stone-700">{etichettaTeam(team)}</span>.
               </p>
             ) : (
               <div>

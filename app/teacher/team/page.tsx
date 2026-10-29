@@ -3,14 +3,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 
-type RigaTeam = { numero: number; nome: string; membri: string[]; creato_il: string };
+type RigaTeam = { numero: number; nome: string; membri: string[]; creato_il: string; tipo?: 'gruppo' | 'individuale' };
 
 function scaricaCsv(righe: RigaTeam[]) {
-  const intestazione = ['Numero', 'Nome team', 'Membri', 'Creato il'];
+  const intestazione = ['Numero', 'Nome team', 'Tipo', 'Membri', 'Creato il'];
   const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const righeCsv = righe.map(r => [
     String(r.numero),
     escapeCsv(r.nome),
+    r.tipo === 'individuale' ? 'individuale' : 'gruppo',
     escapeCsv(r.membri.join('; ')),
     new Date(r.creato_il).toLocaleString('it-IT'),
   ].join(','));
@@ -130,7 +131,10 @@ export default function TeamPannelloPage() {
                 {righe.map(r => (
                   <tr key={r.numero} className="border-b border-stone-50 last:border-0">
                     <td className="p-3 font-bold text-stone-700">{r.numero}</td>
-                    <td className="p-3">{r.nome}</td>
+                    <td className="p-3">
+                      {r.nome}
+                      {r.tipo === 'individuale' && <span className="ml-2 text-[9px] uppercase tracking-widest bg-amber-50 border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">individuale</span>}
+                    </td>
                     <td className="p-3 text-stone-500">{r.membri.length > 0 ? r.membri.join(', ') : '—'}</td>
                     <td className="p-3 text-stone-400 text-xs">{new Date(r.creato_il).toLocaleDateString('it-IT')}</td>
                     <td className="p-3 text-right">

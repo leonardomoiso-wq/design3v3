@@ -14,7 +14,15 @@ import { useCorso } from './corso-context';
 
 const chiaveSessione = (corsoId: string) => `edu_team_sessione_${corsoId}`;
 
-export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[] };
+// tipo: 'gruppo' (più persone) o 'individuale' (una persona sola, per le
+// attività in cui l'impegno è individuale, es. il Contest). Le sessioni
+// salvate prima dell'iscrizione individuale non hanno il campo: valgono
+// come 'gruppo'.
+export type TipoTeam = 'gruppo' | 'individuale';
+export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[]; tipo?: TipoTeam };
+
+export const etichettaTeam = (t: Pick<TeamInfo, 'numero' | 'nome' | 'tipo'>) =>
+  t.tipo === 'individuale' ? `${t.nome} · individuale` : `Gruppo ${t.numero} — ${t.nome}`;
 
 type TeamContextValue = {
   team: TeamInfo | null;

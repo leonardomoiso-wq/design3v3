@@ -6,13 +6,14 @@ import { NOME_PIATTAFORMA } from '../../lib/brand';
 import { supabase } from '@/lib/supabase';
 import type { StatoAttivita } from '@/lib/attivita';
 
-type IdAttivita = 'design_case_studies' | 'crazy8_ai' | 'hmw_role_prompting' | 'teambuilding';
+type IdAttivita = 'design_case_studies' | 'crazy8_ai' | 'hmw_role_prompting' | 'contest_voto' | 'teambuilding';
 
 const SCHEDE: { id: IdAttivita; etichetta: string; icona: string }[] = [
   { id: 'teambuilding', etichetta: 'Il Team', icona: '👥' },
   { id: 'design_case_studies', etichetta: 'Casi Studio', icona: '🗂️' },
   { id: 'crazy8_ai', etichetta: 'Crazy 8', icona: '🎨' },
   { id: 'hmw_role_prompting', etichetta: 'HMW', icona: '🎭' },
+  { id: 'contest_voto', etichetta: 'Contest', icona: '🏆' },
 ];
 
 // "Il Team" non è un'attività della tabella `attivita` (il login di team è
@@ -98,6 +99,8 @@ function ManualiContenuto() {
               Alla prima visita, prima di vedere le attività, scegliete un <b>nome team</b> e una <b>password</b>: sono i vostri, decideteli
               voi. Impostate anche una domanda segreta (e la sua risposta), da usare in caso dimentichiate la password. Da lì in poi il
               team resta riconosciuto sullo stesso browser: non dovrete rifare l&apos;accesso a ogni visita.
+              Per le attività in cui l&apos;impegno è individuale (per esempio alcuni contest), scegliete <b>&quot;Iscriviti&quot;</b> e poi
+              <b>&quot;Da solo/a&quot;</b>: l&apos;accesso funziona allo stesso modo, ma vale per una persona sola.
             </p>
           </div>
           <div className="space-y-4">
@@ -302,6 +305,56 @@ function ManualiContenuto() {
               Scegliete fino a 3 ruoli (stakeholder simulati dall&apos;AI) tra quelli approvati dal/dalla docente, o proponetene uno nuovo.
               Lo stress test genera, per ciascun ruolo, una reazione al vostro HMW più recente: usatela per capire punti deboli e
               prospettive che non avevate considerato.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {schedaEffettiva === 'contest_voto' && (
+        <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">A</span>
+              <h2 className="text-lg font-serif font-bold">Accesso: in team o da soli</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Alcuni contest sono individuali: in quel caso, dalla schermata di accesso scegliete <b>&quot;Iscriviti&quot;</b> e poi <b>&quot;Da solo/a&quot;</b>. Ogni accesso (team o persona) ha un voto per contest.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">B</span>
+              <h2 className="text-lg font-serif font-bold">Le proposte</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Aprite una proposta per leggerla per intero: in alto la frase che la riassume, poi il problema, la proposta e, in blu, perché votarla. Con <b>&quot;Presenta&quot;</b> le proposte scorrono una alla volta a tutto schermo. Se il contest lo prevede, dalla scheda <b>&quot;La mia&quot;</b> potete candidare la vostra proposta finché il voto non si apre.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">C</span>
+              <h2 className="text-lg font-serif font-bold">Il voto, anonimo</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Quando il voto è aperto, nella proposta scelta premete <b>&quot;Vota questa proposta&quot;</b> e confermate. Il voto è anonimo: nessuno, nemmeno il/la docente, vede chi ha votato cosa. Potete cambiarlo fino alla scadenza del countdown, ma non votare la vostra proposta.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">D</span>
+              <h2 className="text-lg font-serif font-bold">I dati del voto</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Nella scheda <b>&quot;Dati&quot;</b> vedete in diretta quanti hanno votato, da dove e con che dispositivo, il ritmo del voto e il tempo che manca. La classifica resta coperta fino alla scadenza, poi compare il vincitore.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-stone-800 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">E</span>
+              <h2 className="text-lg font-serif font-bold">Il voto dal vivo in aula</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Il/la docente può aprire anche un voto dal vivo per il pubblico: inquadrate il QR sullo schermo oppure aprite <b>/contest/live</b> e scrivete il codice di 4 cifre. Non serve iscriversi: un voto per telefono.
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useTeam } from '../../lib/team-context';
+import { useTeam, etichettaTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import type { Corso } from '../../lib/corsi';
 
@@ -229,7 +229,7 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
         <div className="flex flex-wrap items-center gap-3">
           {team && (
             <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-              Gruppo {team.numero} — {team.nome}
+              {etichettaTeam(team)}
             </span>
           )}
           <a href="/manuali?attivita=hmw_role_prompting" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">📚 Manuale</a>

@@ -28,6 +28,7 @@ export const MODULI_ATTIVITA: Record<string, { icona: string; hrefStudente?: str
   design_case_studies: { icona: '🗂️', hrefStudente: '/student', hrefDocente: '/teacher' },
   crazy8_ai: { icona: '🎨', hrefStudente: '/crazy8', hrefDocente: '/teacher/crazy8' },
   hmw_role_prompting: { icona: '🎭', hrefStudente: '/hmw', hrefDocente: '/teacher/hmw' },
+  contest_voto: { icona: '🏆', hrefStudente: '/contest', hrefDocente: '/teacher/contest' },
 };
 
 export function moduloDi(tipo: string) {

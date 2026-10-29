@@ -67,3 +67,11 @@ Sezioni: nome, codice, visibilità in home, link per gli studenti (copiabile); i
 Attività nuova: tipo registrato in `MODULI_ATTIVITA` (icona, pagine studente/docente), riga seminata in `semina_attivita_corso`, pagine avvolte in `RichiedeCorso`, tabelle con `corso_id` (o ricavato dall'attività), stato bozza/prossimamente/attiva/archiviata dal pannello Attività.
 
 Campo nuovo sul caso studio: colonna + vincolo → parametri `default null` in `crea_`/`aggiorna_` → stato, validazione, reset e modifica nel form → riepilogo → tutte le viste (cerca ogni `formattaCaso`) → manuale studenti. Usa un componente condiviso per mostrarlo (come `MetaCaso`), così resta coerente ovunque.
+
+## 9. Contest con voto anonimo (tipo `contest_voto`)
+
+- Pagine: `/contest` (studenti, dentro `RichiedeCorso`, accesso con il team della home), `/contest/live` (pubblico in aula, senza corso né login: il contest si trova dal codice a 4 cifre o dal QR), `/teacher/contest` e `/teacher/contest/proiezione` (schermo da proiettare). Stile: Moiso design language limitato alla classe `.mz` (`app/moiso.css`, `components/moiso/`).
+- Iscrizione individuale: `team.tipo` = `gruppo` | `individuale` (un team di una persona). `crea_team(..., p_tipo)` e `login_team` restituiscono il tipo; `etichettaTeam()` in `lib/team-context.tsx` per mostrarlo.
+- Per contest: `proposte_da` (`docente` | `studenti`), `iscrizione` (chi candida e vota: individui, team o entrambi), `fase` (`bozza` → `anteprima` → `voto` con scadenza → `chiuso`), voto dal vivo (`live_stato`, codice in `contest_segreti`).
+- Anonimato: `contest_voti` non è leggibile dal client; ogni voto ha solo un'impronta con sale segreto per contest. Tutto ciò che si vede passa da `contest_statistiche` (aggregati; conteggi per proposta solo per il docente, a classifica visibile, a voto scaduto o a vincitore svelato).
+- Candidature e voto da remoto richiedono l'attività `contest_voto` in stato `attiva`; il voto dal vivo no.
