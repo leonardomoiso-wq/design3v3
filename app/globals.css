@@ -68,9 +68,9 @@ h1, h2, h3, h4 {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.animate-fade-in-up { animation: fade-in-up 0.45s var(--out) both; }
-.animate-scale-in { animation: scale-in 0.4s var(--out) both; }
-.animate-fade-in { animation: fade-in 0.5s ease-out both; }
+.animate-fade-in-up { animation: fade-in-up 0.45s var(--out) backwards; }
+.animate-scale-in { animation: scale-in 0.4s var(--out) backwards; }
+.animate-fade-in { animation: fade-in 0.5s ease-out backwards; }
 
 /* Feedback "a impulsi" durante la compressione/upload di un'immagine:
    un piccolo radar-ping sul controllo interessato (pulse-anello) e un
@@ -157,14 +157,14 @@ h1, h2, h3, h4 {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-.animate-sheet-up { animation: sheet-up 0.45s var(--out) both; }
+.animate-sheet-up { animation: sheet-up 0.45s var(--out) backwards; }
 @keyframes sheet-destra {
   from { transform: translateX(105%); }
   to { transform: none; }
 }
 @media (min-width: 768px) {
-  .md\:animate-scale-in { animation: finestra-entra 0.5s var(--out) both; }
-  .md\:animate-sheet-destra { animation: sheet-destra 0.6s var(--ease) both; }
+  .md\:animate-scale-in { animation: finestra-entra 0.5s var(--out) backwards; }
+  .md\:animate-sheet-destra { animation: sheet-destra 0.6s var(--ease) backwards; }
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-sheet-up, .md\:animate-scale-in, .md\:animate-sheet-destra { animation-duration: 0.01ms !important; }
@@ -234,8 +234,8 @@ h1, h2, h3, h4 {
    scuro) entrano allo stesso modo: il fondo sfuma, la finestra sale con
    una leggera molla. Su telefono diventano pannelli dal basso, come il
    BottomSheet. */
-[role="dialog"][aria-modal="true"].bg-stone-900\/60 { animation: fade-in 0.3s var(--out) both; }
-[role="dialog"][aria-modal="true"].bg-stone-900\/60:not(.items-end) > div:first-child { animation: finestra-entra 0.5s var(--out) both; }
+[role="dialog"][aria-modal="true"].bg-stone-900\/60 { animation: fade-in 0.3s var(--out) backwards; }
+[role="dialog"][aria-modal="true"].bg-stone-900\/60:not(.items-end) > div:first-child { animation: finestra-entra 0.5s var(--out) backwards; }
 @keyframes finestra-entra {
   from { opacity: 0; transform: translateY(18px) scale(0.97); }
   to { opacity: 1; transform: none; }
@@ -246,7 +246,7 @@ h1, h2, h3, h4 {
     max-width: none; width: 100%; border-radius: 24px 24px 0 0;
     max-height: 90dvh; overflow-y: auto;
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
-    animation: sheet-up 0.45s var(--out) both;
+    animation: sheet-up 0.45s var(--out) backwards;
   }
 }
 
@@ -269,7 +269,7 @@ button:focus-visible:not([class*="focus-visible:ring"]),
 }
 
 /* Icona ⓘ con nota breve (components/Info.tsx). */
-.info-ancora { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.info-ancora { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; font-size: 12.5px; line-height: 1; letter-spacing: 0; }
 .info-punto {
   width: 18px; height: 18px; border-radius: 9999px; display: inline-grid; place-items: center;
   font: italic 700 11px/1 Georgia, "Times New Roman", serif; color: var(--muted);
@@ -279,17 +279,13 @@ button:focus-visible:not([class*="focus-visible:ring"]),
 .info-punto:hover, .info-punto[aria-expanded="true"] { color: var(--ink); border-color: var(--ink); }
 .info-punto[aria-expanded="true"] { transform: scale(1.1); }
 .info-nota {
-  position: absolute; top: calc(100% + 8px); z-index: 50; width: max-content; max-width: min(300px, 80vw);
+  position: fixed; top: 0; left: 0; z-index: 200; width: max-content; max-width: min(300px, calc(100vw - 24px));
   padding: 10px 12px; border-radius: 12px; background: var(--ink); color: var(--paper);
-  font: 400 12.5px/1.45 var(--f-text); letter-spacing: 0; text-transform: none; text-align: left; white-space: normal;
+  font-family: var(--f-text), sans-serif; font-size: 12.5px; font-weight: 400; font-style: normal; line-height: 1.45;
+  letter-spacing: 0; text-transform: none; text-align: left; white-space: normal; text-shadow: none;
   box-shadow: 0 14px 30px -12px rgba(28, 25, 23, .45);
   animation: finestra-entra .35s var(--out) both;
 }
-.info-centro { left: 50%; transform: translateX(-50%); }
-.info-centro.info-nota { animation-name: info-entra-centro; }
-@keyframes info-entra-centro { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.info-sinistra { right: -6px; }
-.info-destra { left: -6px; }
 
 /* Separatore tra informazioni affiancate (components/Sep.tsx): spazio, non puntini. */
 .sep { display: inline-block; width: 0.9em; }

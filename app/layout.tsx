@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it">
-      <body className={`${inter.className} ${inter.variable}`}>
+    <html lang="it" className={inter.variable}>
+      <body className={inter.className}>
         <CorsoProvider>
           <TeamProvider>{children}</TeamProvider>
         </CorsoProvider>
