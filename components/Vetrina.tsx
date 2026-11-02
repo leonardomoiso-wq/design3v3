@@ -21,13 +21,17 @@ export function RailVetrina({ sinistra, destra }: { sinistra?: ReactNode; destra
 
 export const due = (n: number) => String(n).padStart(2, '0');
 
-export function RigaIndice({ indice, titolo, meta, href, onClick, ritardo = 0 }: {
+export function RigaIndice({ indice, titolo, meta, href, onClick, ritardo = 0, sotto, spenta = false }: {
   indice: number; titolo: ReactNode; meta?: ReactNode; href?: string; onClick?: () => void; ritardo?: number;
+  sotto?: ReactNode; spenta?: boolean;
 }) {
   const corpo = (
     <>
       <span className="mz-mono">({due(indice)})</span>
-      <span className="mz-riga-titolo">{titolo}</span>
+      <span style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+        <span className="mz-riga-titolo">{titolo}</span>
+        {sotto && <span className="mz-riga-sotto">{sotto}</span>}
+      </span>
       <span className="mz-riga-meta">
         {meta}
         <span className="mz-riga-freccia" aria-hidden="true">→</span>
@@ -36,7 +40,9 @@ export function RigaIndice({ indice, titolo, meta, href, onClick, ritardo = 0 }:
   );
   return (
     <li className="mz-in" style={{ animationDelay: `${ritardo}ms` }}>
-      {href ? <a href={href} className="mz-riga">{corpo}</a> : <button type="button" onClick={onClick} className="mz-riga">{corpo}</button>}
+      {spenta ? <div className="mz-riga spenta">{corpo}</div>
+        : href ? <a href={href} className="mz-riga">{corpo}</a>
+        : <button type="button" onClick={onClick} className="mz-riga">{corpo}</button>}
     </li>
   );
 }

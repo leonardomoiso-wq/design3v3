@@ -24,7 +24,7 @@
 
 ## 2. Database e migrazioni
 
-- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo, la 20261016 copertina e voto solo individuale.
+- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo, la 20261016 copertina e voto solo individuale, la 20261017 lo stato del contest nell'ateneo.
 - Autorizzazione: `richiedi_docente(corso, password)` (password del corso o di amministrazione), `team_verificato(team, password)`; funzioni interne con `revoke execute`.
 - Ogni tabella radice ha `corso_id`; lettura pubblica con RLS, scritture solo via RPC `security definer set search_path = public, extensions`.
 - Cambiare la firma di una RPC: `drop function if exists f(<firma vecchia>)` e poi `create or replace`, parametri nuovi in fondo con `default`.
@@ -37,6 +37,7 @@
 - Codici riservati (`codice_ateneo_riservato`): student, teacher, crazy8, hmw, contest, manuali, api, corsi, atenei.
 - RPC: `docente_crea_ateneo` (solo amministrazione, crea anche lo spazio), `docente_aggiorna_ateneo`, `docente_assegna_ateneo(corso, ateneo, password)`; `docente_accedi` restituisce ateneo e `spazio_ateneo`.
 - Contest di ateneo (20261015): `contest.ambito` = `corso` | `ateneo`. Un contest di ateneo resta gestito dal corso che lo crea, ma vota (e candida) chi ha un accesso in qualsiasi corso dell'ateneo (`contest_ammette`) oppure chi si iscrive solo al contest nello spazio di ateneo. `contest_di_ateneo(ateneo)` elenca quelli da mostrare in `/polito`. Nella pagina `/polito/contest` lo studente sceglie «Solo per il contest» o «Con il mio corso»; un accesso già salvato in un corso dell'ateneo viene riconosciuto.
+- Stato nell'ateneo (20261017): `contest.stato_ateneo` (bozza = non visibile, prossimamente, attiva), indipendente dall'attività Contest del corso; `contest_aperto(contest, corso del votante)` decide se si può votare o candidare. `docente_stato_ateneo_contest` lo imposta e sincronizza `ambito`.
 - Area docente: sezione Atenei per l'amministrazione; nello spazio di ateneo il menu mostra solo Contest, Attività, Team, Testi.
 
 ## 3. Il Contest nel database

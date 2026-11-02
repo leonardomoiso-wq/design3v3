@@ -56,7 +56,7 @@ La variabile del font Inter (`--font-inter`) sta su `<html>`: i token che la usa
 
 ## 5b. Vetrina pubblica (home e pagine di ateneo)
 
-Stessa scena del Contest (`.mz`, ora caricata ovunque): pagina a tutto schermo, titolo enorme con contatore in apice, forme appese, indice a righe (`RigaIndice` in `components/Vetrina.tsx`) con indice `(01)`, nome grande e dati in maiuscoletto; al passaggio la riga si riempie d'ambra dal basso e il titolo scivola. Il contest di ateneo è una scena ambra con copertina, countdown e «Entra e vota». Niente nastro di parole scorrevoli nella vetrina (scelta dell'autore).
+Stessa scena del Contest (`.mz`, ora caricata ovunque): pagina a tutto schermo, titolo enorme con contatore in apice, forme appese, indice a righe (`RigaIndice` in `components/Vetrina.tsx`) con indice `(01)`, nome grande e dati in maiuscoletto; al passaggio la riga si riempie d'ambra dal basso e il titolo scivola. Il contest di ateneo è una scena ambra con copertina, countdown e «Entra e vota». Niente nastro di parole scorrevoli nella vetrina (scelta dell'autore). La pagina del corso usa la stessa vetrina: nome del corso grande e accesso subito visibile (Accedi / Iscriviti, in team o da solo/a); dopo l'accesso le attività sono un indice a righe (aperte con punto vivo, «In arrivo» spente).
 
 ## 6. Regole dei testi
 

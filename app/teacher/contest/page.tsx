@@ -22,6 +22,10 @@ const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
 
+const STATI_ATENEO: { id: 'bozza' | 'prossimamente' | 'attiva'; label: string }[] = [
+  { id: 'bozza', label: 'Non visibile' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' },
+];
+
 const FASI: FaseContest[] = ['bozza', 'anteprima', 'voto', 'chiuso'];
 const DESCR_FASE: Record<FaseContest, string> = {
   bozza: 'Visibile solo a te.',
@@ -136,12 +140,11 @@ export default function ContestDocentePage() {
 
   const modificato = !!sel && (bozza.titolo !== sel.titolo || bozza.sottotitolo !== sel.sottotitolo || bozza.descrizione !== sel.descrizione
     || bozza.iscrizione !== sel.iscrizione || bozza.mostra_classifica !== sel.mostra_classifica
-    || bozza.proposte_da !== (sel.proposte_da || 'docente') || bozza.ambito !== (sel.ambito || 'corso'));
+    || bozza.proposte_da !== (sel.proposte_da || 'docente'));
   const salvaImpostazioni = () => sel && rpc('docente_salva_contest', {
     p_corso_id: corso.id,
     p_id: sel.id, p_titolo: bozza.titolo, p_sottotitolo: bozza.sottotitolo, p_descrizione: bozza.descrizione,
     p_iscrizione: bozza.iscrizione, p_mostra_classifica: bozza.mostra_classifica, p_proposte_da: bozza.proposte_da,
-    ...(corso.spazio_ateneo ? {} : { p_ambito: bozza.ambito }),
   }, 'Impostazioni salvate');
 
   const impostaFase = (fase: FaseContest) => {
@@ -187,7 +190,7 @@ export default function ContestDocentePage() {
 
   const votiPer = useMemo(() => new Map((stat?.per_proposta || []).map(p => [p.id, p])), [stat]);
   // Pagina studenti: quella dell'ateneo per i contest aperti a tutto l'ateneo.
-  const diAteneo = !!corso.ateneo_codice && (corso.spazio_ateneo || sel?.ambito === 'ateneo');
+  const diAteneo = !!corso.ateneo_codice && (corso.spazio_ateneo || (!!sel && sel.ambito === 'ateneo' && (sel.stato_ateneo || 'bozza') !== 'bozza'));
   const paginaStudenti = diAteneo ? `/${corso.ateneo_codice}/contest${sel ? `?c=${sel.id}` : ''}` : '/contest';
   const linkLive = sel && codiceLive ? `${origine}/contest/live?codice=${codiceLive}` : `${origine}/contest/live`;
   const liveAperto = sel?.live_stato === 'aperto' && (!sel.live_fine || new Date(sel.live_fine).getTime() > adesso);
@@ -215,7 +218,10 @@ export default function ContestDocentePage() {
           {lista.length === 0 && <li className="mz-muted" style={{ fontSize: 14 }}>Nessun contest. Creane uno.</li>}
         </ul>
         <div className="mz-hair" style={{ paddingTop: 14, display: 'grid', gap: 8 }}>
-          <span className="mz-mono">Attività in home</span>
+          <span className="mz-mono">
+            {corso.spazio_ateneo ? 'Attività nell’ateneo' : 'Attività nel corso'}
+            <Info lato="destra">{corso.spazio_ateneo ? 'Quando è «Attiva» i contest di questo spazio si votano dalla pagina dell’ateneo.' : 'Se il contest compare nella home del corso. Finché non è «Attiva» gli studenti del corso non votano da qui; il voto dal vivo funziona comunque.'}</Info>
+          </span>
           {attivitaContest ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {STATI_ATTIVITA.map(o => (
@@ -223,10 +229,34 @@ export default function ContestDocentePage() {
               ))}
             </div>
           ) : <span className="mz-muted" style={{ fontSize: 13 }}>Attività non trovata: esegui la migrazione 20261012.</span>}
-          {attivitaContest && attivitaContest.stato !== 'attiva' && <span className="mz-muted" style={{ fontSize: 12.5 }}>Finché non è «Attiva» gli studenti non votano da remoto. Il voto dal vivo funziona comunque.</span>}
-          <a href={paginaStudenti} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
-          {diAteneo && <span className="mz-mono mz-break" style={{ textTransform: 'none' }}>{origine.replace(/^https?:\/\//, '')}{paginaStudenti}</span>}
+          {!corso.spazio_ateneo && <a href="/contest" target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Pagina del corso ↗</a>}
         </div>
+        {!corso.spazio_ateneo && sel && (
+          <div className="mz-hair" style={{ paddingTop: 14, display: 'grid', gap: 8 }}>
+            <span className="mz-mono">
+              Questo contest nell’ateneo
+              <Info lato="destra">{corso.ateneo_id ? `Indipendente dal corso: se è «Attiva» compare nella pagina di ${corso.ateneo_nome} e votano anche gli studenti degli altri corsi, o chi si iscrive solo al contest, anche se nel corso non è visibile.` : 'Per aprirlo all’ateneo, assegna prima il corso a un ateneo in Corso & Form.'}</Info>
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+              {STATI_ATENEO.map(o => (
+                <button key={o.id} type="button" disabled={!corso.ateneo_id} className={`mz-chip ${(sel.stato_ateneo || 'bozza') === o.id ? 'on' : ''}`} style={{ justifyContent: 'center', opacity: corso.ateneo_id ? 1 : .5 }} aria-pressed={(sel.stato_ateneo || 'bozza') === o.id}
+                  onClick={() => rpc('docente_stato_ateneo_contest', { p_id: sel.id, p_stato: o.id }, `Nell’ateneo: ${o.label}`)}>{o.label}</button>
+              ))}
+            </div>
+            {diAteneo && (
+              <>
+                <a href={paginaStudenti} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Pagina dell’ateneo ↗</a>
+                <span className="mz-mono mz-break" style={{ textTransform: 'none' }}>{origine.replace(/^https?:\/\//, '')}{paginaStudenti}</span>
+              </>
+            )}
+          </div>
+        )}
+        {corso.spazio_ateneo && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <a href={paginaStudenti} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Pagina dell’ateneo ↗</a>
+            <span className="mz-mono mz-break" style={{ textTransform: 'none' }}>{origine.replace(/^https?:\/\//, '')}{paginaStudenti}</span>
+          </div>
+        )}
       </aside>
 
       <div style={{ padding: 'clamp(20px, 4vw, 44px)', display: 'grid', alignContent: 'start', gap: 36, minWidth: 0 }}>
@@ -357,16 +387,6 @@ export default function ContestDocentePage() {
                       <Segmentato etichetta="Chi carica le proposte" valore={bozza.proposte_da} onCambia={v => setBozza({ ...bozza, proposte_da: v })}
                         opzioni={[{ id: 'docente', label: 'Docenti' }, { id: 'studenti', label: 'Anche gli studenti' }]} />
                     </div>
-                    {!corso.spazio_ateneo && (
-                      <div className="mz-field">
-                        <span className="mz-mono">
-                          Aperto a
-                          <Info>{corso.ateneo_id ? `«Tutto l’ateneo»: il contest compare nella pagina di ${corso.ateneo_nome} e votano anche gli studenti degli altri corsi, o chi si iscrive solo al contest. Resta gestito da qui.` : 'Per aprirlo a tutto l’ateneo, assegna prima il corso a un ateneo in Corso & Form.'}</Info>
-                        </span>
-                        <Segmentato etichetta="A chi è aperto il contest" valore={bozza.ambito} onCambia={v => corso.ateneo_id && setBozza({ ...bozza, ambito: v })}
-                          opzioni={[{ id: 'corso', label: 'Il corso' }, { id: 'ateneo', label: corso.ateneo_codice ? `Tutto ${corso.ateneo_codice}` : 'Tutto l’ateneo' }]} />
-                      </div>
-                    )}
                     <div className="mz-field">
                       <span className="mz-mono">Chi candida<Info>Si vota sempre con un accesso individuale: una persona, un voto. Questa scelta riguarda solo chi può candidare una proposta.</Info></span>
                       <Segmentato etichetta="Chi può candidare" valore={bozza.iscrizione} onCambia={v => setBozza({ ...bozza, iscrizione: v })}

@@ -261,3 +261,22 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .mz-mosaico .mz-frame { min-height: 0; border-radius: 12px; }
 .mz-mosaico.n2 { grid-template-rows: 1fr; }
 .mz-mosaico.n3 .mz-frame:first-child { grid-row: span 2; }
+
+/* Righe con una frase sotto il titolo, e righe non ancora apribili. */
+.mz-riga-sotto { font-size: 15px; line-height: 1.45; color: var(--ink-2); max-width: 640px; }
+.mz-riga.spenta { cursor: default; }
+.mz-riga.spenta::before { display: none; }
+.mz-riga.spenta .mz-riga-titolo, .mz-riga.spenta .mz-riga-sotto { color: var(--muted); }
+.mz-riga.spenta:hover .mz-riga-titolo { transform: none; }
+.mz-riga.spenta .mz-riga-freccia { opacity: .25; }
+
+/* Ingresso del corso: nome grande a sinistra, accesso a destra. */
+.mz-ingresso { flex: 1; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(28px, 5vw, 80px); align-items: center;
+  padding: clamp(28px, 6vh, 72px) max(20px, env(safe-area-inset-left)); }
+.mz-ingresso-testo { display: grid; gap: clamp(16px, 2.4vh, 28px); align-content: center; }
+.mz-ingresso-lead { margin: 0; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.45; color: var(--ink-2); max-width: 560px; white-space: pre-line; }
+.mz-ingresso-accesso { justify-self: end; width: 100%; max-width: 440px; display: grid; gap: 14px; }
+@media (max-width: 860px) {
+  .mz-ingresso { grid-template-columns: 1fr; align-items: start; }
+  .mz-ingresso-accesso { justify-self: stretch; max-width: none; }
+}

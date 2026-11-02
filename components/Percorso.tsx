@@ -3,13 +3,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { moduloDi, type AttivitaRow } from '../lib/attivita';
-import { useTeam, etichettaTeam, type TeamInfo, type TipoTeam } from '../lib/team-context';
+import { useTeam, etichettaTeam, type TeamInfo } from '../lib/team-context';
 import { unisciTestiPiattaforma, accessoDirettoAbilitato } from '../lib/testi-piattaforma';
 import { useCorso } from '../lib/corso-context';
-import { caricaAtenei, caricaCorsiPubblici, caricaCorsoPerCodice, percorsoCorso, NOME_PIATTAFORMA, type Ateneo, type Corso } from '../lib/corsi';
+import { caricaAtenei, caricaCorsiPubblici, caricaCorsoPerCodice, percorsoCorso, type Ateneo, type Corso } from '../lib/corsi';
 import { ascoltaCorso } from '../lib/realtime';
-import { ActionSheet, BottomSheet } from '../components/PannelliMobile';
-import PillaScorrevole from '../components/PillaScorrevole';
+import { BottomSheet } from '../components/PannelliMobile';
 import Info from '../components/Info';
 import AccessoTeam from '../components/AccessoTeam';
 import { RailVetrina, RigaIndice, due } from '../components/Vetrina';
@@ -31,41 +30,20 @@ function useTestiPiattaforma() {
   return testi;
 }
 
-// Marchio della piattaforma + corso attuale: toccandolo si cambia corso.
-function MarchioCorso() {
+// Torna ai corsi dell'ateneo (o alla scelta dell'ateneo): lascia il corso.
+function TornaAteneo() {
   const { corso, lasciaCorso } = useCorso();
   const router = useRouter();
-  const cambiaCorso = () => {
-    const destinazione = corso?.ateneo_codice ? `/${corso.ateneo_codice}` : '/';
+  if (!corso) return null;
+  const vai = () => {
+    const destinazione = corso.ateneo_codice ? `/${corso.ateneo_codice}` : '/';
     lasciaCorso();
     router.push(destinazione);
   };
-  const [aperto, setAperto] = useState(false);
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <span className="font-serif tracking-tight font-bold text-lg flex-shrink-0 max-sm:hidden">{NOME_PIATTAFORMA}</span>
-      {corso && (
-        <>
-          <button
-            onClick={() => setAperto(true)}
-            aria-haspopup="dialog"
-            title="Cambia corso"
-            className="flex items-center gap-1.5 min-w-0 pl-3 pr-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 hover:border-amber-400 transition text-sm font-medium"
-          >
-            <span className="truncate max-w-[12rem]">{corso.nome}</span>
-            <span aria-hidden="true" className="text-amber-700 text-xs">▾</span>
-          </button>
-          <ActionSheet
-            aperto={aperto}
-            onChiudi={() => setAperto(false)}
-            titolo={`Corso: ${corso.nome}`}
-            azioni={[
-              { chiave: 'cambia', etichetta: '↺ Cambia corso', descrizione: corso.ateneo_nome ? `Gli altri corsi di ${corso.ateneo_nome}` : 'Torna all’elenco dei corsi', onSeleziona: cambiaCorso },
-            ]}
-          />
-        </>
-      )}
-    </div>
+    <button type="button" onClick={vai} className="mz-mono" style={{ all: 'unset', cursor: 'pointer', fontFamily: 'var(--f-label)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+      ← <span className="max-sm:hidden">{corso.ateneo_nome || 'Altri corsi'}</span><span className="sm:hidden">Corsi</span>
+    </button>
   );
 }
 
@@ -170,75 +148,37 @@ function SceltaAteneo() {
   );
 }
 
-function ScorciatoieAccesso({ onSalta, mostraAccessoDiretto }: { onSalta: () => void; mostraAccessoDiretto: boolean }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <a
-        href="/teacher"
-        className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
-      >
-        🔐 Accesso Docente
-      </a>
-      {mostraAccessoDiretto && (
-        <button
-          onClick={onSalta}
-          className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition"
-        >
-          Accesso Studente diretto
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Incipit({ onAvanti, onSalta }: { onAvanti: () => void; onSalta: () => void }) {
-  const testi = useTestiPiattaforma();
-  const accessoDirettoOn = accessoDirettoAbilitato(testi);
-  return (
-    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
-        <MarchioCorso />
-        <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
-      </nav>
-
-      <div className="flex-1 flex items-center justify-center py-12">
-        <div className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
-          <h1 className="text-4xl font-serif leading-tight">
-            {testi.incipit_titolo}
-            {testi.incipit_badge && <span className="apice">({testi.incipit_badge})</span>}
-          </h1>
-          <p className="text-stone-600 text-base leading-relaxed whitespace-pre-line">
-            {testi.incipit_testo}
-          </p>
-          <button
-            onClick={onAvanti}
-            className="bg-stone-900 text-white px-8 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-          >
-            Entra: in team o da soli →
-          </button>
-          {accessoDirettoOn && testi.incipit_nota && <Info><span className="whitespace-pre-line">{testi.incipit_nota}</span></Info>}
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function SchermataAccesso({ onAccesso, onSalta, onIndietro }: { onAccesso: (team: TeamInfo) => void; onSalta: () => void; onIndietro: () => void }) {
+// Ingresso del corso (/polito/design-3): il nome del corso e subito
+// l'accesso, in team o da soli.
+function IngressoCorsoVetrina({ onAccesso, onSalta }: { onAccesso: (team: TeamInfo) => void; onSalta: () => void }) {
   const { corso } = useCorso();
   const testi = useTestiPiattaforma();
   const accessoDirettoOn = accessoDirettoAbilitato(testi);
+  if (!corso) return null;
   return (
-    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex flex-wrap justify-between items-center gap-y-3 border-b border-stone-200 pb-6">
-        <div className="flex items-center gap-3">
-          <button onClick={onIndietro} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Indietro</button>
-          <MarchioCorso />
+    <main className="mz mz-vetrina">
+      <RailVetrina
+        sinistra={<TornaAteneo />}
+        destra={accessoDirettoOn ? <span className="max-sm:hidden"><button type="button" className="mz-pill sm ghost" onClick={onSalta}>Entra senza accesso</button></span> : undefined}
+      />
+      <section className="mz-ingresso">
+        <div className="mz-ingresso-testo">
+          {corso.ateneo_nome && <span className="mz-mono mz-in">{corso.ateneo_nome}</span>}
+          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: 'clamp(52px, 8.6vw, 150px)' }}>
+            {corso.nome}{testi.incipit_badge && testi.incipit_badge.trim().toLowerCase() !== corso.nome.trim().toLowerCase() && <span className="mz-sup">({testi.incipit_badge})</span>}
+          </h1>
+          {testi.incipit_testo && <p className="mz-ingresso-lead mz-in" style={{ animationDelay: '120ms' }}>{testi.incipit_testo}</p>}
+          <div className="mz-in max-md:hidden" style={{ animationDelay: '180ms', justifySelf: 'start' }}><Solidi cadono piccoli /></div>
         </div>
-        <ScorciatoieAccesso onSalta={onSalta} mostraAccessoDiretto={accessoDirettoOn} />
-      </nav>
-      <div className="flex-1 flex items-center justify-center py-12">
-        {corso && <AccessoTeam corsoId={corso.id} onAccesso={onAccesso} />}
-      </div>
+        <div className="mz-ingresso-accesso mz-in" style={{ animationDelay: '160ms' }}>
+          <span className="mz-mono" style={{ color: 'var(--ink)' }}>
+            Entra nel corso
+            <Info lato="destra">Con «Accedi» entri con un accesso che hai già, di team o individuale. Con «Iscriviti» ne crei uno nuovo: in team, oppure da solo/a per le attività individuali come il voto del Contest.</Info>
+          </span>
+          <AccessoTeam corsoId={corso.id} onAccesso={onAccesso} conTitolo={false} />
+          {accessoDirettoOn && <div className="sm:hidden" style={{ justifySelf: 'center' }}><button type="button" className="mz-pill sm ghost" onClick={onSalta}>Entra senza accesso</button></div>}
+        </div>
+      </section>
     </main>
   );
 }
@@ -318,43 +258,10 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
     };
   }, [corsoId]);
 
+  const aperte = attivita.filter(a => a.stato === 'attiva').length;
   return (
-    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex flex-wrap justify-between items-center gap-3 border-b border-stone-200 pb-6">
-        <MarchioCorso />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {team ? (
-            <>
-              <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-                {etichettaTeam(team)}
-              </span>
-              {team.tipo !== 'individuale' && (
-                <button onClick={() => setMostraMembri(true)} className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium transition">
-                  👥 Membri
-                </button>
-              )}
-            </>
-          ) : (
-            <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 pl-3 pr-1.5 py-1.5 rounded-full text-stone-500 font-medium">
-              Accesso diretto (nessun team)
-              <button
-                onClick={onLogout}
-                aria-label="Deseleziona accesso diretto e torna al login"
-                title="Deseleziona accesso diretto"
-                className="w-4 h-4 flex items-center justify-center rounded-full text-stone-400 hover:bg-stone-200 hover:text-stone-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-              >
-                ✕
-              </button>
-            </span>
-          )}
-          <a href="/manuali" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">
-            📚 Manuali &amp; Tutorial
-          </a>
-          <button onClick={onLogout} className="text-xs uppercase tracking-widest text-stone-400 hover:text-red-600 font-medium transition">
-            {team ? 'Esci' : '← Torna al login'}
-          </button>
-        </div>
-      </nav>
+    <main className="mz mz-vetrina">
+      <RailVetrina sinistra={<TornaAteneo />} />
 
       {mostraMembri && team && (
         <PannelloMembri
@@ -364,69 +271,51 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
         />
       )}
 
-      <div className="pt-16 pb-10 text-center space-y-5">
-        <h1 className="text-5xl md:text-6xl font-serif max-w-3xl mx-auto leading-tight">
-          {testi.home_titolo}
-          {testi.home_badge && <span className="apice">({testi.home_badge})</span>}
-          {testi.home_sottotitolo && <Info>{testi.home_sottotitolo}</Info>}
-        </h1>
+      <section className="mz-eroe">
+        <div style={{ display: 'grid', gap: 14 }}>
+          {corso!.ateneo_nome && <span className="mz-mono mz-in">{corso!.ateneo_nome}</span>}
+          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: 'clamp(52px, 8.6vw, 150px)' }}>
+            {corso!.nome}{testi.home_badge && testi.home_badge.trim().toLowerCase() !== corso!.nome.trim().toLowerCase() && <span className="mz-sup">({testi.home_badge})</span>}
+            {testi.home_sottotitolo && <span style={{ fontSize: 16, verticalAlign: 'middle' }}><Info>{testi.home_sottotitolo}</Info></span>}
+          </h1>
+        </div>
+        <div className="mz-eroe-lato mz-in" style={{ animationDelay: '120ms' }}>
+          <span className="mz-mono" style={{ color: 'var(--ink)', textTransform: 'none', letterSpacing: '.02em', fontSize: 13 }}>
+            {team ? etichettaTeam(team) : 'Senza accesso'}
+          </span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'inherit' }}>
+            {team && team.tipo !== 'individuale' && <button type="button" className="mz-pill sm o" onClick={() => setMostraMembri(true)}>Membri</button>}
+            <a href="/manuali" className="mz-pill sm o">Manuali</a>
+            <button type="button" className="mz-pill sm ghost" onClick={onLogout}>{team ? 'Esci' : 'Accedi'}</button>
+          </div>
+        </div>
+      </section>
+
+      <div className="mz-barra">
+        <span className="mz-mono" style={{ color: 'var(--ink)' }}>Attività</span>
+        <span className="mz-mono">{due(aperte)} aperte</span>
       </div>
-
-      <div className="flex-1 grid sm:grid-cols-2 gap-6 pb-16 content-start entra-cascata">
-        {attivita.map(a => {
+      <ul className="mz-indice riempi">
+        {attivita.length === 0 && <li className="mz-riga spenta"><span /><span className="mz-muted">Nessuna attività aperta per ora.</span></li>}
+        {attivita.map((a, i) => {
           const modulo = moduloDi(a.tipo);
-          const avviabile = a.stato === 'attiva';
+          const avviabile = a.stato === 'attiva' && !!modulo.hrefStudente;
           return (
-            <div
+            <RigaIndice
               key={a.id}
-              className={`rounded-3xl border p-8 flex flex-col justify-between ${
-                avviabile
-                  ? 'card-viva bg-white border-stone-200 shadow-sm hover:border-stone-300'
-                  : 'bg-stone-100/60 border-dashed border-stone-300'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-3xl" aria-hidden="true">{modulo.icona}</span>
-                  {!avviabile && (
-                    <span className="text-[10px] uppercase tracking-widest bg-stone-200 text-stone-500 px-2.5 py-1 rounded-full font-bold">
-                      Prossimamente
-                    </span>
-                  )}
-                </div>
-                <h2 className={`text-xl font-serif font-bold ${avviabile ? 'text-stone-900' : 'text-stone-400'}`}>
-                  {a.titolo}
-                </h2>
-                <p className={`text-sm mt-2 leading-relaxed ${avviabile ? 'text-stone-600' : 'text-stone-400'}`}>
-                  {a.descrizione}
-                </p>
-              </div>
-
-              {avviabile ? (
-                <div className="flex space-x-3 mt-6">
-                  {modulo.hrefStudente && (
-                    <a
-                      href={modulo.hrefStudente}
-                      className="flex-1 text-center bg-stone-900 text-white px-5 py-3 rounded-full font-medium text-sm shadow-sm hover:bg-stone-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-                    >
-                      Area Studenti
-                    </a>
-                  )}
-                  {modulo.hrefDocente && (
-                    <a
-                      href={modulo.hrefDocente}
-                      className="flex-1 text-center bg-white border border-stone-300 text-stone-900 px-5 py-3 rounded-full font-medium text-sm hover:border-stone-400 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-                    >
-                      Area Docente
-                    </a>
-                  )}
-                </div>
-              ) : null}
-            </div>
+              indice={i + 1}
+              ritardo={160 + i * 70}
+              href={avviabile ? modulo.hrefStudente : undefined}
+              spenta={!avviabile}
+              titolo={a.titolo}
+              sotto={a.descrizione || undefined}
+              meta={avviabile
+                ? <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'var(--ink)' }}><span className="mz-live-dot" style={{ width: 7, height: 7 }} />Aperta</span>
+                : <span className="mz-mono">In arrivo</span>}
+            />
           );
         })}
-      </div>
-
+      </ul>
     </main>
   );
 }
@@ -441,11 +330,10 @@ export default function PercorsoStudente({ daIndirizzo = false }: { daIndirizzo?
   const daReindirizzare = !daIndirizzo && !!corso?.ateneo_codice;
   useEffect(() => { if (daReindirizzare && corso) router.replace(percorsoCorso(corso)); }, [daReindirizzare, corso, router]);
   const { team, pronto, accedi, logout } = useTeam();
-  const [fase, setFase] = useState<'incipit' | 'accesso'>('incipit');
   const [saltato, setSaltato] = useState(false);
 
-  // Cambiando corso si riparte dall'inizio del percorso di accesso.
-  useEffect(() => { setFase('incipit'); setSaltato(false); }, [corso?.id]);
+  // Cambiando corso si riparte dall'accesso.
+  useEffect(() => { setSaltato(false); }, [corso?.id]);
 
   if (!corsoPronto || !pronto || daReindirizzare) {
     return <main className="min-h-screen bg-[#FBF9F5]" />;
@@ -456,9 +344,7 @@ export default function PercorsoStudente({ daIndirizzo = false }: { daIndirizzo?
   }
 
   if (!team && !saltato) {
-    return fase === 'incipit'
-      ? <Incipit onAvanti={() => setFase('accesso')} onSalta={() => setSaltato(true)} />
-      : <SchermataAccesso onAccesso={accedi} onSalta={() => setSaltato(true)} onIndietro={() => setFase('incipit')} />;
+    return <IngressoCorsoVetrina onAccesso={accedi} onSalta={() => setSaltato(true)} />;
   }
 
   return (

@@ -16,6 +16,8 @@ export type Contest = {
   // 'ateneo': aperto agli studenti di tutti i corsi dell'ateneo.
   ambito: 'corso' | 'ateneo';
   copertina?: string;
+  // Stato nell'ateneo, indipendente dall'attività nel corso.
+  stato_ateneo?: 'bozza' | 'prossimamente' | 'attiva';
   fase: FaseContest;
   voto_inizio: string | null;
   voto_fine: string | null;
@@ -108,6 +110,7 @@ export function messaggioErroreContest(codice: string): string {
     case 'scadenza_non_valida': return 'Scegli una scadenza nel futuro.';
     case 'corso_senza_ateneo': return 'Assegna prima il corso a un ateneo (Corso & Form).';
     case 'voto_solo_individuale': return 'Per votare serve un accesso individuale: esci e iscriviti con il tuo nome.';
+    case 'stato_non_valido': return 'Stato non valido.';
     case 'immagine_non_valida': return 'Immagine non valida: scegline un\'altra.';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
     default: return 'Errore di connessione. Riprova.';
