@@ -6,7 +6,7 @@ import { caricaAteneoPerCodice, caricaCorsiPubblici, percorsoCorso, type Ateneo,
 import { caricaContestAteneo, useAdesso, type ContestAteneo } from '@/lib/contest';
 import { Cornice, Solidi } from '@/components/moiso/Moiso';
 import { Countdown } from '@/components/moiso/Countdown';
-import { RailVetrina, RigaIndice, due } from '@/components/Vetrina';
+import { RailVetrina, RigaIndice, due, scalaTitolo } from '@/components/Vetrina';
 
 function PalcoContest({ c, codiceAteneo, adesso, ritardo }: { c: ContestAteneo; codiceAteneo: string; adesso: number; ritardo: number }) {
   const fine = c.voto_fine ? new Date(c.voto_fine).getTime() : 0;
@@ -34,7 +34,7 @@ function PalcoContest({ c, codiceAteneo, adesso, ritardo }: { c: ContestAteneo; 
             {votoAperto && <span className="mz-live-dot" style={{ background: 'var(--scena-testo)' }} />}
             Contest di ateneo — {stato}
           </span>
-          <h2 className="mz-display mz-palco-titolo">{c.titolo}<span className="mz-sup" style={{ color: 'inherit' }}>({due(c.proposte)})</span></h2>
+          <h2 className="mz-display mz-palco-titolo" style={{ fontSize: scalaTitolo(c.titolo, { min: 40, vw: 5.4, max: 92, larghezza: 0.42 }) }}>{c.titolo}<span className="mz-sup" style={{ color: 'inherit' }}>({due(c.proposte)})</span></h2>
           {c.sottotitolo && <p style={{ margin: 0, fontSize: 'clamp(16px, 1.6vw, 21px)', lineHeight: 1.35, maxWidth: 560 }}>{c.sottotitolo}</p>}
         </div>
         <div style={{ display: 'grid', gap: 18 }}>
@@ -93,7 +93,7 @@ export default function PaginaAteneo({ codice }: { codice: string }) {
       <RailVetrina sinistra={<a href="/" className="mz-mono max-sm:hidden" style={{ textDecoration: 'none' }}>← Atenei</a>} />
 
       <section className="mz-eroe">
-        <h1 className="mz-display mz-eroe-titolo mz-in" style={{ fontSize: 'clamp(50px, 8.4vw, 150px)' }}>
+        <h1 className="mz-display mz-eroe-titolo mz-in" style={{ fontSize: scalaTitolo(ateneo.nome, { min: 50, vw: 8.4, max: 150, larghezza: 0.58 }) }}>
           {ateneo.nome}<span className="mz-sup" style={{ textTransform: 'none' }}>(/{ateneo.codice})</span>
         </h1>
         <div className="mz-eroe-lato mz-in" style={{ animationDelay: '120ms' }}>

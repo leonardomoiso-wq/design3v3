@@ -11,7 +11,7 @@ import { ascoltaCorso } from '../lib/realtime';
 import { BottomSheet } from '../components/PannelliMobile';
 import Info from '../components/Info';
 import AccessoTeam from '../components/AccessoTeam';
-import { RailVetrina, RigaIndice, due } from '../components/Vetrina';
+import { RailVetrina, RigaIndice, due, scalaTitolo } from '../components/Vetrina';
 import { Solidi } from '../components/moiso/Moiso';
 import { caricaContestAteneo } from '../lib/contest';
 
@@ -42,7 +42,7 @@ function TornaAteneo() {
   };
   return (
     <button type="button" onClick={vai} className="mz-mono" style={{ all: 'unset', cursor: 'pointer', fontFamily: 'var(--f-label)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-      ← <span className="max-sm:hidden">{corso.ateneo_nome || 'Altri corsi'}</span><span className="sm:hidden">Corsi</span>
+      ← <span className="max-sm:hidden"><span title={corso.ateneo_nome || undefined} style={{ display: 'inline-block', maxWidth: '28vw', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}>{corso.ateneo_nome || 'Altri corsi'}</span></span><span className="sm:hidden">Corsi</span>
     </button>
   );
 }
@@ -164,7 +164,7 @@ function IngressoCorsoVetrina({ onAccesso, onSalta }: { onAccesso: (team: TeamIn
       <section className="mz-ingresso">
         <div className="mz-ingresso-testo">
           {corso.ateneo_nome && <span className="mz-mono mz-in">{corso.ateneo_nome}</span>}
-          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: 'clamp(52px, 8.6vw, 150px)' }}>
+          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: scalaTitolo(corso.nome, { min: 52, vw: 8.6, max: 150, larghezza: 0.58 }) }}>
             {corso.nome}{testi.incipit_badge && testi.incipit_badge.trim().toLowerCase() !== corso.nome.trim().toLowerCase() && <span className="mz-sup">({testi.incipit_badge})</span>}
           </h1>
           {testi.incipit_testo && <p className="mz-ingresso-lead mz-in" style={{ animationDelay: '120ms' }}>{testi.incipit_testo}</p>}
@@ -274,7 +274,7 @@ function ElencoAttivita({ team, onLogout, onTeamAggiornato }: { team: TeamInfo |
       <section className="mz-eroe">
         <div style={{ display: 'grid', gap: 14 }}>
           {corso!.ateneo_nome && <span className="mz-mono mz-in">{corso!.ateneo_nome}</span>}
-          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: 'clamp(52px, 8.6vw, 150px)' }}>
+          <h1 className="mz-display mz-eroe-titolo mz-in" style={{ animationDelay: '60ms', fontSize: scalaTitolo(corso!.nome, { min: 52, vw: 8.6, max: 150, larghezza: 0.58 }) }}>
             {corso!.nome}{testi.home_badge && testi.home_badge.trim().toLowerCase() !== corso!.nome.trim().toLowerCase() && <span className="mz-sup">({testi.home_badge})</span>}
             {testi.home_sottotitolo && <span style={{ fontSize: 16, verticalAlign: 'middle' }}><Info>{testi.home_sottotitolo}</Info></span>}
           </h1>

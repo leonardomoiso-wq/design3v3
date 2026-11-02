@@ -4,6 +4,7 @@ import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useSessioneTeam, etichettaTeam } from '@/lib/team-context';
 import AccessoTeam from '@/components/AccessoTeam';
+import { scalaTitolo } from '@/components/Vetrina';
 import Info from '@/components/Info';
 import { caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
 import { ascoltaCorso } from '@/lib/realtime';
@@ -269,8 +270,8 @@ export default function ContestStudente(props: Proprieta) {
 
   const rail = (
     <header className="mz-rail">
-      <a href={indietro} style={{ display: 'flex', gap: 10, alignItems: 'baseline', color: 'inherit', textDecoration: 'none', minWidth: 0 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }} className="mz-break">{nomeRail}</span>
+      <a href={indietro} style={{ display: 'flex', gap: 10, alignItems: 'baseline', color: 'inherit', textDecoration: 'none', minWidth: 0, flex: '0 1 auto', maxWidth: 'min(40vw, 380px)' }}>
+        <span style={{ fontWeight: 600, fontSize: 14 }} className="mz-abbrevia" title={nomeRail}>{nomeRail}</span>
         <span className="mz-mono hidden sm:inline">Contest</span>
       </a>
       {io && contest && statoAttivita === 'attiva' && (
@@ -382,7 +383,7 @@ export default function ContestStudente(props: Proprieta) {
             </select>
           </div>
         )}
-        <h1 className="mz-display mz-in mz-break" style={{ fontSize: scheda === 'proposte' ? 'clamp(44px, 7.5vw, 112px)' : 'clamp(40px, 6vw, 84px)', animationDelay: '60ms', maxWidth: 1200 }}>
+        <h1 className="mz-display mz-in mz-break" style={{ fontSize: scheda === 'proposte' ? scalaTitolo(contest.titolo, { min: 44, vw: 7.5, max: 112 }) : scalaTitolo(contest.titolo, { min: 40, vw: 6, max: 84 }), animationDelay: '60ms', maxWidth: 1200, hyphens: 'auto' }}>
           {contest.titolo}<span className="mz-sup">({String(proposte.length).padStart(2, '0')})</span>
           {contest.descrizione && <span style={{ fontSize: 16, verticalAlign: 'middle' }}><Info><span style={{ whiteSpace: 'pre-line' }}>{contest.descrizione}</span></Info></span>}
         </h1>

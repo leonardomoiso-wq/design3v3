@@ -198,7 +198,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .mz-vetrina-rail-nome { font-weight: 600; font-size: 14px; color: var(--ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .mz-eroe { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(20px, 4vw, 64px); align-items: end;
   padding: clamp(28px, 6vh, 72px) max(20px, env(safe-area-inset-left)) clamp(22px, 4vh, 44px); }
-.mz-eroe-titolo { font-size: clamp(54px, 9.4vw, 164px); margin: 0; overflow-wrap: anywhere; }
+.mz-eroe-titolo { font-size: clamp(54px, 9.4vw, 164px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
 .mz-eroe-lato { display: grid; gap: 18px; justify-items: end; text-align: right; }
 .mz-eroe-cifre { display: flex; gap: clamp(18px, 3vw, 40px); }
 .mz-eroe-cifre div { display: grid; gap: 2px; justify-items: end; }
@@ -222,7 +222,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .mz-riga:hover::before, .mz-riga:focus-visible::before { transform: scaleY(1); }
 .mz-riga:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
 .mz-riga-titolo { font-family: var(--f-display); font-weight: 500; letter-spacing: -.035em; line-height: .95;
-  font-size: clamp(32px, 5.8vw, 100px); overflow-wrap: anywhere; transition: transform .6s var(--spring); }
+  font-size: clamp(32px, 5.8vw, 100px); overflow-wrap: break-word; hyphens: auto; text-wrap: balance; transition: transform .6s var(--spring); }
 .mz-riga:hover .mz-riga-titolo { transform: translateX(14px); }
 .mz-riga:hover .mz-mono, .mz-riga:focus-visible .mz-mono { color: var(--ink); }
 .mz-riga-meta { display: flex; gap: 14px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
@@ -244,7 +244,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .mz-palco-testo { display: grid; align-content: space-between; gap: 22px; padding: clamp(4px, 1vw, 12px) 0; }
 .mz-palco .mz-mono { color: var(--scena-tenue); }
 .mz-palco.attesa .mz-mono { color: var(--muted); }
-.mz-palco-titolo { font-size: clamp(40px, 5.4vw, 92px); margin: 0; overflow-wrap: anywhere; }
+.mz-palco-titolo { font-size: clamp(40px, 5.4vw, 92px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
 @media (max-width: 860px) { .mz-palco { grid-template-columns: 1fr; } }
 
 /* Barra di salvataggio: in fondo al riquadro, resta visibile finché ci
@@ -280,3 +280,6 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
   .mz-ingresso { grid-template-columns: 1fr; align-items: start; }
   .mz-ingresso-accesso { justify-self: stretch; max-width: none; }
 }
+
+/* Nomi lunghi nelle barre: si abbreviano con i puntini. */
+.mz-abbrevia { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
