@@ -44,6 +44,11 @@ export default function ContestStudente(props: Proprieta) {
   const { team: sessione, pronto: teamPronto, accedi: salvaAccesso, logout } = useSessioneTeam(corsoAccesso ?? null);
   // Nel contest di ateneo si entra solo con un accesso individuale.
   const io = diAteneo && sessione?.tipo !== 'individuale' ? null : sessione;
+  // Nel corso si può entrare con il team (per candidare) e, accanto, con un
+  // accesso individuale solo per votare: il team resta per le altre attività.
+  const votanteSalvato = useSessioneTeam(corso ? corso.id : null, 'edu_contest_votante_');
+  const votante: typeof io = io?.tipo === 'individuale' ? io : (corso ? votanteSalvato.team : null);
+  const [accessoVoto, setAccessoVoto] = useState(false);
   const accedi = (t: Parameters<typeof salvaAccesso>[0]) => {
     salvaAccesso(t);
     if (ateneo && corsoAccesso) { try { localStorage.setItem(chiaveAccessoAteneo(ateneo.id), corsoAccesso); } catch { /* */ } }
@@ -185,10 +190,10 @@ export default function ContestStudente(props: Proprieta) {
   }, [contestId, caricaProposte]);
 
   const caricaMioVoto = useCallback(async () => {
-    if (!io || !contestId) { setMioVoto(null); return; }
-    const { data } = await supabase.rpc('mio_voto_remoto', { p_team_id: io.id, p_password: io.password, p_contest_id: contestId });
+    if (!votante || !contestId) { setMioVoto(null); return; }
+    const { data } = await supabase.rpc('mio_voto_remoto', { p_team_id: votante.id, p_password: votante.password, p_contest_id: contestId });
     setMioVoto(data ? Number(data) : null);
-  }, [io, contestId]);
+  }, [votante, contestId]);
   useEffect(() => { caricaMioVoto(); }, [caricaMioVoto]);
 
   // --- Stato del voto ---
@@ -198,7 +203,7 @@ export default function ContestStudente(props: Proprieta) {
   const mia = proposte.find(p => io && p.team_id === io.id) || null;
   const candidatureAperte = contest?.proposte_da === 'studenti' && contest.fase === 'anteprima';
   // Si vota solo con un accesso individuale; `iscrizione` regola le candidature.
-  const puoVotare = !io || io.tipo === 'individuale';
+  const puoVotare = !io || !!votante;
   const tipoAmmesso = !contest || !io || contest.iscrizione === 'entrambe' || contest.iscrizione === (io.tipo || 'gruppo');
 
   // Vincitore: visibile quando la classifica è svelata.
@@ -219,13 +224,13 @@ export default function ContestStudente(props: Proprieta) {
   const apri = (p: Proposta) => { setAperta(p); setConferma(false); setErrore(''); };
 
   const vota = async (e: React.MouseEvent) => {
-    if (!aperta || !io) return;
+    if (!aperta || !votante) return;
     const origine = { x: e.clientX, y: e.clientY };
     setInvio(true);
     setErrore('');
     const cambio = mioVoto !== null;
     const { error } = await supabase.rpc('vota_remoto', {
-      p_team_id: io.id, p_password: io.password, p_proposta_id: aperta.id, p_dispositivo: rilevaDispositivo(), p_zona: (posizione ?? await ottieniPosizione()).zona,
+      p_team_id: votante.id, p_password: votante.password, p_proposta_id: aperta.id, p_dispositivo: rilevaDispositivo(), p_zona: (posizione ?? await ottieniPosizione()).zona,
       p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
     });
     setInvio(false);
@@ -244,6 +249,18 @@ export default function ContestStudente(props: Proprieta) {
     setScheda('dati');
     window.scrollTo({ top: 0 });
   };
+
+  // Accesso individuale per votare (in un pannello), da qualsiasi schermata.
+  const sheetAccessoVoto = corso && (
+        <Sheet aperto={accessoVoto} onChiudi={() => setAccessoVoto(false)} categoria="Il tuo accesso per votare">
+          <div style={{ padding: 'clamp(20px, 4vw, 40px)', display: 'grid', gap: 18, justifyItems: 'center' }}>
+            <h2 className="mz-display" style={{ fontSize: 'clamp(32px, 4vw, 52px)', margin: 0, textAlign: 'center' }}>Una persona, <span className="mz-blue">un voto</span>.</h2>
+            <p className="mz-muted" style={{ margin: 0, fontSize: 15, textAlign: 'center', maxWidth: 420 }}>Il team resta attivo per le altre attività.</p>
+            <AccessoTeam corsoId={corso.id} soloIndividuale conTitolo={false} schedaIniziale="crea"
+              onAccesso={t => { if (io) votanteSalvato.accedi(t); else accedi(t); setAccessoVoto(false); }} />
+          </div>
+        </Sheet>
+      );
 
   // --- Schermate di attesa ---
   if (!teamPronto || !caricati || statoAttivita === undefined || corsoAccesso === undefined) {
@@ -271,6 +288,12 @@ export default function ContestStudente(props: Proprieta) {
       {io ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
           <span className="mz-mono hidden md:inline mz-break" style={{ color: 'var(--ink)' }}>{etichettaTeam(io)}</span>
+          {votante && votante.id !== io.id && (
+            <span className="mz-mono hidden md:inline-flex" style={{ gap: 6, alignItems: 'center' }}>
+              Voti come {votante.nome}
+              <button type="button" aria-label="Esci dall’accesso per votare" onClick={() => votanteSalvato.logout()} style={{ all: 'unset', cursor: 'pointer', padding: '0 4px' }}>✕</button>
+            </span>
+          )}
           {diAteneo
             ? <button type="button" className="mz-pill sm ghost" onClick={() => { logout(); cambiaAccesso(); }}>Esci</button>
             : <a href={indietro} className="mz-pill sm ghost">← Attività</a>}
@@ -328,20 +351,22 @@ export default function ContestStudente(props: Proprieta) {
               />
             ) : (
               <>
-                <p style={{ margin: 0, fontSize: 17, maxWidth: 520 }}>
-                  Si vota con un accesso individuale. Dalla home: «Iscriviti», poi «Da solo/a».
-                </p>
-                <a href={indietro} className="mz-pill b lg">Vai all’accesso →</a>
+                <p style={{ margin: 0, fontSize: 17, maxWidth: 520 }}>Si vota con un accesso individuale.</p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button type="button" className="mz-pill b lg" onClick={() => setAccessoVoto(true)}>Accedi da solo/a →</button>
+                  <a href={indietro} className="mz-pill o lg">Entra con il team</a>
+                </div>
               </>
             )}
           </div>
         </section>
+        {sheetAccessoVoto}
       </main>
     );
   }
 
   const indiceAperta = aperta ? proposte.findIndex(p => p.id === aperta.id) : -1;
-  const propria = !!aperta && aperta.team_id === io.id;
+  const propria = !!aperta && (aperta.team_id === io.id || aperta.team_id === votante?.id);
 
   return (
     <main>
@@ -394,9 +419,12 @@ export default function ContestStudente(props: Proprieta) {
       {proposte.length > 1 && scheda === 'proposte' && <Ticker voci={proposte.map(p => p.titolo)} />}
 
       {!puoVotare && (
-        <p role="note" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))', fontSize: 14 }} className="mz-muted">
-          Sei entrato con l’accesso di un team: per votare serve un accesso individuale. {diAteneo ? 'Esci e iscriviti con il tuo nome.' : 'Dalla home: «Iscriviti», poi «Da solo/a».'}
-        </p>
+        <div role="note" className="mz-in" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '14px 18px', borderRadius: 16, background: 'var(--accento-tenue)', boxShadow: 'inset 0 0 0 1px var(--accento-bordo)' }}>
+            <span style={{ fontSize: 15 }}>Sei entrato con il team. Per votare serve il tuo accesso individuale.</span>
+            <button type="button" className="mz-pill b" onClick={() => setAccessoVoto(true)}>Accedi da solo/a per votare →</button>
+          </div>
+        </div>
       )}
 
       <div style={{ maxWidth: 1440, margin: '0 auto', padding: 'clamp(32px, 5vw, 64px) max(20px, env(safe-area-inset-left)) 120px' }}>
@@ -452,7 +480,10 @@ export default function ContestStudente(props: Proprieta) {
             <div style={{ position: 'sticky', bottom: 0, padding: '16px clamp(20px, 4vw, 44px) calc(16px + env(safe-area-inset-bottom))', background: 'color-mix(in srgb, var(--surface) 88%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderTop: '1px solid var(--line)', display: 'grid', gap: 10 }}>
               {errore && <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{errore}</p>}
               {!puoVotare ? (
-                <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">Per votare serve un accesso individuale.</p>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">Per votare serve il tuo accesso individuale.</p>
+                  <button type="button" className="mz-pill b lg" onClick={() => { setAperta(null); setAccessoVoto(true); }}>Accedi da solo/a per votare →</button>
+                </div>
               ) : propria ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla.</p>
               ) : !votoAperto ? (
@@ -483,6 +514,8 @@ export default function ContestStudente(props: Proprieta) {
           </>
         )}
       </Sheet>
+
+      {sheetAccessoVoto}
 
       {festa && (
         <Celebrazione

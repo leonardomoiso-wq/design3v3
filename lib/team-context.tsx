@@ -36,28 +36,31 @@ const TeamContext = createContext<TeamContextValue | null>(null);
 // Sessione di team per un corso qualsiasi (anche uno spazio di ateneo),
 // indipendente dal corso scelto nella home: stessa chiave di salvataggio
 // usata da TeamProvider, così l'accesso fatto in un posto vale ovunque.
-export function useSessioneTeam(corsoId: string | null) {
+// `prefisso` permette una seconda sessione separata nello stesso corso
+// (es. l'accesso individuale per votare nel Contest, accanto a quello del team).
+export function useSessioneTeam(corsoId: string | null, prefisso = 'edu_team_sessione_') {
+  const chiave = (id: string) => `${prefisso}${id}`;
   const [team, setTeam] = useState<TeamInfo | null>(null);
   const [pronto, setPronto] = useState(false);
   useEffect(() => {
     setTeam(null);
     if (corsoId) {
       try {
-        const salvato = localStorage.getItem(chiaveSessione(corsoId));
+        const salvato = localStorage.getItem(chiave(corsoId));
         if (salvato) setTeam(JSON.parse(salvato));
       } catch { /* non bloccante */ }
     }
     setPronto(true);
-  }, [corsoId]);
+  }, [corsoId, prefisso]); // eslint-disable-line react-hooks/exhaustive-deps
   const accedi = (nuovo: TeamInfo) => {
     setTeam(nuovo);
     if (!corsoId) return;
-    try { localStorage.setItem(chiaveSessione(corsoId), JSON.stringify(nuovo)); } catch { /* non bloccante */ }
+    try { localStorage.setItem(chiave(corsoId), JSON.stringify(nuovo)); } catch { /* non bloccante */ }
   };
   const logout = () => {
     setTeam(null);
     if (!corsoId) return;
-    try { localStorage.removeItem(chiaveSessione(corsoId)); } catch { /* non bloccante */ }
+    try { localStorage.removeItem(chiave(corsoId)); } catch { /* non bloccante */ }
   };
   return { team, pronto, accedi, logout };
 }

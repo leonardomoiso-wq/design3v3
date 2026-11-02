@@ -180,7 +180,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
                 <option value="">Domanda segreta, per recuperare la password</option>
                 {DOMANDE_SUGGERITE.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
-              <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder="La vostra risposta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
+              <input type="text" value={rispostaSegreta} onChange={e => setRispostaSegreta(e.target.value)} placeholder={individuale ? "La tua risposta" : "La vostra risposta"} aria-label="Risposta segreta" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
 
               {!individuale && <div className="border-t border-stone-100 pt-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Chi c&apos;è nel team?</p>
