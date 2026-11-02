@@ -12,6 +12,9 @@ import { ActionSheet, BottomSheet } from '../components/PannelliMobile';
 import PillaScorrevole from '../components/PillaScorrevole';
 import Info from '../components/Info';
 import AccessoTeam from '../components/AccessoTeam';
+import { RailVetrina, RigaIndice, due } from '../components/Vetrina';
+import { Solidi } from '../components/moiso/Moiso';
+import { caricaContestAteneo } from '../lib/contest';
 
 // Testi di presentazione del corso in cui si trova lo studente.
 function useTestiPiattaforma() {
@@ -67,22 +70,28 @@ function MarchioCorso() {
 }
 
 // Primo passo: l'ateneo. Ogni ateneo ha la sua pagina (/polito, /unipr)
-// con i corsi e le attività di ateneo; i corsi non ancora assegnati a un
-// ateneo restano raggiungibili da qui.
+// con i corsi e i contest aperti a tutto l'ateneo; i corsi non ancora
+// assegnati a un ateneo restano raggiungibili da qui.
 function SceltaAteneo() {
   const { scegliCorso } = useCorso();
   const router = useRouter();
   const [atenei, setAtenei] = useState<Ateneo[] | null>(null);
-  const [senzaAteneo, setSenzaAteneo] = useState<Corso[]>([]);
+  const [corsi, setCorsi] = useState<Corso[]>([]);
+  const [contestAperti, setContestAperti] = useState<Record<string, number>>({});
   const [codiceAperto, setCodiceAperto] = useState(false);
   const [codice, setCodice] = useState('');
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
 
   useEffect(() => {
-    caricaAtenei().then(setAtenei);
-    caricaCorsiPubblici().then(c => setSenzaAteneo(c.filter(x => !x.ateneo_id)));
+    caricaAtenei().then(async lista => {
+      setAtenei(lista);
+      const conti = await Promise.all(lista.map(async a => [a.id, (await caricaContestAteneo(a.id)).filter(c => c.stato_attivita === 'attiva').length] as const));
+      setContestAperti(Object.fromEntries(conti));
+    });
+    caricaCorsiPubblici().then(setCorsi);
   }, []);
+  const senzaAteneo = corsi.filter(x => !x.ateneo_id);
 
   const entraConCodice = async () => {
     setErrore('');
@@ -95,55 +104,58 @@ function SceltaAteneo() {
     else scegliCorso(trovato);
   };
 
+  const n = (atenei?.length || 0) + senzaAteneo.length;
   return (
-    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex flex-wrap justify-between items-center gap-3 border-b border-stone-200 pb-6">
-        <span className="font-serif tracking-tight font-bold text-lg">{NOME_PIATTAFORMA}</span>
-        <a href="/teacher" className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition">
-          🔐 Accesso Docente
-        </a>
-      </nav>
+    <main className="mz mz-vetrina">
+      <RailVetrina
+        sinistra={<span className="mz-mono max-sm:hidden">Laboratori di design</span>}
+      />
 
-      <div className="flex-1 py-10 sm:py-14 space-y-8 animate-fade-in-up">
-        <div className="text-center space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-serif leading-tight">
-            Il vostro ateneo
-            <Info>Ogni ateneo raccoglie i suoi corsi e le attività aperte a tutto l’ateneo, come il Contest.</Info>
-          </h1>
+      <section className="mz-eroe">
+        <h1 className="mz-display mz-eroe-titolo mz-in">
+          Scegli il tuo ateneo<span className="mz-sup">({due(n)})</span>
+        </h1>
+        <div className="mz-eroe-lato mz-in" style={{ animationDelay: '120ms' }}>
+          <Solidi cadono />
+          <button type="button" className="mz-pill o" onClick={() => { setErrore(''); setCodiceAperto(true); }}>Ho un codice corso</button>
         </div>
+      </section>
 
-        <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto w-full entra-cascata">
-          {atenei === null && <p className="text-sm text-stone-400 text-center sm:col-span-2">Caricamento...</p>}
-          {atenei?.map(a => (
-            <a
-              key={a.id}
-              href={`/${a.codice}`}
-              className="card-viva text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-            >
-              <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold font-mono">/{a.codice}</span>
-              <h2 className="text-xl font-serif font-bold mt-1">{a.nome}</h2>
-              <span className="inline-block mt-4 text-xs font-medium text-stone-900">Vedi i corsi →</span>
-            </a>
-          ))}
-          {senzaAteneo.map(c => (
-            <button
-              key={c.id}
-              onClick={() => scegliCorso(c)}
-              className="card-viva text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
-            >
-              <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold font-mono">{c.codice}</span>
-              <h2 className="text-xl font-serif font-bold mt-1">{c.nome}</h2>
-              <span className="inline-block mt-4 text-xs font-medium text-stone-900">Entra nel corso →</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="text-center">
-          <button onClick={() => { setErrore(''); setCodiceAperto(true); }} className="text-sm text-stone-600 underline underline-offset-4 hover:text-stone-900">
-            Avete un codice corso?
-          </button>
-        </div>
+      <div className="mz-barra">
+        <span className="mz-mono" style={{ color: 'var(--ink)' }}>Atenei</span>
+        <span className="mz-mono">{due(corsi.length)} corsi</span>
       </div>
+      <ul className="mz-indice riempi">
+        {atenei === null && <li className="mz-riga" style={{ cursor: 'default' }}><span /><span className="mz-muted">Caricamento…</span></li>}
+        {atenei?.map((a, i) => {
+          const nCorsi = corsi.filter(c => c.ateneo_id === a.id).length;
+          const vivi = contestAperti[a.id] || 0;
+          return (
+            <RigaIndice
+              key={a.id}
+              indice={i + 1}
+              ritardo={160 + i * 70}
+              href={`/${a.codice}`}
+              titolo={a.nome}
+              meta={<>
+                {vivi > 0 && <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: 'var(--ink)' }}><span className="mz-live-dot" style={{ width: 7, height: 7 }} />Contest aperto</span>}
+                <span className="mz-mono">{nCorsi === 1 ? '1 corso' : `${nCorsi} corsi`}</span>
+                <span className="mz-mono" style={{ textTransform: 'none' }}>/{a.codice}</span>
+              </>}
+            />
+          );
+        })}
+        {senzaAteneo.map((c, i) => (
+          <RigaIndice
+            key={c.id}
+            indice={(atenei?.length || 0) + i + 1}
+            ritardo={160 + ((atenei?.length || 0) + i) * 70}
+            onClick={() => scegliCorso(c)}
+            titolo={c.nome}
+            meta={<span className="mz-mono" style={{ textTransform: 'none' }}>{c.codice}</span>}
+          />
+        ))}
+      </ul>
 
       <BottomSheet aperto={codiceAperto} onChiudi={() => setCodiceAperto(false)} etichetta="Entra con il codice del corso" titolo="Entra con il codice" larghezzaDesktop="md:max-w-sm">
         <form onSubmit={e => { e.preventDefault(); entraConCodice(); }} className="space-y-3">

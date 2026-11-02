@@ -1,4 +1,5 @@
 import './globals.css';
+import './contest.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TeamProvider } from '../lib/team-context';

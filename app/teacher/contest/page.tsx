@@ -58,7 +58,7 @@ export default function ContestDocentePage() {
   const [iscritti, setIscritti] = useState<Iscritto[]>([]);
   const [sezione, setSezione] = useState<Sezione>('gestione');
   const [messaggio, setMessaggio] = useState<{ testo: string; errore?: boolean } | null>(null);
-  const [bozza, setBozza] = useState({ titolo: '', sottotitolo: '', descrizione: '', iscrizione: 'individuale' as Iscrizione, mostra_classifica: false, proposte_da: 'docente' as Contest['proposte_da'] });
+  const [bozza, setBozza] = useState({ titolo: '', sottotitolo: '', descrizione: '', iscrizione: 'individuale' as Iscrizione, mostra_classifica: false, proposte_da: 'docente' as Contest['proposte_da'], ambito: 'corso' as Contest['ambito'] });
   const [scadenza, setScadenza] = useState('');
   const [durata, setDurata] = useState(120);
   const [codiceLive, setCodiceLive] = useState<string | null>(null);
@@ -115,7 +115,7 @@ export default function ContestDocentePage() {
 
   useEffect(() => {
     if (!sel) return;
-    setBozza({ titolo: sel.titolo, sottotitolo: sel.sottotitolo, descrizione: sel.descrizione, iscrizione: sel.iscrizione, mostra_classifica: sel.mostra_classifica, proposte_da: sel.proposte_da || 'docente' });
+    setBozza({ titolo: sel.titolo, sottotitolo: sel.sottotitolo, descrizione: sel.descrizione, iscrizione: sel.iscrizione, mostra_classifica: sel.mostra_classifica, proposte_da: sel.proposte_da || 'docente', ambito: sel.ambito || 'corso' });
     setScadenza(inLocale(sel.voto_fine && new Date(sel.voto_fine).getTime() > Date.now() ? sel.voto_fine : new Date(Date.now() + 86400000).toISOString()));
     supabase.rpc('docente_codice_live', { p_id: sel.id, p_passcode: passcode }).then(({ data }) => setCodiceLive((data as string) || null));
   }, [sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -137,6 +137,7 @@ export default function ContestDocentePage() {
     p_corso_id: corso.id,
     p_id: sel.id, p_titolo: bozza.titolo, p_sottotitolo: bozza.sottotitolo, p_descrizione: bozza.descrizione,
     p_iscrizione: bozza.iscrizione, p_mostra_classifica: bozza.mostra_classifica, p_proposte_da: bozza.proposte_da,
+    ...(corso.spazio_ateneo ? {} : { p_ambito: bozza.ambito }),
   }, 'Impostazioni salvate');
 
   const impostaFase = (fase: FaseContest) => {
@@ -181,6 +182,9 @@ export default function ContestDocentePage() {
 
 
   const votiPer = useMemo(() => new Map((stat?.per_proposta || []).map(p => [p.id, p])), [stat]);
+  // Pagina studenti: quella dell'ateneo per i contest aperti a tutto l'ateneo.
+  const diAteneo = !!corso.ateneo_codice && (corso.spazio_ateneo || sel?.ambito === 'ateneo');
+  const paginaStudenti = diAteneo ? `/${corso.ateneo_codice}/contest${sel ? `?c=${sel.id}` : ''}` : '/contest';
   const linkLive = sel && codiceLive ? `${origine}/contest/live?codice=${codiceLive}` : `${origine}/contest/live`;
   const liveAperto = sel?.live_stato === 'aperto' && (!sel.live_fine || new Date(sel.live_fine).getTime() > adesso);
   const visibili = proposte.filter(p => !p.nascosta);
@@ -216,7 +220,8 @@ export default function ContestDocentePage() {
             </div>
           ) : <span className="mz-muted" style={{ fontSize: 13 }}>Attività non trovata: esegui la migrazione 20261012.</span>}
           {attivitaContest && attivitaContest.stato !== 'attiva' && <span className="mz-muted" style={{ fontSize: 12.5 }}>Finché non è «Attiva» gli studenti non votano da remoto. Il voto dal vivo funziona comunque.</span>}
-          <a href={corso.spazio_ateneo && corso.ateneo_codice ? `/${corso.ateneo_codice}/contest` : '/contest'} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
+          <a href={paginaStudenti} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
+          {diAteneo && <span className="mz-mono mz-break" style={{ textTransform: 'none' }}>{origine.replace(/^https?:\/\//, '')}{paginaStudenti}</span>}
         </div>
       </aside>
 
@@ -324,6 +329,16 @@ export default function ContestDocentePage() {
                       <Segmentato etichetta="Chi carica le proposte" valore={bozza.proposte_da} onCambia={v => setBozza({ ...bozza, proposte_da: v })}
                         opzioni={[{ id: 'docente', label: 'Docenti' }, { id: 'studenti', label: 'Anche gli studenti' }]} />
                     </div>
+                    {!corso.spazio_ateneo && (
+                      <div className="mz-field">
+                        <span className="mz-mono">
+                          Aperto a
+                          <Info>{corso.ateneo_id ? `«Tutto l’ateneo»: il contest compare nella pagina di ${corso.ateneo_nome} e votano anche gli studenti degli altri corsi, o chi si iscrive solo al contest. Resta gestito da qui.` : 'Per aprirlo a tutto l’ateneo, assegna prima il corso a un ateneo in Corso & Form.'}</Info>
+                        </span>
+                        <Segmentato etichetta="A chi è aperto il contest" valore={bozza.ambito} onCambia={v => corso.ateneo_id && setBozza({ ...bozza, ambito: v })}
+                          opzioni={[{ id: 'corso', label: 'Il corso' }, { id: 'ateneo', label: corso.ateneo_codice ? `Tutto ${corso.ateneo_codice}` : 'Tutto l’ateneo' }]} />
+                      </div>
+                    )}
                     <div className="mz-field">
                       <span className="mz-mono">Chi candida e vota da remoto</span>
                       <Segmentato etichetta="Tipo di iscrizione" valore={bozza.iscrizione} onCambia={v => setBozza({ ...bozza, iscrizione: v })}
@@ -385,7 +400,7 @@ export default function ContestDocentePage() {
               : <p className="mz-muted">Carico i dati…</p>)}
 
             {sezione === 'iscritti' && (
-              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`Team e accessi individuali del corso, un voto per contest (${ETICHETTA_ISCRIZIONE[sel.iscrizione].toLowerCase()}).`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
+              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`${sel.ambito === 'ateneo' && !corso.spazio_ateneo ? 'Qui sotto gli accessi del corso; votano anche gli altri corsi dell’ateneo e chi si iscrive solo al contest' : 'Team e accessi individuali del corso'}, un voto per contest (${ETICHETTA_ISCRIZIONE[sel.iscrizione].toLowerCase()}).`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {iscritti.map((s, i) => {
                     const puo = sel.iscrizione === 'entrambe' || sel.iscrizione === (s.tipo || 'gruppo');

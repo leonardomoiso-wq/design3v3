@@ -5,10 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { useSessioneTeam, etichettaTeam } from '@/lib/team-context';
 import AccessoTeam from '@/components/AccessoTeam';
 import Info from '@/components/Info';
-import { percorsoCorso, type Corso } from '@/lib/corsi';
+import { caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  COLONNE_PROPOSTA, ETICHETTA_FASE, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
+  COLONNE_PROPOSTA, ETICHETTA_FASE, caricaContestAteneo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Solidi, Ticker, useTendina, Cornice } from '@/components/moiso/Moiso';
@@ -20,16 +20,38 @@ import { FormProposta } from '@/components/moiso/FormProposta';
 
 type Scheda = 'proposte' | 'dati' | 'mia';
 
+type Proprieta = { corso: Corso; ateneo?: undefined; spazio?: undefined } | { ateneo: Ateneo; spazio: Corso | null; corso?: undefined };
+
+const chiaveAccessoAteneo = (ateneoId: string) => `edu_contest_accesso_${ateneoId}`;
+const haSessione = (corsoId: string) => { try { return !!localStorage.getItem(`edu_team_sessione_${corsoId}`); } catch { return false; } };
+
 // Il Contest visto dagli studenti. Funziona in due modi:
-// - dentro un corso (/contest), con l'accesso del corso;
-// - a livello di ateneo (/<ateneo>/contest): `corso` è lo spazio di
-//   ateneo, l'accesso (in team o da soli) si fa qui stesso.
-export default function ContestStudente({ corso, diAteneo = false }: { corso: Corso; diAteneo?: boolean }) {
-  const { team: io, pronto: teamPronto, accedi } = useSessioneTeam(corso.id);
-  const indietro = diAteneo && corso.ateneo_codice ? `/${corso.ateneo_codice}` : corso.ateneo_codice ? percorsoCorso(corso) : '/';
-  // Stato dell'attività nel pannello Attività: il contest si apre agli
-  // studenti solo quando è "attiva".
-  const [statoAttivita, setStatoAttivita] = useState<string | null | undefined>(undefined);
+// - dentro un corso (/contest): i contest del corso, con l'accesso del corso;
+// - per un ateneo (/<ateneo>/contest): i contest aperti a tutto l'ateneo,
+//   gestiti da qualsiasi corso. Si entra con l'accesso di un corso
+//   dell'ateneo oppure iscrivendosi solo al contest (spazio di ateneo).
+export default function ContestStudente(props: Proprieta) {
+  const { corso, ateneo, spazio } = props;
+  const diAteneo = !!ateneo;
+  const idCanale = corso?.id || ateneo!.id;
+  const nomeRail = corso?.nome || ateneo!.nome;
+  // Corso dell'accesso: quello della pagina, oppure quello scelto qui.
+  const [corsoAccesso, setCorsoAccesso] = useState<string | null | undefined>(corso ? corso.id : undefined);
+  const [corsiAteneo, setCorsiAteneo] = useState<{ id: string; nome: string }[]>([]);
+  const { team: io, pronto: teamPronto, accedi: salvaAccesso, logout } = useSessioneTeam(corsoAccesso ?? null);
+  const accedi = (t: Parameters<typeof salvaAccesso>[0]) => {
+    salvaAccesso(t);
+    if (ateneo && corsoAccesso) { try { localStorage.setItem(chiaveAccessoAteneo(ateneo.id), corsoAccesso); } catch { /* */ } }
+  };
+  const cambiaAccesso = () => {
+    if (!ateneo) return;
+    try { localStorage.removeItem(chiaveAccessoAteneo(ateneo.id)); } catch { /* */ }
+    setCorsoAccesso(null);
+  };
+  const indietro = ateneo ? `/${ateneo.codice}` : corso!.ateneo_codice ? percorsoCorso(corso!) : '/';
+  // Stato dell'attività nel pannello Attività (del corso che gestisce il
+  // contest): il contest si apre agli studenti solo quando è "attiva".
+  const [statiAttivita, setStatiAttivita] = useState<Record<string, string> | undefined>(undefined);
   const [contestLista, setContestLista] = useState<Contest[]>([]);
   const [caricati, setCaricati] = useState(false);
   const [contestId, setContestId] = useState<string | null>(null);
@@ -48,13 +70,36 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
   useEffect(() => { ottieniPosizione().then(setPosizione); }, []);
 
   const contest = contestLista.find(c => c.id === contestId) || null;
+  const statoAttivita: string | null | undefined = statiAttivita === undefined ? undefined
+    : corso ? (statiAttivita[corso.id] ?? null)
+    : contest ? (statiAttivita[contest.id] ?? null) : (contestLista.length ? null : 'attiva');
   const { stat, scarto } = useStatistiche(contest && (contest.fase === 'voto' || contest.fase === 'chiuso' || contest.live_stato !== 'chiuso') ? contest.id : null, 3000);
   const adesso = useAdesso(scarto, 1000);
 
   // --- Contest visibili (le bozze non arrivano al client) ---
+  const [corsiGestori, setCorsiGestori] = useState<string[]>([]);
   const caricaContest = useCallback(async () => {
-    const { data } = await supabase.from('contest').select('*').eq('corso_id', corso.id).order('creato_il', { ascending: false });
-    const lista = (data || []) as Contest[];
+    let lista: Contest[];
+    if (corso) {
+      const { data } = await supabase.from('contest').select('*').eq('corso_id', corso.id).order('creato_il', { ascending: false });
+      lista = (data || []) as Contest[];
+    } else {
+      // Contest aperti all'ateneo, con lo stato dell'attività del corso che li gestisce.
+      const righe = await caricaContestAteneo(ateneo!.id);
+      const { data } = righe.length ? await supabase.from('contest').select('*').in('id', righe.map(r => r.id)) : { data: [] };
+      const perId = new Map(((data || []) as Contest[]).map(c => [c.id, c]));
+      lista = righe.map(r => perId.get(r.id)).filter(Boolean) as Contest[];
+      setStatiAttivita(Object.fromEntries(righe.map(r => [r.id, r.stato_attivita])));
+      setCorsiGestori(prev => {
+        const nuovi = Array.from(new Set(righe.map(r => r.corso_id))).sort();
+        return nuovi.join() === prev.join() ? prev : nuovi;
+      });
+      setCorsiAteneo(prev => {
+        const voci = new Map(prev.map(c => [c.id, c]));
+        righe.filter(r => !r.spazio).forEach(r => voci.set(r.corso_id, { id: r.corso_id, nome: r.corso_nome }));
+        return Array.from(voci.values());
+      });
+    }
     setContestLista(lista);
     setCaricati(true);
     setContestId(prev => {
@@ -64,21 +109,55 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
       const vivo = lista.find(c => c.fase === 'voto') || lista.find(c => c.fase === 'anteprima') || lista[0];
       return vivo ? vivo.id : null;
     });
-  }, [corso.id]);
+  }, [corso, ateneo]);
 
   const caricaAttivita = useCallback(async () => {
+    if (!corso) { await caricaContest(); return; }
     const { data } = await supabase.from('attivita').select('stato').eq('corso_id', corso.id).eq('tipo', 'contest_voto').maybeSingle();
-    setStatoAttivita(data ? (data as any).stato : null);
-  }, [corso.id]);
+    setStatiAttivita(data ? { [corso.id]: (data as any).stato } : {});
+  }, [corso, caricaContest]);
 
   useEffect(() => {
-    caricaContest();
-    caricaAttivita();
-    const ch = ascoltaCorso(supabase.channel(`contest-studenti-${corso.id}`), 'contest', corso.id, caricaContest);
-    ascoltaCorso(ch, 'attivita', corso.id, caricaAttivita).subscribe();
-    const t = setInterval(caricaContest, 20000);
-    return () => { supabase.removeChannel(ch); clearInterval(t); };
-  }, [caricaContest, caricaAttivita, corso.id]);
+    const aggiorna = () => { caricaContest(); if (corso) caricaAttivita(); };
+    aggiorna();
+    const t = setInterval(aggiorna, 20000);
+    return () => clearInterval(t);
+  }, [caricaContest, caricaAttivita, corso]);
+
+  // Aggiornamenti in tempo reale dai corsi che gestiscono i contest.
+  const gestori = corso ? corso.id : corsiGestori.join(',');
+  useEffect(() => {
+    const ids = gestori ? gestori.split(',') : [];
+    if (!ids.length) return;
+    const ch = supabase.channel(`contest-studenti-${idCanale}`);
+    ids.forEach(id => { ascoltaCorso(ch, 'contest', id, caricaContest); ascoltaCorso(ch, 'attivita', id, caricaAttivita); });
+    ch.subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [gestori, idCanale, caricaContest, caricaAttivita]);
+
+  // Ateneo: i corsi da cui si può entrare e l'accesso già usato qui.
+  const [corsiCaricati, setCorsiCaricati] = useState(false);
+  useEffect(() => {
+    if (!ateneo) return;
+    caricaCorsiPubblici(ateneo.id).then(lista => {
+      setCorsiAteneo(prev => {
+        const voci = new Map(prev.map(c => [c.id, c]));
+        lista.forEach(c => voci.set(c.id, { id: c.id, nome: c.nome }));
+        return Array.from(voci.values());
+      });
+      setCorsiCaricati(true);
+    });
+  }, [ateneo]);
+  useEffect(() => {
+    if (!ateneo || corsoAccesso !== undefined) return;
+    let salvato: string | null = null;
+    try { salvato = localStorage.getItem(chiaveAccessoAteneo(ateneo.id)); } catch { /* */ }
+    if (salvato && haSessione(salvato)) { setCorsoAccesso(salvato); return; }
+    // Chi è già entrato in un corso dell'ateneo da questo browser vota con quell'accesso.
+    const gia = [...(spazio ? [spazio.id] : []), ...corsiAteneo.map(c => c.id)].find(haSessione);
+    if (gia) setCorsoAccesso(gia);
+    else if (statiAttivita !== undefined && corsiCaricati) setCorsoAccesso(null);
+  }, [ateneo, spazio, corsiAteneo, corsoAccesso, statiAttivita, corsiCaricati]);
 
   const caricaProposte = useCallback(async () => {
     if (!contestId) { setProposte([]); return; }
@@ -160,14 +239,14 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
   };
 
   // --- Schermate di attesa ---
-  if (!teamPronto || !caricati || statoAttivita === undefined) {
+  if (!teamPronto || !caricati || statoAttivita === undefined || corsoAccesso === undefined) {
     return <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><Solidi /></main>;
   }
 
   const rail = (
     <header className="mz-rail">
       <a href={indietro} style={{ display: 'flex', gap: 10, alignItems: 'baseline', color: 'inherit', textDecoration: 'none', minWidth: 0 }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }} className="mz-break">{corso.nome}</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }} className="mz-break">{nomeRail}</span>
         <span className="mz-mono hidden sm:inline">Contest</span>
       </a>
       {io && contest && statoAttivita === 'attiva' && (
@@ -185,7 +264,9 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
       {io ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
           <span className="mz-mono hidden md:inline mz-break" style={{ color: 'var(--ink)' }}>{etichettaTeam(io)}</span>
-          <a href={indietro} className="mz-pill sm ghost">← {diAteneo ? 'Ateneo' : 'Attività'}</a>
+          {diAteneo
+            ? <button type="button" className="mz-pill sm ghost" onClick={() => { logout(); cambiaAccesso(); }}>Esci</button>
+            : <a href={indietro} className="mz-pill sm ghost">← Attività</a>}
         </div>
       ) : <a href={indietro} className="mz-pill sm ghost">← {diAteneo ? 'Ateneo' : 'Home'}</a>}
     </header>
@@ -231,9 +312,14 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
               Per votare serve <span className="mz-blue">il tuo accesso</span>.
             </h1>
             {diAteneo ? (
-              <div style={{ width: '100%', maxWidth: 440, textAlign: 'left' }}>
-                <AccessoTeam corsoId={corso.id} onAccesso={accedi} tipoIniziale={contest.iscrizione === 'gruppo' ? 'gruppo' : 'individuale'} conTitolo={false} />
-              </div>
+              <AccessoAteneo
+                corsi={corsiAteneo}
+                spazioId={spazio?.id || null}
+                corsoScelto={corsoAccesso ?? null}
+                onScegli={setCorsoAccesso}
+                onAccesso={accedi}
+                tipoIniziale={contest.iscrizione === 'gruppo' ? 'gruppo' : 'individuale'}
+              />
             ) : (
               <>
                 <p style={{ margin: 0, fontSize: 17, maxWidth: 520 }}>
@@ -397,5 +483,43 @@ export default function ContestStudente({ corso, diAteneo = false }: { corso: Co
         />
       )}
     </main>
+  );
+}
+
+// Accesso al Contest di ateneo: con l'accesso di un corso dell'ateneo,
+// oppure iscrivendosi solo al contest (nessun corso da frequentare).
+function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso, tipoIniziale }: {
+  corsi: { id: string; nome: string }[]; spazioId: string | null; corsoScelto: string | null;
+  onScegli: (id: string | null) => void; onAccesso: (t: any) => void; tipoIniziale: 'gruppo' | 'individuale';
+}) {
+  const [modo, setModo] = useState<'contest' | 'corso'>(spazioId && corsoScelto !== null && corsoScelto !== spazioId ? 'corso' : spazioId ? 'contest' : 'corso');
+  useEffect(() => {
+    if (modo === 'contest' && spazioId && corsoScelto !== spazioId) onScegli(spazioId);
+    if (modo === 'corso' && corsoScelto === spazioId) onScegli(null);
+  }, [modo, spazioId, corsoScelto, onScegli]);
+  const ordinati = [...corsi].sort((a, b) => a.nome.localeCompare(b.nome));
+  return (
+    <div style={{ width: '100%', maxWidth: 460, textAlign: 'left', display: 'grid', gap: 18 }}>
+      {spazioId && corsi.length > 0 && (
+        <Segmentato
+          etichetta="Come entri"
+          valore={modo}
+          onCambia={setModo}
+          opzioni={[{ id: 'contest', label: 'Solo per il contest' }, { id: 'corso', label: 'Con il mio corso' }]}
+        />
+      )}
+      {modo === 'corso' && (
+        <label className="mz-field">
+          <span className="mz-mono">Il tuo corso</span>
+          <select className="mz-input" value={corsoScelto || ''} onChange={e => onScegli(e.target.value || null)}>
+            <option value="">Scegli il corso…</option>
+            {ordinati.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </label>
+      )}
+      {corsoScelto && (
+        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} tipoIniziale={modo === 'contest' ? tipoIniziale : 'gruppo'} schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
+      )}
+    </div>
   );
 }

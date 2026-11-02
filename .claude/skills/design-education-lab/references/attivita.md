@@ -47,7 +47,7 @@ Il docente vede consegne, round, deduzioni, commenti per immagine; l'attività p
 
 **Studenti**: galleria con immagini grandi e gerarchia titolo → frase → problema → proposta → perché votarla (in ambra); modalità "Presenta" a copertine; dettaglio in sheet (da destra su desktop, dal basso su telefono); voto con conferma e scena ambra "Voto registrato"; scheda "Dati" con totale a cifre rotanti, countdown, affluenza, ultimi voti, ritmo minuto per minuto, mappa del voto e provenienza, dispositivi, classifica coperta fino alla scadenza; scheda "La mia" per candidare la propria proposta quando previsto.
 
-**Di corso o di ateneo**: il Contest vive in un corso (`/contest`) oppure nello spazio di ateneo (`/<ateneo>/contest`, con accesso individuale direttamente nella pagina).
+**Di corso o di ateneo**: ogni contest sceglie «Aperto a: il corso / tutto l'ateneo». Quelli di ateneo compaiono in evidenza nella pagina dell'ateneo e si aprono da `/<ateneo>/contest`: nessuno deve iscriversi a un corso che non frequenta.
 
 **Pubblico** (`/contest/live`): codice o QR, un voto per dispositivo (id casuale nel browser), cambiabile finché il voto è aperto.
 

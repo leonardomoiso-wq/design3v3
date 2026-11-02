@@ -1,105 +1,123 @@
 'use client';
-// Pagina di un ateneo (/polito): i suoi corsi e le attività aperte a tutto
-// l'ateneo (es. il Contest), che non richiedono di scegliere un corso.
+// Pagina di un ateneo (/polito): i contest aperti a tutto l'ateneo, in
+// evidenza, e l'indice dei suoi corsi. Nessun corso da scegliere per votare.
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { moduloDi, type AttivitaRow } from '@/lib/attivita';
-import { caricaAteneoPerCodice, caricaCorsiPubblici, caricaSpazioAteneo, percorsoCorso, NOME_PIATTAFORMA, type Ateneo, type Corso } from '@/lib/corsi';
+import { caricaAteneoPerCodice, caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
+import { caricaContestAteneo, useAdesso, type ContestAteneo } from '@/lib/contest';
+import { Cornice, Solidi } from '@/components/moiso/Moiso';
+import { Countdown } from '@/components/moiso/Countdown';
+import { RailVetrina, RigaIndice, due } from '@/components/Vetrina';
 
-// Pagine delle attività di ateneo (relative a /<ateneo>).
-const PAGINE_ATENEO: Record<string, string> = { contest_voto: 'contest' };
+function PalcoContest({ c, codiceAteneo, adesso, ritardo }: { c: ContestAteneo; codiceAteneo: string; adesso: number; ritardo: number }) {
+  const fine = c.voto_fine ? new Date(c.voto_fine).getTime() : 0;
+  const votoAperto = c.stato_attivita === 'attiva' && c.fase === 'voto' && fine > adesso;
+  const inArrivo = c.stato_attivita !== 'attiva';
+  const stato = inArrivo ? 'In arrivo'
+    : votoAperto ? 'Voto aperto'
+    : c.fase === 'anteprima' ? 'Anteprima delle proposte'
+    : c.live_stato === 'aperto' ? 'Voto dal vivo in aula'
+    : 'Votazione conclusa';
+  const azione = votoAperto ? 'Entra e vota →' : c.fase === 'anteprima' ? 'Guarda le proposte →' : 'Vedi il risultato →';
+  const contenuto = (
+    <>
+      <Cornice src={c.copertina || undefined} alt="" etichettaVuota="Proposte in arrivo" />
+      <div className="mz-palco-testo">
+        <div style={{ display: 'grid', gap: 14 }}>
+          <span className="mz-mono" style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}>
+            {votoAperto && <span className="mz-live-dot" style={{ background: 'var(--scena-testo)' }} />}
+            Contest di ateneo — {stato}
+          </span>
+          <h2 className="mz-display mz-palco-titolo">{c.titolo}<span className="mz-sup" style={{ color: 'inherit' }}>({due(c.proposte)})</span></h2>
+          {c.sottotitolo && <p style={{ margin: 0, fontSize: 'clamp(16px, 1.6vw, 21px)', lineHeight: 1.35, maxWidth: 560 }}>{c.sottotitolo}</p>}
+        </div>
+        <div style={{ display: 'grid', gap: 18 }}>
+          {votoAperto && <Countdown fine={c.voto_fine} inizio={c.voto_inizio} adesso={adesso} grande={false} />}
+          {!inArrivo && <span className="mz-pill lg" style={{ justifySelf: 'start', background: inArrivo ? undefined : 'var(--scena-testo)', color: 'var(--scena-su-testo)' }}>{azione}</span>}
+        </div>
+      </div>
+    </>
+  );
+  return inArrivo
+    ? <div className="mz-palco attesa mz-in" style={{ animationDelay: `${ritardo}ms` }}>{contenuto}</div>
+    : <a href={`/${codiceAteneo}/contest?c=${c.id}`} className="mz-palco mz-in" style={{ animationDelay: `${ritardo}ms` }}>{contenuto}</a>;
+}
 
 export default function PaginaAteneo({ codice }: { codice: string }) {
   const [ateneo, setAteneo] = useState<Ateneo | null | undefined>(undefined);
   const [corsi, setCorsi] = useState<Corso[] | null>(null);
-  const [attivita, setAttivita] = useState<AttivitaRow[]>([]);
+  const [contest, setContest] = useState<ContestAteneo[]>([]);
+  const adesso = useAdesso(0, 1000);
 
   useEffect(() => {
-    caricaAteneoPerCodice(codice).then(async a => {
+    let t: ReturnType<typeof setInterval> | undefined;
+    let attivo = true;
+    caricaAteneoPerCodice(codice).then(a => {
+      if (!attivo) return;
       setAteneo(a);
       if (!a) return;
       caricaCorsiPubblici(a.id).then(setCorsi);
-      const spazio = await caricaSpazioAteneo(a.id);
-      if (spazio) {
-        const { data } = await supabase.from('attivita').select('*').eq('corso_id', spazio.id)
-          .in('stato', ['attiva', 'prossimamente']).order('ordine', { ascending: true });
-        setAttivita((data || []) as AttivitaRow[]);
-      }
+      const carica = () => caricaContestAteneo(a.id).then(setContest);
+      carica();
+      t = setInterval(carica, 30000);
     });
+    return () => { attivo = false; if (t) clearInterval(t); };
   }, [codice]);
 
-  if (ateneo === undefined) return <main className="min-h-screen bg-[#FBF9F5]" />;
+  if (ateneo === undefined) return <main className="mz mz-vetrina" />;
 
   if (!ateneo) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6">
-        <div className="max-w-sm text-center space-y-4">
-          <h1 className="text-2xl font-serif">Ateneo non trovato</h1>
-          <a href="/" className="inline-block bg-stone-900 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition">Scegli l’ateneo</a>
-        </div>
+      <main className="mz mz-vetrina">
+        <RailVetrina />
+        <section style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
+          <div style={{ display: 'grid', gap: 20, justifyItems: 'center' }}>
+            <Solidi cadono />
+            <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 6vw, 84px)', margin: 0 }}>Ateneo non trovato</h1>
+            <a href="/" className="mz-pill lg">Scegli l’ateneo</a>
+          </div>
+        </section>
       </main>
     );
   }
 
+  const aperti = contest.filter(c => c.stato_attivita === 'attiva').length;
   return (
-    <main className="min-h-screen px-5 sm:px-8 py-8 sm:py-12 max-w-5xl mx-auto flex flex-col">
-      <nav className="flex flex-wrap justify-between items-center gap-3 border-b border-stone-200 pb-6">
-        <a href="/" className="font-serif tracking-tight font-bold text-lg">{NOME_PIATTAFORMA}</a>
-        <a href="/teacher" className="text-[11px] uppercase tracking-widest text-stone-400 hover:text-stone-900 font-medium px-3 py-1.5 rounded-full border border-stone-200 hover:border-stone-400 transition">
-          🔐 Accesso Docente
-        </a>
-      </nav>
+    <main className="mz mz-vetrina">
+      <RailVetrina sinistra={<a href="/" className="mz-mono max-sm:hidden" style={{ textDecoration: 'none' }}>← Atenei</a>} />
 
-      <div className="pt-14 pb-10 text-center animate-fade-in-up">
-        <h1 className="text-4xl md:text-5xl font-serif max-w-3xl mx-auto leading-tight">
-          {ateneo.nome}
-          <span className="apice">(/{ateneo.codice})</span>
+      <section className="mz-eroe">
+        <h1 className="mz-display mz-eroe-titolo mz-in" style={{ fontSize: 'clamp(50px, 8.4vw, 150px)' }}>
+          {ateneo.nome}<span className="mz-sup" style={{ textTransform: 'none' }}>(/{ateneo.codice})</span>
         </h1>
-        {ateneo.descrizione && <p className="text-stone-600 max-w-xl mx-auto mt-4">{ateneo.descrizione}</p>}
-      </div>
-
-      {attivita.length > 0 && (
-        <section className="pb-10 space-y-4">
-          <h2 className="text-[11px] uppercase tracking-widest text-stone-500 font-bold">Attività di ateneo</h2>
-          <div className="grid sm:grid-cols-2 gap-6 entra-cascata">
-            {attivita.map(a => {
-              const avviabile = a.stato === 'attiva' && PAGINE_ATENEO[a.tipo];
-              const contenuto = (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl" aria-hidden="true">{moduloDi(a.tipo).icona}</span>
-                    {!avviabile && <span className="text-[10px] uppercase tracking-widest bg-stone-200 text-stone-500 px-2.5 py-1 rounded-full font-bold">Prossimamente</span>}
-                  </div>
-                  <h3 className={`text-xl font-serif font-bold ${avviabile ? 'text-stone-900' : 'text-stone-400'}`}>{a.titolo}</h3>
-                  {a.descrizione && <p className={`text-sm mt-2 leading-relaxed ${avviabile ? 'text-stone-600' : 'text-stone-400'}`}>{a.descrizione}</p>}
-                  {avviabile && <span className="inline-block mt-6 bg-stone-900 text-white px-5 py-3 rounded-full font-medium text-sm">Entra →</span>}
-                </>
-              );
-              return avviabile ? (
-                <a key={a.id} href={`/${ateneo.codice}/${PAGINE_ATENEO[a.tipo]}`} className="card-viva rounded-3xl border p-8 bg-white border-stone-200 shadow-sm hover:border-stone-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">{contenuto}</a>
-              ) : (
-                <div key={a.id} className="rounded-3xl border p-8 bg-stone-100/60 border-dashed border-stone-300">{contenuto}</div>
-              );
-            })}
+        <div className="mz-eroe-lato mz-in" style={{ animationDelay: '120ms' }}>
+          <div className="mz-eroe-cifre">
+            <div><strong>{due(corsi?.length || 0)}</strong><span className="mz-mono">Corsi</span></div>
+            <div><strong style={{ color: aperti ? 'var(--accento)' : undefined }}>{due(aperti)}</strong><span className="mz-mono">Contest aperti</span></div>
           </div>
-        </section>
-      )}
-
-      <section className="pb-16 space-y-4">
-        <h2 className="text-[11px] uppercase tracking-widest text-stone-500 font-bold">Corsi</h2>
-        <div className="grid sm:grid-cols-2 gap-4 entra-cascata">
-          {corsi === null && <p className="text-sm text-stone-400">Caricamento...</p>}
-          {corsi?.length === 0 && <p className="text-sm text-stone-400">Nessun corso in elenco. Chiedete il link al/alla docente.</p>}
-          {corsi?.map(c => (
-            <a key={c.id} href={percorsoCorso(c)} className="card-viva text-left bg-white border border-stone-200 hover:border-stone-400 rounded-3xl p-6 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
-              <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold font-mono">{c.codice}</span>
-              <h3 className="text-xl font-serif font-bold mt-1">{c.nome}</h3>
-              {c.descrizione && <p className="text-sm text-stone-500 mt-1">{c.descrizione}</p>}
-              <span className="inline-block mt-4 text-xs font-medium text-stone-900">Entra nel corso →</span>
-            </a>
-          ))}
+          {ateneo.descrizione && <p style={{ margin: 0, maxWidth: 360, fontSize: 15 }} className="mz-muted">{ateneo.descrizione}</p>}
         </div>
       </section>
+
+      {contest.map((c, i) => <PalcoContest key={c.id} c={c} codiceAteneo={ateneo.codice} adesso={adesso} ritardo={180 + i * 80} />)}
+
+      <div className="mz-barra">
+        <span className="mz-mono" style={{ color: 'var(--ink)' }}>Corsi</span>
+        <span className="mz-mono">{due(corsi?.length || 0)}</span>
+      </div>
+      <ul className="mz-indice riempi">
+        {corsi === null && <li className="mz-riga" style={{ cursor: 'default' }}><span /><span className="mz-muted">Caricamento…</span></li>}
+        {corsi?.length === 0 && <li className="mz-riga" style={{ cursor: 'default' }}><span /><span className="mz-muted">Nessun corso in elenco. Chiedete il link al/alla docente.</span></li>}
+        {corsi?.map((c, i) => (
+          <RigaIndice
+            key={c.id}
+            indice={i + 1}
+            ritardo={240 + i * 70}
+            href={percorsoCorso(c)}
+            titolo={c.nome}
+            meta={<span className="mz-mono" style={{ textTransform: 'none' }}>{c.codice}</span>}
+          />
+        ))}
+      </ul>
     </main>
   );
 }

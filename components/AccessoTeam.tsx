@@ -30,8 +30,8 @@ const DOMANDE_SUGGERITE = [
   'Il soprannome del gruppo alle superiori?',
 ];
 
-export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean }) {
-  const [scheda, setScheda] = useState<'accedi' | 'crea'>('accedi');
+export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi' }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea' }) {
+  const [scheda, setScheda] = useState<'accedi' | 'crea'>(schedaIniziale);
   // Iscrizione di gruppo o individuale: per alcune attività (es. il
   // Contest) l'impegno è di una persona sola.
   const [tipo, setTipo] = useState<TipoTeam>(tipoIniziale);

@@ -54,6 +54,10 @@ La variabile del font Inter (`--font-inter`) sta su `<html>`: i token che la usa
 - scena ambra con testo scuro per "Voto registrato" e per il vincitore;
 - schermo da proiettare in versione scura e calda (`data-theme="dark"`).
 
+## 5b. Vetrina pubblica (home e pagine di ateneo)
+
+Stessa scena del Contest (`.mz`, ora caricata ovunque): pagina a tutto schermo, titolo enorme con contatore in apice, forme appese, indice a righe (`RigaIndice` in `components/Vetrina.tsx`) con indice `(01)`, nome grande e dati in maiuscoletto; al passaggio la riga si riempie d'ambra dal basso e il titolo scivola. Il contest di ateneo è una scena ambra con copertina, countdown e «Entra e vota». Niente nastro di parole scorrevoli nella vetrina (scelta dell'autore).
+
 ## 6. Regole dei testi
 
 - Restano visibili solo i testi che servono per agire: etichette, errori, conferme di azioni irreversibili, guide didattiche del form.

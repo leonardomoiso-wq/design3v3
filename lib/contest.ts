@@ -13,6 +13,8 @@ export type Contest = {
   descrizione: string;
   iscrizione: Iscrizione;
   proposte_da: 'docente' | 'studenti';
+  // 'ateneo': aperto agli studenti di tutti i corsi dell'ateneo.
+  ambito: 'corso' | 'ateneo';
   fase: FaseContest;
   voto_inizio: string | null;
   voto_fine: string | null;
@@ -62,6 +64,18 @@ export type Statistiche = {
   per_proposta: { id: number; remoto: number; live: number }[] | null;
 };
 
+// Riga di contest_di_ateneo: i contest aperti a un ateneo, per la sua pagina.
+export type ContestAteneo = {
+  id: string; corso_id: string; corso_nome: string; spazio: boolean; titolo: string; sottotitolo: string;
+  fase: FaseContest; voto_inizio: string | null; voto_fine: string | null; live_stato: Contest['live_stato'];
+  stato_attivita: 'attiva' | 'prossimamente'; proposte: number; copertina: string | null;
+};
+
+export async function caricaContestAteneo(ateneoId: string): Promise<ContestAteneo[]> {
+  const { data } = await supabase.rpc('contest_di_ateneo', { p_ateneo_id: ateneoId });
+  return ((data || []) as any[]).map(r => ({ ...r, proposte: Number(r.proposte) }));
+}
+
 export const ETICHETTA_FASE: Record<FaseContest, string> = {
   bozza: 'Bozza',
   anteprima: 'Anteprima',
@@ -91,6 +105,7 @@ export function messaggioErroreContest(codice: string): string {
     case 'codice_errato': return 'Codice non corretto: guarda quello proiettato in aula.';
     case 'proposta_non_trovata': return 'Questa proposta non è più disponibile.';
     case 'scadenza_non_valida': return 'Scegli una scadenza nel futuro.';
+    case 'corso_senza_ateneo': return 'Assegna prima il corso a un ateneo (Corso & Form).';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
     default: return 'Errore di connessione. Riprova.';
   }
