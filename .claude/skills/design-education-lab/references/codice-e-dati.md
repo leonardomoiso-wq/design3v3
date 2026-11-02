@@ -24,7 +24,7 @@
 
 ## 2. Database e migrazioni
 
-- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo.
+- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo, la 20261016 copertina e voto solo individuale.
 - Autorizzazione: `richiedi_docente(corso, password)` (password del corso o di amministrazione), `team_verificato(team, password)`; funzioni interne con `revoke execute`.
 - Ogni tabella radice ha `corso_id`; lettura pubblica con RLS, scritture solo via RPC `security definer set search_path = public, extensions`.
 - Cambiare la firma di una RPC: `drop function if exists f(<firma vecchia>)` e poi `create or replace`, parametri nuovi in fondo con `default`.

@@ -246,3 +246,18 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .mz-palco.attesa .mz-mono { color: var(--muted); }
 .mz-palco-titolo { font-size: clamp(40px, 5.4vw, 92px); margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 860px) { .mz-palco { grid-template-columns: 1fr; } }
+
+/* Barra di salvataggio: in fondo al riquadro, resta visibile finché ci
+   sono modifiche da salvare. */
+.barra-salva { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 4px calc(-1 * clamp(18px, 2.4vw, 28px)) calc(-1 * clamp(18px, 2.4vw, 28px)); padding: 14px clamp(18px, 2.4vw, 28px);
+  border-top: 1px solid var(--line); border-radius: 0 0 24px 24px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.barra-salva.attiva { border-top-color: var(--accento-vivo); }
+.barra-salva .mz-pill:disabled { opacity: .45; cursor: default; box-shadow: none; }
+
+/* Mosaico delle proposte (contest senza copertina). */
+.mz-mosaico { display: grid; gap: 8px; min-height: clamp(220px, 34vh, 420px); grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mz-mosaico .mz-frame { min-height: 0; border-radius: 12px; }
+.mz-mosaico.n2 { grid-template-rows: 1fr; }
+.mz-mosaico.n3 .mz-frame:first-child { grid-row: span 2; }

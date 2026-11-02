@@ -23,7 +23,10 @@ type Scheda = 'proposte' | 'dati' | 'mia';
 type Proprieta = { corso: Corso; ateneo?: undefined; spazio?: undefined } | { ateneo: Ateneo; spazio: Corso | null; corso?: undefined };
 
 const chiaveAccessoAteneo = (ateneoId: string) => `edu_contest_accesso_${ateneoId}`;
-const haSessione = (corsoId: string) => { try { return !!localStorage.getItem(`edu_team_sessione_${corsoId}`); } catch { return false; } };
+// Un accesso individuale già salvato in questo browser per il corso (per votare serve quello).
+const haSessione = (corsoId: string) => {
+  try { return JSON.parse(localStorage.getItem(`edu_team_sessione_${corsoId}`) || 'null')?.tipo === 'individuale'; } catch { return false; }
+};
 
 // Il Contest visto dagli studenti. Funziona in due modi:
 // - dentro un corso (/contest): i contest del corso, con l'accesso del corso;
@@ -38,7 +41,9 @@ export default function ContestStudente(props: Proprieta) {
   // Corso dell'accesso: quello della pagina, oppure quello scelto qui.
   const [corsoAccesso, setCorsoAccesso] = useState<string | null | undefined>(corso ? corso.id : undefined);
   const [corsiAteneo, setCorsiAteneo] = useState<{ id: string; nome: string }[]>([]);
-  const { team: io, pronto: teamPronto, accedi: salvaAccesso, logout } = useSessioneTeam(corsoAccesso ?? null);
+  const { team: sessione, pronto: teamPronto, accedi: salvaAccesso, logout } = useSessioneTeam(corsoAccesso ?? null);
+  // Nel contest di ateneo si entra solo con un accesso individuale.
+  const io = diAteneo && sessione?.tipo !== 'individuale' ? null : sessione;
   const accedi = (t: Parameters<typeof salvaAccesso>[0]) => {
     salvaAccesso(t);
     if (ateneo && corsoAccesso) { try { localStorage.setItem(chiaveAccessoAteneo(ateneo.id), corsoAccesso); } catch { /* */ } }
@@ -192,6 +197,8 @@ export default function ContestStudente(props: Proprieta) {
   const votoFinito = contest?.fase === 'chiuso' || (contest?.fase === 'voto' && tFine <= adesso);
   const mia = proposte.find(p => io && p.team_id === io.id) || null;
   const candidatureAperte = contest?.proposte_da === 'studenti' && contest.fase === 'anteprima';
+  // Si vota solo con un accesso individuale; `iscrizione` regola le candidature.
+  const puoVotare = !io || io.tipo === 'individuale';
   const tipoAmmesso = !contest || !io || contest.iscrizione === 'entrambe' || contest.iscrizione === (io.tipo || 'gruppo');
 
   // Vincitore: visibile quando la classifica è svelata.
@@ -318,12 +325,11 @@ export default function ContestStudente(props: Proprieta) {
                 corsoScelto={corsoAccesso ?? null}
                 onScegli={setCorsoAccesso}
                 onAccesso={accedi}
-                tipoIniziale={contest.iscrizione === 'gruppo' ? 'gruppo' : 'individuale'}
               />
             ) : (
               <>
                 <p style={{ margin: 0, fontSize: 17, maxWidth: 520 }}>
-                  {contest.iscrizione === 'individuale' ? <>Dalla home: «Iscriviti», poi «Da solo/a».</> : contest.iscrizione === 'gruppo' ? <>Entrate con l’accesso del vostro team.</> : <>Con l’accesso del tuo team, oppure da solo/a.</>}
+                  Si vota con un accesso individuale. Dalla home: «Iscriviti», poi «Da solo/a».
                 </p>
                 <a href={indietro} className="mz-pill b lg">Vai all’accesso →</a>
               </>
@@ -371,7 +377,7 @@ export default function ContestStudente(props: Proprieta) {
             )}
             {contest.fase === 'anteprima' && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">{candidatureAperte ? 'Candidature aperte' : 'Il voto si apre più avanti'}</p>}
             {votoFinito && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">Votazione conclusa</p>}
-            {votoAperto && tipoAmmesso && (
+            {votoAperto && puoVotare && (
               <p style={{ margin: 0, fontSize: 14 }}>
                 {mioVoto ? <>Hai votato. Puoi cambiarlo fino alla scadenza.</> : <>Hai <strong>un voto</strong>. Apri una proposta per votarla.</>}
               </p>
@@ -380,11 +386,16 @@ export default function ContestStudente(props: Proprieta) {
         </div>}
       </section>
 
+      {contest.copertina && scheda === 'proposte' && (
+        <div className="mz-in" style={{ maxWidth: 1440, margin: '0 auto', padding: '0 max(20px, env(safe-area-inset-left)) clamp(24px, 4vw, 44px)', animationDelay: '220ms' }}>
+          <Cornice src={contest.copertina} alt="" style={{ aspectRatio: '21 / 8', borderRadius: 20 }} />
+        </div>
+      )}
       {proposte.length > 1 && scheda === 'proposte' && <Ticker voci={proposte.map(p => p.titolo)} />}
 
-      {!tipoAmmesso && (
+      {!puoVotare && (
         <p role="note" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))', fontSize: 14 }} className="mz-muted">
-          Qui votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}.
+          Sei entrato con l’accesso di un team: per votare serve un accesso individuale. {diAteneo ? 'Esci e iscriviti con il tuo nome.' : 'Dalla home: «Iscriviti», poi «Da solo/a».'}
         </p>
       )}
 
@@ -440,8 +451,8 @@ export default function ContestStudente(props: Proprieta) {
             <DettaglioProposta p={aperta} indice={indiceAperta} />
             <div style={{ position: 'sticky', bottom: 0, padding: '16px clamp(20px, 4vw, 44px) calc(16px + env(safe-area-inset-bottom))', background: 'color-mix(in srgb, var(--surface) 88%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderTop: '1px solid var(--line)', display: 'grid', gap: 10 }}>
               {errore && <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{errore}</p>}
-              {!tipoAmmesso ? (
-                <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">In questo contest votano solo {contest.iscrizione === 'gruppo' ? 'i team' : 'gli iscritti individuali'}.</p>
+              {!puoVotare ? (
+                <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">Per votare serve un accesso individuale.</p>
               ) : propria ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla.</p>
               ) : !votoAperto ? (
@@ -488,9 +499,9 @@ export default function ContestStudente(props: Proprieta) {
 
 // Accesso al Contest di ateneo: con l'accesso di un corso dell'ateneo,
 // oppure iscrivendosi solo al contest (nessun corso da frequentare).
-function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso, tipoIniziale }: {
+function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso }: {
   corsi: { id: string; nome: string }[]; spazioId: string | null; corsoScelto: string | null;
-  onScegli: (id: string | null) => void; onAccesso: (t: any) => void; tipoIniziale: 'gruppo' | 'individuale';
+  onScegli: (id: string | null) => void; onAccesso: (t: any) => void;
 }) {
   const [modo, setModo] = useState<'contest' | 'corso'>(spazioId && corsoScelto !== null && corsoScelto !== spazioId ? 'corso' : spazioId ? 'contest' : 'corso');
   useEffect(() => {
@@ -518,7 +529,7 @@ function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso, tipo
         </label>
       )}
       {corsoScelto && (
-        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} tipoIniziale={modo === 'contest' ? tipoIniziale : 'gruppo'} schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
+        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} soloIndividuale schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
       )}
     </div>
   );

@@ -51,9 +51,9 @@ Il docente vede consegne, round, deduzioni, commenti per immagine; l'attività p
 
 **Pubblico** (`/contest/live`): codice o QR, un voto per dispositivo (id casuale nel browser), cambiabile finché il voto è aperto.
 
-**Docente**: elenco contest, stato dell'attività, fasi e scadenza, voto dal vivo (durate 1–5 min o senza limite, nuovo codice, chiudi, azzera, svela/copri il vincitore), testi e regole (chi carica le proposte, chi vota, classifica visibile o no), proposte (aggiungi, modifica, nascondi, elimina), dati completi, chi può votare. "Proietta in aula" apre lo schermo scuro: totale gigante con onde a ogni voto, gara a barre con +1, QR e codice, ultimi voti, comandi che spariscono; tasto R per la rivelazione (tendina ambra, 3-2-1, immagine e titolo del vincitore), C per coprire la classifica, F per lo schermo intero.
+**Docente**: elenco contest, copertina (pagina dell'ateneo e testa del contest; senza copertina un mosaico delle proposte), stato dell'attività, fasi e scadenza, voto dal vivo (durate 1–5 min o senza limite, nuovo codice, chiudi, azzera, svela/copri il vincitore), testi e regole (chi carica le proposte, chi vota, classifica visibile o no), proposte (aggiungi, modifica, nascondi, elimina), dati completi, chi può votare. "Proietta in aula" apre lo schermo scuro: totale gigante con onde a ogni voto, gara a barre con +1, QR e codice, ultimi voti, comandi che spariscono; tasto R per la rivelazione (tendina ambra, 3-2-1, immagine e titolo del vincitore), C per coprire la classifica, F per lo schermo intero.
 
-**Regole del voto**: un voto per team o individuo per contest (fase remota), filtrato dal tipo ammesso; mai la propria proposta; anonimo (impronta con sale segreto); posizione da IP arrotondata.
+**Regole del voto**: da remoto si vota solo con un accesso individuale, un voto a testa per contest (`iscrizione` regola solo chi candida proposte); nel contest di ateneo login e iscrizione sono solo individuali; mai la propria proposta; anonimo (impronta con sale segreto); posizione da IP arrotondata.
 
 ## 6. Aggiungere una nuova attività
 

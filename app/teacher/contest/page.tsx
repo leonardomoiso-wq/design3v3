@@ -6,7 +6,7 @@ import { useDocente } from '@/lib/docente-context';
 import type { StatoAttivita } from '@/lib/attivita';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  ETICHETTA_FASE, ETICHETTA_ISCRIZIONE, messaggioErroreContest, pad, useAdesso, useStatistiche,
+  ETICHETTA_FASE, comprimiImmagine, messaggioErroreContest, pad, useAdesso, useStatistiche,
   type Contest, type FaseContest, type Iscrizione, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Cornice } from '@/components/moiso/Moiso';
@@ -60,6 +60,7 @@ export default function ContestDocentePage() {
   const [messaggio, setMessaggio] = useState<{ testo: string; errore?: boolean } | null>(null);
   const [bozza, setBozza] = useState({ titolo: '', sottotitolo: '', descrizione: '', iscrizione: 'individuale' as Iscrizione, mostra_classifica: false, proposte_da: 'docente' as Contest['proposte_da'], ambito: 'corso' as Contest['ambito'] });
   const [scadenza, setScadenza] = useState('');
+  const [caricaCopertina, setCaricaCopertina] = useState(false);
   const [durata, setDurata] = useState(120);
   const [codiceLive, setCodiceLive] = useState<string | null>(null);
   const [modifica, setModifica] = useState<{ id: number | null; dati: DatiProposta } | null>(null);
@@ -133,6 +134,9 @@ export default function ContestDocentePage() {
     if (r.ok && r.data) { setSelId(r.data as string); setSezione('proposte'); }
   };
 
+  const modificato = !!sel && (bozza.titolo !== sel.titolo || bozza.sottotitolo !== sel.sottotitolo || bozza.descrizione !== sel.descrizione
+    || bozza.iscrizione !== sel.iscrizione || bozza.mostra_classifica !== sel.mostra_classifica
+    || bozza.proposte_da !== (sel.proposte_da || 'docente') || bozza.ambito !== (sel.ambito || 'corso'));
   const salvaImpostazioni = () => sel && rpc('docente_salva_contest', {
     p_corso_id: corso.id,
     p_id: sel.id, p_titolo: bozza.titolo, p_sottotitolo: bozza.sottotitolo, p_descrizione: bozza.descrizione,
@@ -191,7 +195,7 @@ export default function ContestDocentePage() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) minmax(0, 1fr)', minHeight: '100%' }} className="mz-docente">
-      <style>{`@media (max-width: 860px){ .mz-docente{ grid-template-columns: 1fr !important; } .mz-docente > aside{ position: static !important; height: auto !important; border-right: 0 !important; border-bottom: 1px solid var(--line); } }`}</style>
+      <style>{`@media (max-width: 860px){ .mz-docente{ grid-template-columns: minmax(0, 1fr) !important; } .mz-docente > aside{ position: static !important; height: auto !important; border-right: 0 !important; border-bottom: 1px solid var(--line); } }`}</style>
       {/* Elenco contest */}
       <aside style={{ borderRight: '1px solid var(--line)', padding: 20, display: 'grid', alignContent: 'start', gap: 14, position: 'sticky', top: 0, height: '100%', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -317,10 +321,34 @@ export default function ContestDocentePage() {
                   </div>
                 </Riquadro>
 
-                <Riquadro n="03" titolo="Testi e regole" azioni={<button type="button" className="mz-pill sm" onClick={salvaImpostazioni}>Salva</button>}>
+                <Riquadro n="03" titolo="Testi e regole">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 18 }}>
                     <label className="mz-field"><span className="mz-mono">Titolo</span><input className="mz-input" value={bozza.titolo} onChange={e => setBozza({ ...bozza, titolo: e.target.value })} maxLength={90} /></label>
                     <label className="mz-field"><span className="mz-mono">Sottotitolo</span><input className="mz-input" value={bozza.sottotitolo} onChange={e => setBozza({ ...bozza, sottotitolo: e.target.value })} maxLength={200} /></label>
+                  </div>
+                  <div className="mz-field">
+                    <span className="mz-mono">
+                      Copertina
+                      <Info>Compare nella pagina dell’ateneo e in testa al contest. Si salva appena la scegli. Senza copertina si vede un mosaico delle proposte.</Info>
+                    </span>
+                    <label className="mz-frame" style={{ aspectRatio: '21 / 8', cursor: 'pointer', display: 'block', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
+                      {sel.copertina
+                        ? <img src={sel.copertina} alt="Copertina del contest" />
+                        : <span className="mz-mono" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>{caricaCopertina ? 'Carico…' : '+ Scegli un’immagine'}</span>}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                        const f = e.target.files?.[0]; e.target.value = '';
+                        if (!f) return;
+                        setCaricaCopertina(true);
+                        try { await rpc('docente_imposta_copertina_contest', { p_id: sel.id, p_copertina: await comprimiImmagine(f, 1800, 0.8) }, 'Copertina salvata'); }
+                        finally { setCaricaCopertina(false); }
+                      }} />
+                    </label>
+                    {sel.copertina && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <span className="mz-muted" style={{ fontSize: 13, flex: 1 }}>{caricaCopertina ? 'Carico…' : 'Tocca l’immagine per cambiarla.'}</span>
+                        <button type="button" className="mz-pill sm ghost" onClick={() => rpc('docente_imposta_copertina_contest', { p_id: sel.id, p_copertina: '' }, 'Copertina rimossa')}>Togli la copertina</button>
+                      </div>
+                    )}
                   </div>
                   <label className="mz-field"><span className="mz-mono">Descrizione e regole del voto</span><textarea className="mz-input" value={bozza.descrizione} onChange={e => setBozza({ ...bozza, descrizione: e.target.value })} maxLength={2000} /></label>
                   <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'end' }}>
@@ -340,14 +368,18 @@ export default function ContestDocentePage() {
                       </div>
                     )}
                     <div className="mz-field">
-                      <span className="mz-mono">Chi candida e vota da remoto</span>
-                      <Segmentato etichetta="Tipo di iscrizione" valore={bozza.iscrizione} onCambia={v => setBozza({ ...bozza, iscrizione: v })}
+                      <span className="mz-mono">Chi candida<Info>Si vota sempre con un accesso individuale: una persona, un voto. Questa scelta riguarda solo chi può candidare una proposta.</Info></span>
+                      <Segmentato etichetta="Chi può candidare" valore={bozza.iscrizione} onCambia={v => setBozza({ ...bozza, iscrizione: v })}
                         opzioni={[{ id: 'individuale', label: 'Individui' }, { id: 'gruppo', label: 'Gruppi' }, { id: 'entrambe', label: 'Entrambi' }]} />
                     </div>
                     <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
                       <input type="checkbox" checked={bozza.mostra_classifica} onChange={e => setBozza({ ...bozza, mostra_classifica: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
                       Classifica visibile durante il voto
                     </label>
+                  </div>
+                  <div className={`barra-salva ${modificato ? 'attiva' : ''}`}>
+                    <span style={{ fontSize: 14 }} className={modificato ? '' : 'mz-muted'}>{modificato ? 'Modifiche non salvate' : 'Tutto salvato'}</span>
+                    <button type="button" className="mz-pill b lg" onClick={salvaImpostazioni} disabled={!modificato || !bozza.titolo.trim()}>Salva le modifiche</button>
                   </div>
                 </Riquadro>
 
@@ -400,10 +432,10 @@ export default function ContestDocentePage() {
               : <p className="mz-muted">Carico i dati…</p>)}
 
             {sezione === 'iscritti' && (
-              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`${sel.ambito === 'ateneo' && !corso.spazio_ateneo ? 'Qui sotto gli accessi del corso; votano anche gli altri corsi dell’ateneo e chi si iscrive solo al contest' : 'Team e accessi individuali del corso'}, un voto per contest (${ETICHETTA_ISCRIZIONE[sel.iscrizione].toLowerCase()}).`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
+              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`${sel.ambito === 'ateneo' && !corso.spazio_ateneo ? 'Qui sotto gli accessi del corso; votano anche gli altri corsi dell’ateneo e chi si iscrive solo al contest' : 'Team e accessi individuali del corso'}: votano solo gli accessi individuali, un voto a testa.`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {iscritti.map((s, i) => {
-                    const puo = sel.iscrizione === 'entrambe' || sel.iscrizione === (s.tipo || 'gruppo');
+                    const puo = s.tipo === 'individuale';
                     return (
                       <li key={s.numero} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: puo ? 1 : .45 }}>
                         <div style={{ minWidth: 0 }}>
@@ -411,7 +443,7 @@ export default function ContestDocentePage() {
                           <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}</span>
                           {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
                         </div>
-                        <span className="mz-mono">{puo ? 'vota' : 'non vota in questo contest'}</span>
+                        <span className="mz-mono">{puo ? 'vota' : 'team, non vota'}</span>
                       </li>
                     );
                   })}
@@ -428,6 +460,12 @@ export default function ContestDocentePage() {
         {modifica && (
           <div style={{ padding: 'clamp(20px, 4vw, 40px)' }}>
             <CampiProposta dati={modifica.dati} onCambia={d => setModifica({ ...modifica, dati: d })} conAutori />
+          </div>
+        )}
+        {modifica && (
+          <div className="barra-salva attiva" style={{ margin: 0, borderRadius: 0, padding: '14px clamp(20px, 4vw, 40px) calc(14px + env(safe-area-inset-bottom))' }}>
+            <span className="mz-muted" style={{ fontSize: 14 }}>{modifica.dati.titolo.trim() ? '' : 'Serve un titolo'}</span>
+            <button type="button" className="mz-pill b lg" onClick={salvaProposta} disabled={!modifica.dati.titolo.trim()}>Salva la proposta</button>
           </div>
         )}
       </Sheet>

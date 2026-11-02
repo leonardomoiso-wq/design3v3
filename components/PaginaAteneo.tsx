@@ -20,7 +20,14 @@ function PalcoContest({ c, codiceAteneo, adesso, ritardo }: { c: ContestAteneo; 
   const azione = votoAperto ? 'Entra e vota →' : c.fase === 'anteprima' ? 'Guarda le proposte →' : 'Vedi il risultato →';
   const contenuto = (
     <>
-      <Cornice src={c.copertina || undefined} alt="" etichettaVuota="Proposte in arrivo" />
+      {c.copertina || c.immagini.length <= 1
+        ? <Cornice src={c.copertina || c.immagini[0] || undefined} alt="" etichettaVuota="Proposte in arrivo" />
+        : (
+          // Senza copertina: un mosaico delle proposte in gara.
+          <div className={`mz-mosaico n${Math.min(c.immagini.length, 4)}`}>
+            {c.immagini.slice(0, 4).map((src, i) => <Cornice key={i} src={src} alt="" />)}
+          </div>
+        )}
       <div className="mz-palco-testo">
         <div style={{ display: 'grid', gap: 14 }}>
           <span className="mz-mono" style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}>

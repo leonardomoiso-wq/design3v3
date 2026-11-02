@@ -30,11 +30,11 @@ const DOMANDE_SUGGERITE = [
   'Il soprannome del gruppo alle superiori?',
 ];
 
-export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi' }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea' }) {
+export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi', soloIndividuale = false }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea'; soloIndividuale?: boolean }) {
   const [scheda, setScheda] = useState<'accedi' | 'crea'>(schedaIniziale);
   // Iscrizione di gruppo o individuale: per alcune attività (es. il
   // Contest) l'impegno è di una persona sola.
-  const [tipo, setTipo] = useState<TipoTeam>(tipoIniziale);
+  const [tipo, setTipo] = useState<TipoTeam>(soloIndividuale ? 'individuale' : tipoIniziale);
   const individuale = scheda === 'crea' && tipo === 'individuale';
   const [nome, setNome] = useState('');
   const [password, setPassword] = useState('');
@@ -69,6 +69,11 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || 'credenziali_errate')); return; }
       const riga = data[0];
+      // Alcune attività (il voto del Contest) accettano solo accessi individuali.
+      if (soloIndividuale && riga.tipo !== 'individuale') {
+        setErrore('Questo è l’accesso di un team. Per votare serve un accesso individuale: scegli «Iscriviti» e registrati con il tuo nome.');
+        return;
+      }
       onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : 'gruppo' });
     } else {
       if (!domandaSegreta.trim() || !rispostaSegreta.trim()) {
@@ -144,7 +149,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
           </button>
         </div>
 
-        {scheda === 'crea' && (
+        {scheda === 'crea' && !soloIndividuale && (
           <div role="radiogroup" aria-label="Come partecipi" className="grid grid-cols-2 gap-2">
             {([
               { v: 'gruppo', t: 'In team', d: 'Un accesso per tutto il gruppo' },
@@ -166,7 +171,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         )}
 
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-3" aria-hidden={mostraRecupero || undefined}>
-          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? 'Nome del team (o nome e cognome)' : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? (soloIndividuale ? 'Nome e cognome' : 'Nome del team (o nome e cognome)') : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} aria-label="Password" placeholder={individuale ? 'La tua password' : 'Password'} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
 
           {scheda === 'crea' && (

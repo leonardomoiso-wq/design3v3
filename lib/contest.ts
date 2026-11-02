@@ -15,6 +15,7 @@ export type Contest = {
   proposte_da: 'docente' | 'studenti';
   // 'ateneo': aperto agli studenti di tutti i corsi dell'ateneo.
   ambito: 'corso' | 'ateneo';
+  copertina?: string;
   fase: FaseContest;
   voto_inizio: string | null;
   voto_fine: string | null;
@@ -68,12 +69,12 @@ export type Statistiche = {
 export type ContestAteneo = {
   id: string; corso_id: string; corso_nome: string; spazio: boolean; titolo: string; sottotitolo: string;
   fase: FaseContest; voto_inizio: string | null; voto_fine: string | null; live_stato: Contest['live_stato'];
-  stato_attivita: 'attiva' | 'prossimamente'; proposte: number; copertina: string | null;
+  stato_attivita: 'attiva' | 'prossimamente'; proposte: number; copertina: string | null; immagini: string[];
 };
 
 export async function caricaContestAteneo(ateneoId: string): Promise<ContestAteneo[]> {
   const { data } = await supabase.rpc('contest_di_ateneo', { p_ateneo_id: ateneoId });
-  return ((data || []) as any[]).map(r => ({ ...r, proposte: Number(r.proposte) }));
+  return ((data || []) as any[]).map(r => ({ ...r, proposte: Number(r.proposte), immagini: r.immagini || [] }));
 }
 
 export const ETICHETTA_FASE: Record<FaseContest, string> = {
@@ -106,6 +107,8 @@ export function messaggioErroreContest(codice: string): string {
     case 'proposta_non_trovata': return 'Questa proposta non è più disponibile.';
     case 'scadenza_non_valida': return 'Scegli una scadenza nel futuro.';
     case 'corso_senza_ateneo': return 'Assegna prima il corso a un ateneo (Corso & Form).';
+    case 'voto_solo_individuale': return 'Per votare serve un accesso individuale: esci e iscriviti con il tuo nome.';
+    case 'immagine_non_valida': return 'Immagine non valida: scegline un\'altra.';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
     default: return 'Errore di connessione. Riprova.';
   }
