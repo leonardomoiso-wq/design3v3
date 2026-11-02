@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { DocenteContext, CHIAVE_PASSWORD_DOCENTE, leggiPasswordSessione, aggiungiPasswordSessione, type CorsoDocente } from '@/lib/docente-context';
-import { normalizzaCorso, messaggioErroreCorso, NOME_PIATTAFORMA } from '@/lib/corsi';
+import { normalizzaCorso, messaggioErroreCorso, caricaAtenei, NOME_PIATTAFORMA, type Ateneo } from '@/lib/corsi';
 import { ActionSheet, BottomSheet } from '@/components/PannelliMobile';
 import PillaScorrevole from '@/components/PillaScorrevole';
 
@@ -24,6 +24,10 @@ const SEZIONI = [
   { href: '/teacher/testi', etichetta: '📝 Testi' },
   { href: '/teacher/corso', etichetta: '🧭 Corso & Form' },
 ];
+
+// In uno spazio di ateneo servono solo le attività di ateneo.
+const SEZIONI_SPAZIO = ['/teacher/contest', '/teacher/attivita', '/teacher/team', '/teacher/testi'];
+const SEZIONE_ATENEI = { href: '/teacher/atenei', etichetta: '🏛️ Atenei' };
 
 async function corsiPerPassword(passwords: string[]): Promise<CorsoDocente[]> {
   const mappa = new Map<string, CorsoDocente>();
@@ -79,6 +83,9 @@ function NuovoCorso({ corsoAttuale, onCreato, onChiudi }: { corsoAttuale: CorsoD
   const [copia, setCopia] = useState(true);
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
+  const [atenei, setAtenei] = useState<Ateneo[]>([]);
+  const [ateneoId, setAteneoId] = useState<string>(corsoAttuale.ateneo_id || '');
+  useEffect(() => { caricaAtenei().then(setAtenei); }, []);
 
   const crea = async () => {
     setErrore('');
@@ -94,6 +101,7 @@ function NuovoCorso({ corsoAttuale, onCreato, onChiudi }: { corsoAttuale: CorsoD
     });
     setInCorso(false);
     if (error || !data) { setErrore(messaggioErroreCorso(error?.message || '')); return; }
+    if (ateneoId) await supabase.rpc('docente_assegna_ateneo', { p_corso_id: data, p_ateneo_id: ateneoId, p_passcode: passwordCorso });
     onCreato(data as string, passwordCorso);
   };
 
@@ -108,6 +116,13 @@ function NuovoCorso({ corsoAttuale, onCreato, onChiudi }: { corsoAttuale: CorsoD
           <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Codice per gli studenti</span>
           <input value={codice} onChange={e => { setCodice(e.target.value); setCodiceToccato(true); }} placeholder="es. ixd-2026" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 font-mono focus:outline-none focus:ring-2 focus:ring-stone-900" />
           <span className="block text-[10px] text-stone-400 mt-1">Gli studenti lo usano per trovare il corso (anche con un link diretto).</span>
+        </label>
+        <label className="block">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Ateneo</span>
+          <select value={ateneoId} onChange={e => setAteneoId(e.target.value)} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900">
+            <option value="">Nessun ateneo</option>
+            {atenei.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </select>
         </label>
         <label className="block">
           <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Descrizione (facoltativa)</span>
@@ -236,6 +251,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     `relative z-10 px-4 py-1.5 rounded-full text-xs font-medium transition-colors duration-300 whitespace-nowrap border ${pathname === href ? 'text-white border-transparent' : 'border-stone-200 text-stone-700 hover:border-stone-400'}`;
 
   const amministratore = corsi.some(c => c.amministratore);
+  const sezioni = [
+    ...(corso.spazio_ateneo ? SEZIONI.filter(x => SEZIONI_SPAZIO.includes(x.href)) : SEZIONI),
+    ...(amministratore ? [SEZIONE_ATENEI] : []),
+  ];
 
   return (
     <DocenteContext.Provider value={{ passcode: corso.passcode, corso, corsi, amministratore, cambiaCorso, ricaricaCorsi, logout }}>
@@ -262,7 +281,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <nav className="relative hidden min-[1680px]:flex items-center space-x-2">
             {/* La voce attiva è una pillola scura che scorre da una sezione all'altra. */}
             <PillaScorrevole selettore='[aria-current="page"]' classe="bg-stone-900" dipendenze={[pathname]} />
-            {SEZIONI.map(s => (
+            {sezioni.map(s => (
               <Link key={s.href} href={s.href} className={linkClasse(s.href)} aria-current={pathname === s.href ? 'page' : undefined}>{s.etichetta}</Link>
             ))}
             <a href="/manuali" className="px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition bg-white border border-stone-200 text-stone-700 hover:border-stone-400">📚 Manuali</a>
@@ -278,7 +297,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             aria-haspopup="dialog"
             className="min-[1680px]:hidden flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-stone-900 text-white min-w-0"
           >
-            <span className="truncate max-w-[9rem]">{SEZIONI.find(s => s.href === pathname)?.etichetta ?? 'Menu'}</span>
+            <span className="truncate max-w-[9rem]">{sezioni.find(s => s.href === pathname)?.etichetta ?? 'Menu'}</span>
             <span aria-hidden="true">☰</span>
           </button>
         </header>
@@ -288,7 +307,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           onChiudi={() => setMenuAperto(false)}
           titolo="Sezioni dell'area docente"
           azioni={[
-            ...SEZIONI.map(s => ({ chiave: s.href, etichetta: s.etichetta, href: s.href, attiva: pathname === s.href })),
+            ...sezioni.map(s => ({ chiave: s.href, etichetta: s.etichetta, href: s.href, attiva: pathname === s.href })),
             { chiave: 'manuali', etichetta: '📚 Manuali', href: '/manuali' },
             { chiave: 'esci', etichetta: 'Esci', pericolo: true, onSeleziona: logout },
           ]}
@@ -301,8 +320,8 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           azioni={[
             ...corsi.map(c => ({
               chiave: c.id,
-              etichetta: c.nome,
-              descrizione: `codice ${c.codice}${c.archiviato ? ', archiviato' : ''}`,
+              etichetta: c.spazio_ateneo ? `🏛️ ${c.nome}` : c.nome,
+              descrizione: c.spazio_ateneo ? `attività di ateneo, /${c.ateneo_codice}` : `${c.ateneo_codice ? `/${c.ateneo_codice}/` : 'codice '}${c.codice}${c.archiviato ? ', archiviato' : ''}`,
               attiva: c.id === corso.id,
               onSeleziona: () => cambiaCorso(c.id),
             })),

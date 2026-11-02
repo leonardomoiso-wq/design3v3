@@ -216,7 +216,7 @@ export default function ContestDocentePage() {
             </div>
           ) : <span className="mz-muted" style={{ fontSize: 13 }}>Attività non trovata: esegui la migrazione 20261012.</span>}
           {attivitaContest && attivitaContest.stato !== 'attiva' && <span className="mz-muted" style={{ fontSize: 12.5 }}>Finché non è «Attiva» gli studenti non votano da remoto. Il voto dal vivo funziona comunque.</span>}
-          <a href="/contest" target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
+          <a href={corso.spazio_ateneo && corso.ateneo_codice ? `/${corso.ateneo_codice}/contest` : '/contest'} target="_blank" rel="noreferrer" className="mz-mono" style={{ color: 'var(--accento)' }}>Apri la pagina studenti ↗</a>
         </div>
       </aside>
 

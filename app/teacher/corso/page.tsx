@@ -4,7 +4,7 @@ import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente, aggiungiPasswordSessione } from '@/lib/docente-context';
 import { MAX_DRIVER } from '@/lib/driver';
-import { MODELLI_DRIVER, messaggioErroreCorso, type ConfigurazioneCorso } from '@/lib/corsi';
+import { MODELLI_DRIVER, messaggioErroreCorso, type ConfigurazioneCorso, percorsoCorso, caricaAtenei, type Ateneo } from '@/lib/corsi';
 
 const POSIZIONI = ['In alto a sinistra', 'In alto a destra', 'In basso a sinistra', 'In basso a destra'];
 
@@ -12,8 +12,7 @@ function Sezione({ titolo, sottotitolo, children }: { titolo: string; sottotitol
   return (
     <section className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 md:p-6 space-y-4">
       <div>
-        <h2 className="text-lg font-serif font-bold">{titolo}</h2>
-        {sottotitolo && <p className="text-xs text-stone-500 mt-1">{sottotitolo}</p>}
+        <h2 className="text-lg font-serif font-bold">{titolo}{sottotitolo && <Info>{sottotitolo}</Info>}</h2>
       </div>
       {children}
     </section>
@@ -53,7 +52,15 @@ export default function CorsoPage() {
 
   useEffect(() => { setOrigine(window.location.origin); }, []);
 
-  const linkStudenti = `${origine}/?corso=${encodeURIComponent(corso.codice)}`;
+  const linkStudenti = corso.spazio_ateneo && corso.ateneo_codice ? `${origine}/${corso.ateneo_codice}/contest` : `${origine}${percorsoCorso(corso)}`;
+  const [atenei, setAtenei] = useState<Ateneo[]>([]);
+  useEffect(() => { caricaAtenei().then(setAtenei); }, []);
+  const assegnaAteneo = async (ateneoId: string) => {
+    setEsito(null);
+    const { error } = await supabase.rpc('docente_assegna_ateneo', { p_corso_id: corso.id, p_ateneo_id: ateneoId || null, p_passcode: passcode });
+    if (error) { setEsito({ sezione: 'corso', ok: false, testo: messaggioErroreCorso(error.message) }); return; }
+    await ricaricaCorsi(corso.id);
+  };
 
   const salvaCorso = async (sezione: string, override?: { archiviato?: boolean }) => {
     setEsito(null);
@@ -155,6 +162,15 @@ export default function CorsoPage() {
               <span className="block text-xs text-stone-400">Se lo nascondi, gli studenti entrano solo con il codice o con il link qui sotto.</span>
             </span>
           </label>
+          {!corso.spazio_ateneo && (
+            <label className="block">
+              <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Ateneo</span>
+              <select value={corso.ateneo_id || ''} onChange={e => assegnaAteneo(e.target.value)} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900">
+                <option value="">Nessun ateneo</option>
+                {atenei.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+              </select>
+            </label>
+          )}
           <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 flex flex-wrap items-center gap-2">
             <code className="text-xs text-stone-700 break-all flex-1 min-w-0">{linkStudenti}</code>
             <button

@@ -5,7 +5,7 @@ description: "Conoscenza completa del Design Education Lab di Leonardo Moiso (re
 
 # Design Education Lab
 
-La piattaforma con cui Leonardo Moiso gestisce i suoi laboratori di design (primo corso: Design 3). Ogni corso è uno spazio separato; dentro, gli studenti entrano in team o da soli e svolgono attività che il/la docente apre, mette in arrivo o archivia. Questa skill è la memoria del progetto: cosa fa, come è fatto, quali decisioni sono già state prese e perché.
+La piattaforma con cui Leonardo Moiso gestisce i suoi laboratori di design (primo corso: Design 3). I corsi sono raggruppati per ateneo (Politecnico di Torino, Università di Parma), ognuno con il suo indirizzo da condividere (`/polito/design-3`); ogni corso è uno spazio separato e ogni ateneo ha uno spazio per le attività di ateneo come il Contest; dentro, gli studenti entrano in team o da soli e svolgono attività che il/la docente apre, mette in arrivo o archivia. Questa skill è la memoria del progetto: cosa fa, come è fatto, quali decisioni sono già state prese e perché.
 
 Chi chiede di solito è Leonardo stesso: designer e docente, scrive in italiano, ragiona per esperienza d'uso e didattica più che per tecnica, e tiene molto alla qualità visiva. Traduci le richieste in scelte tecniche, falle con default sensati e spiega il risultato in termini di cosa vedono studenti e docenti.
 

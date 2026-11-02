@@ -47,6 +47,8 @@ Il docente vede consegne, round, deduzioni, commenti per immagine; l'attività p
 
 **Studenti**: galleria con immagini grandi e gerarchia titolo → frase → problema → proposta → perché votarla (in ambra); modalità "Presenta" a copertine; dettaglio in sheet (da destra su desktop, dal basso su telefono); voto con conferma e scena ambra "Voto registrato"; scheda "Dati" con totale a cifre rotanti, countdown, affluenza, ultimi voti, ritmo minuto per minuto, mappa del voto e provenienza, dispositivi, classifica coperta fino alla scadenza; scheda "La mia" per candidare la propria proposta quando previsto.
 
+**Di corso o di ateneo**: il Contest vive in un corso (`/contest`) oppure nello spazio di ateneo (`/<ateneo>/contest`, con accesso individuale direttamente nella pagina).
+
 **Pubblico** (`/contest/live`): codice o QR, un voto per dispositivo (id casuale nel browser), cambiabile finché il voto è aperto.
 
 **Docente**: elenco contest, stato dell'attività, fasi e scadenza, voto dal vivo (durate 1–5 min o senza limite, nuovo codice, chiudi, azzera, svela/copri il vincitore), testi e regole (chi carica le proposte, chi vota, classifica visibile o no), proposte (aggiungi, modifica, nascondi, elimina), dati completi, chi può votare. "Proietta in aula" apre lo schermo scuro: totale gigante con onde a ogni voto, gara a barre con +1, QR e codice, ultimi voti, comandi che spariscono; tasto R per la rivelazione (tendina ambra, 3-2-1, immagine e titolo del vincitore), C per coprire la classifica, F per lo schermo intero.

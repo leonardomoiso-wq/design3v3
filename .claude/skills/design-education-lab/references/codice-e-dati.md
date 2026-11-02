@@ -10,7 +10,9 @@
 
 ## 1. Mappa del repository (`leonardomoiso-wq/design3v3`, branch `leonardomoiso-wq/patch-70977`)
 
-- `app/page.tsx`: scelta corso, presentazione, accesso team/individuale, elenco attività.
+- `app/page.tsx` → `components/Percorso.tsx`: scelta dell'ateneo, presentazione del corso, accesso, elenco attività.
+- `app/[ateneo]` (pagina dell'ateneo, `components/PaginaAteneo.tsx`), `app/[ateneo]/[corso]` (`components/IngressoCorso.tsx`), `app/[ateneo]/contest` (Contest di ateneo).
+- `components/AccessoTeam.tsx`: accesso e iscrizione (in team o da soli), riusato dal percorso e dal Contest di ateneo.
 - `app/student`, `app/crazy8`, `app/hmw`, `app/contest` (+ `live`): pagine studente.
 - `app/teacher/*`: area docente (layout con login per corso, `template.tsx` per la transizione di sezione).
 - `app/manuali`: manuali per attività.
@@ -22,11 +24,19 @@
 
 ## 2. Database e migrazioni
 
-- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto.
+- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei.
 - Autorizzazione: `richiedi_docente(corso, password)` (password del corso o di amministrazione), `team_verificato(team, password)`; funzioni interne con `revoke execute`.
 - Ogni tabella radice ha `corso_id`; lettura pubblica con RLS, scritture solo via RPC `security definer set search_path = public, extensions`.
 - Cambiare la firma di una RPC: `drop function if exists f(<firma vecchia>)` e poi `create or replace`, parametri nuovi in fondo con `default`.
 - Realtime: tabelle filtrate per `corso_id` con `replica identity full`; i DELETE arrivano da tutti i corsi.
+
+## 2b. Atenei e indirizzi
+
+- `atenei` (nome, `codice` nell'indirizzo, descrizione); `corsi.ateneo_id`; `corsi.spazio_ateneo` = corso nascosto che ospita le attività di ateneo (il Contest) con team e password docente propri, codice `<ateneo>-ateneo`.
+- Indirizzi: `/` scelta dell'ateneo, `/polito` corsi e attività di ateneo, `/polito/design-3` corso, `/polito/contest` Contest di ateneo senza scegliere un corso. `percorsoCorso(corso)` in `lib/corsi.ts` costruisce il link; un corso aperto dall'ateneo sbagliato reindirizza a quello giusto.
+- Codici riservati (`codice_ateneo_riservato`): student, teacher, crazy8, hmw, contest, manuali, api, corsi, atenei.
+- RPC: `docente_crea_ateneo` (solo amministrazione, crea anche lo spazio), `docente_aggiorna_ateneo`, `docente_assegna_ateneo(corso, ateneo, password)`; `docente_accedi` restituisce ateneo e `spazio_ateneo`.
+- Area docente: sezione Atenei per l'amministrazione; nello spazio di ateneo il menu mostra solo Contest, Attività, Team, Testi.
 
 ## 3. Il Contest nel database
 

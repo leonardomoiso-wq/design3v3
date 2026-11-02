@@ -33,6 +33,35 @@ type TeamContextValue = {
 
 const TeamContext = createContext<TeamContextValue | null>(null);
 
+// Sessione di team per un corso qualsiasi (anche uno spazio di ateneo),
+// indipendente dal corso scelto nella home: stessa chiave di salvataggio
+// usata da TeamProvider, così l'accesso fatto in un posto vale ovunque.
+export function useSessioneTeam(corsoId: string | null) {
+  const [team, setTeam] = useState<TeamInfo | null>(null);
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => {
+    setTeam(null);
+    if (corsoId) {
+      try {
+        const salvato = localStorage.getItem(chiaveSessione(corsoId));
+        if (salvato) setTeam(JSON.parse(salvato));
+      } catch { /* non bloccante */ }
+    }
+    setPronto(true);
+  }, [corsoId]);
+  const accedi = (nuovo: TeamInfo) => {
+    setTeam(nuovo);
+    if (!corsoId) return;
+    try { localStorage.setItem(chiaveSessione(corsoId), JSON.stringify(nuovo)); } catch { /* non bloccante */ }
+  };
+  const logout = () => {
+    setTeam(null);
+    if (!corsoId) return;
+    try { localStorage.removeItem(chiaveSessione(corsoId)); } catch { /* non bloccante */ }
+  };
+  return { team, pronto, accedi, logout };
+}
+
 export function TeamProvider({ children }: { children: React.ReactNode }) {
   const { corso, pronto: corsoPronto } = useCorso();
   const corsoId = corso?.id ?? null;

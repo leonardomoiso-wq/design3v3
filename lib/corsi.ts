@@ -20,11 +20,20 @@ export type Corso = {
   archiviato: boolean;
   configurazione: ConfigurazioneCorso;
   created_at?: string;
+  // Ateneo di appartenenza (null per i corsi non ancora assegnati).
+  ateneo_id: string | null;
+  ateneo_codice: string | null;
+  ateneo_nome: string | null;
+  // Spazio di ateneo: il "corso nascosto" che ospita le attività di
+  // ateneo (es. il Contest), raggiungibile da /<ateneo>/contest.
+  spazio_ateneo: boolean;
 };
+
+export type Ateneo = { id: string; nome: string; codice: string; descrizione: string };
 
 // La tabella corsi contiene anche l'hash della password, non leggibile dal
 // client: le colonne vanno sempre elencate esplicitamente (mai "*").
-export const COLONNE_CORSO = 'id, nome, codice, descrizione, visibile_in_home, archiviato, configurazione, created_at';
+export const COLONNE_CORSO = 'id, nome, codice, descrizione, visibile_in_home, archiviato, configurazione, created_at, ateneo_id, spazio_ateneo, ateneo:atenei(codice, nome)';
 
 export const CHIAVI_DRIVER: ChiaveDriver[] = ['desiderabilita', 'fattibilita', 'responsabilita', 'vitalita'];
 
@@ -99,6 +108,10 @@ export function normalizzaCorso(riga: any): Corso {
     archiviato: riga.archiviato ?? false,
     configurazione: normalizzaConfigurazione(riga.configurazione),
     created_at: riga.created_at,
+    ateneo_id: riga.ateneo_id ?? null,
+    ateneo_codice: riga.ateneo_codice ?? riga.ateneo?.codice ?? null,
+    ateneo_nome: riga.ateneo_nome ?? riga.ateneo?.nome ?? null,
+    spazio_ateneo: !!riga.spazio_ateneo,
   };
 }
 
@@ -117,14 +130,37 @@ export async function caricaCorsoPerCodice(codice: string): Promise<Corso | null
   return data ? normalizzaCorso(data) : null;
 }
 
-export async function caricaCorsiPubblici(): Promise<Corso[]> {
-  const { data } = await supabase
+export async function caricaCorsiPubblici(ateneoId?: string | null): Promise<Corso[]> {
+  let q = supabase
     .from('corsi')
     .select(COLONNE_CORSO)
     .eq('visibile_in_home', true)
     .eq('archiviato', false)
-    .order('created_at', { ascending: true });
+    .eq('spazio_ateneo', false);
+  if (ateneoId) q = q.eq('ateneo_id', ateneoId);
+  const { data } = await q.order('created_at', { ascending: true });
   return (data || []).map(normalizzaCorso);
+}
+
+export async function caricaAtenei(): Promise<Ateneo[]> {
+  const { data } = await supabase.from('atenei').select('id, nome, codice, descrizione').order('nome');
+  return (data || []) as Ateneo[];
+}
+
+export async function caricaAteneoPerCodice(codice: string): Promise<Ateneo | null> {
+  const { data } = await supabase.from('atenei').select('id, nome, codice, descrizione').ilike('codice', codice.trim()).maybeSingle();
+  return (data as Ateneo) || null;
+}
+
+// Lo spazio di ateneo (attività di ateneo, es. il Contest).
+export async function caricaSpazioAteneo(ateneoId: string): Promise<Corso | null> {
+  const { data } = await supabase.from('corsi').select(COLONNE_CORSO).eq('ateneo_id', ateneoId).eq('spazio_ateneo', true).maybeSingle();
+  return data ? normalizzaCorso(data) : null;
+}
+
+// Indirizzo da condividere per entrare direttamente in un corso.
+export function percorsoCorso(corso: Pick<Corso, 'codice' | 'ateneo_codice'>): string {
+  return corso.ateneo_codice ? `/${corso.ateneo_codice}/${corso.codice}` : `/?corso=${encodeURIComponent(corso.codice)}`;
 }
 
 export function messaggioErroreCorso(codice: string): string {
@@ -136,6 +172,7 @@ export function messaggioErroreCorso(codice: string): string {
     case 'driver_non_validi': return 'Servono 4 driver, ognuno con un nome.';
     case 'conferma_errata': return 'Il nome scritto non corrisponde a quello del corso.';
     case 'passcode_errato': return 'Password non valida per questa operazione.';
+    case 'codice_riservato': return 'Questo codice è già una pagina della piattaforma: scegline un altro.';
     default: return 'Qualcosa è andato storto. Riprova.';
   }
 }

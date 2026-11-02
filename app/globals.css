@@ -292,4 +292,4 @@ button:focus-visible:not([class*="focus-visible:ring"]),
 
 /* Etichetta in apice al titolo, come gli indici del linguaggio visivo:
    "Titolo (Design 3)" invece di un occhiello sopra il titolo. */
-.apice { font-family: var(--f-text); font-size: 0.3em; font-weight: 600; letter-spacing: 0.02em; color: var(--accent); vertical-align: top; position: relative; top: 0.45em; margin-left: 0.35em; white-space: nowrap; }
+.apice { font-family: var(--f-text); font-size: max(0.3em, 11px); font-weight: 600; letter-spacing: 0.02em; color: var(--accent); vertical-align: top; position: relative; top: 0.45em; margin-left: 0.35em; white-space: nowrap; }

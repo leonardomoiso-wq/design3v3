@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Info from '@/components/Info';
 import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
@@ -106,6 +107,8 @@ const SCHEDE = [
 
 export default function TeacherPage() {
   const { passcode: passcodeAttivo, corso } = useDocente();
+  const router = useRouter();
+  useEffect(() => { if (corso.spazio_ateneo) router.replace('/teacher/contest'); }, [corso.spazio_ateneo, router]);
   const config = corso.configurazione;
   // I 4 driver con le etichette scelte per questo corso (pannello Corso & Form).
   const DRIVER = config.driver.map(d => [d.chiave, d.etichetta] as const);
