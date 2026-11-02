@@ -8,7 +8,7 @@ import Info from '@/components/Info';
 import { caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  COLONNE_PROPOSTA, ETICHETTA_FASE, caricaContestAteneo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
+  COLONNE_PROPOSTA, rpcVoto, ETICHETTA_FASE, caricaContestAteneo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Solidi, Ticker, useTendina, Cornice } from '@/components/moiso/Moiso';
@@ -229,7 +229,7 @@ export default function ContestStudente(props: Proprieta) {
     setInvio(true);
     setErrore('');
     const cambio = mioVoto !== null;
-    const { error } = await supabase.rpc('vota_remoto', {
+    const { error } = await rpcVoto('vota_remoto', {
       p_team_id: votante.id, p_password: votante.password, p_proposta_id: aperta.id, p_dispositivo: rilevaDispositivo(), p_zona: (posizione ?? await ottieniPosizione()).zona,
       p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
     });

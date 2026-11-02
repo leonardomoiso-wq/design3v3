@@ -79,6 +79,16 @@ export async function caricaContestAteneo(ateneoId: string): Promise<ContestAten
   return ((data || []) as any[]).map(r => ({ ...r, proposte: Number(r.proposte), immagini: r.immagini || [] }));
 }
 
+// Chiama una RPC di voto. Se il database non ha ancora la versione con
+// latitudine e longitudine (migrazione 20261013), riprova senza: il voto
+// passa comunque, solo senza punto sulla mappa.
+export async function rpcVoto(nome: 'vota_live' | 'vota_remoto', args: Record<string, unknown>) {
+  const primo = await supabase.rpc(nome, args);
+  if (!primo.error || !/could not find the function|schema cache|PGRST20/i.test(`${primo.error.code || ''} ${primo.error.message}`)) return primo;
+  const { p_lat, p_lon, ...senza } = args; // eslint-disable-line @typescript-eslint/no-unused-vars
+  return supabase.rpc(nome, senza);
+}
+
 export const ETICHETTA_FASE: Record<FaseContest, string> = {
   bozza: 'Bozza',
   anteprima: 'Anteprima',
@@ -113,7 +123,18 @@ export function messaggioErroreContest(codice: string): string {
     case 'stato_non_valido': return 'Stato non valido.';
     case 'immagine_non_valida': return 'Immagine non valida: scegline un\'altra.';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
-    default: return 'Errore di connessione. Riprova.';
+    case 'dispositivo_non_valido': return 'Il browser non permette di riconoscere il dispositivo: prova con un altro browser.';
+    default: {
+      const testo = codice || '';
+      if (/could not find the function|schema cache|PGRST20/i.test(testo)) {
+        return 'Il database non è aggiornato: il/la docente deve eseguire le ultime migrazioni su Supabase.';
+      }
+      if (/failed to fetch|networkerror|load failed|network request failed/i.test(testo)) {
+        return 'Connessione assente o instabile: controlla la rete e riprova.';
+      }
+      // Mostra il codice reale: aiuta a capire cosa è successo.
+      return `Il voto non è passato (${testo.slice(0, 90) || 'errore sconosciuto'}). Riprova o avvisa il/la docente.`;
+    }
   }
 }
 

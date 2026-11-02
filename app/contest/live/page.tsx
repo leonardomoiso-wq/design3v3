@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { NOME_PIATTAFORMA } from '@/lib/brand';
 import {
-  COLONNE_PROPOSTA, idDispositivo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
+  COLONNE_PROPOSTA, rpcVoto, idDispositivo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Cornice, Odometro, Solidi, Sheet } from '@/components/moiso/Moiso';
@@ -117,7 +117,7 @@ export default function VotoLivePage() {
     const origine = { x: e.clientX, y: e.clientY };
     setInvio(true);
     setErrore('');
-    const { error } = await supabase.rpc('vota_live', {
+    const { error } = await rpcVoto('vota_live', {
       p_contest_id: contest.id, p_proposta_id: scelta, p_dispositivo_id: idDispositivo(), p_codice: codice,
       p_dispositivo: rilevaDispositivo(), p_zona: posizione?.zona || 'In aula',
       p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
