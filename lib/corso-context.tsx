@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { caricaCorsoPerCodice, caricaCorsoPerId, type Corso } from './corsi';
 
 // Il corso (ecosistema) in cui si trova lo studente: ogni pagina studente
@@ -21,6 +21,9 @@ const CorsoContext = createContext<CorsoContextValue | null>(null);
 export function CorsoProvider({ children }: { children: React.ReactNode }) {
   const [corso, setCorso] = useState<Corso | null>(null);
   const [pronto, setPronto] = useState(false);
+  // Se una pagina sceglie il corso (es. /unipr/packaging) mentre qui si
+  // sta ancora ricaricando quello salvato, vince la scelta della pagina.
+  const sceltaFatta = useRef(false);
 
   useEffect(() => {
     const carica = async () => {
@@ -38,6 +41,7 @@ export function CorsoProvider({ children }: { children: React.ReactNode }) {
         // storage o rete non disponibili: si riparte dalla scelta del corso
       }
       if (trovato?.archiviato) trovato = null;
+      if (sceltaFatta.current) { setPronto(true); return; }
       if (trovato) {
         try { localStorage.setItem(CHIAVE_CORSO, trovato.id); } catch { /* non bloccante */ }
       }
@@ -48,11 +52,13 @@ export function CorsoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const scegliCorso = useCallback((nuovo: Corso) => {
+    sceltaFatta.current = true;
     setCorso(nuovo);
     try { localStorage.setItem(CHIAVE_CORSO, nuovo.id); } catch { /* non bloccante */ }
   }, []);
 
   const lasciaCorso = useCallback(() => {
+    sceltaFatta.current = true;
     setCorso(null);
     try { localStorage.removeItem(CHIAVE_CORSO); } catch { /* non bloccante */ }
   }, []);

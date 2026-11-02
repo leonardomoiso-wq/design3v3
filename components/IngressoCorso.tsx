@@ -3,27 +3,38 @@
 // con gli studenti. Sceglie il corso e apre il suo percorso (presentazione,
 // accesso, attività). Se il corso è di un altro ateneo porta all'indirizzo
 // giusto; se è uno spazio di ateneo porta alle sue attività.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCorso } from '@/lib/corso-context';
-import { caricaCorsoPerCodice, percorsoCorso } from '@/lib/corsi';
+import { caricaCorsoPerCodice, percorsoCorso, type Corso } from '@/lib/corsi';
 import PercorsoStudente from '@/components/Percorso';
 
 export default function IngressoCorso({ ateneo, codice }: { ateneo: string; codice: string }) {
-  const { scegliCorso, corso } = useCorso();
+  const { scegliCorso, corso, pronto } = useCorso();
   const router = useRouter();
   const [stato, setStato] = useState<'carico' | 'pronto' | 'assente'>('carico');
+  const trovato = useRef<Corso | null>(null);
 
   useEffect(() => {
+    // Si aspetta che il corso salvato nel browser sia stato ricaricato,
+    // poi si imposta quello dell'indirizzo (che ha la precedenza).
+    if (!pronto) return;
     caricaCorsoPerCodice(codice).then(c => {
       if (!c || c.archiviato) { setStato('assente'); return; }
       if (c.spazio_ateneo && c.ateneo_codice) { router.replace(`/${c.ateneo_codice}/contest`); return; }
       if (c.ateneo_codice && c.ateneo_codice.toLowerCase() !== ateneo.toLowerCase()) { router.replace(percorsoCorso(c)); return; }
+      trovato.current = c;
       scegliCorso(c);
       setStato('pronto');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ateneo, codice]);
+  }, [ateneo, codice, pronto]);
+
+  // Per sicurezza: se qualcosa reimposta un altro corso, torna quello
+  // dell'indirizzo (ma «Cambia corso», che lo svuota, non viene annullato).
+  useEffect(() => {
+    if (stato === 'pronto' && trovato.current && corso && corso.id !== trovato.current.id) scegliCorso(trovato.current);
+  }, [stato, corso, scegliCorso]);
 
   if (stato === 'assente') {
     return (
