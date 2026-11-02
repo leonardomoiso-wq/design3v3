@@ -6,6 +6,11 @@ import { TeamProvider } from '../lib/team-context';
 import { CorsoProvider } from '../lib/corso-context';
 import { NOME_PIATTAFORMA } from '../lib/brand';
 
+// Le pagine HTML non si tengono in cache (né nel browser né nei CDN):
+// così dopo ogni pubblicazione si carica subito la versione nuova, con il
+// CSS giusto. CSS e JS restano in cache: hanno l'impronta nel nome.
+export const dynamic = 'force-dynamic';
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
