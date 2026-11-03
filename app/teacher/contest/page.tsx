@@ -17,7 +17,7 @@ import { QR } from '@/components/moiso/QR';
 import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
-type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string };
+type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean };
 const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
@@ -105,10 +105,20 @@ export default function ContestDocentePage() {
     setProposte(((data || []) as any[]).map(p => ({ ...p, id: Number(p.id), galleria: p.galleria || [] })));
   }, [selId, passcode]);
 
+  // Chi può votare il contest scelto: per un contest di ateneo anche gli
+  // iscritti solo al contest e gli accessi degli altri corsi. Se il database
+  // non ha ancora la migrazione 20261019 si ricade sui team del corso.
+  const [elencoCompleto, setElencoCompleto] = useState(true);
   const caricaIscritti = useCallback(async () => {
+    if (selId) {
+      const { data, error } = await supabase.rpc('docente_lista_votanti_contest', { p_contest_id: selId, p_passcode: passcode });
+      if (!error) { setIscritti((data || []) as Iscritto[]); setElencoCompleto(true); return; }
+    }
     const { data } = await supabase.rpc('docente_lista_team', { p_corso_id: corso.id, p_passcode: passcode });
     setIscritti((data || []) as Iscritto[]);
-  }, [corso.id, passcode]);
+    setElencoCompleto(!selId);
+  }, [corso.id, passcode, selId]);
+  const [filtroIscritti, setFiltroIscritti] = useState('');
 
   // Lo stato dell'attività è quello del pannello Attività (tabella attivita).
   const caricaAttivita = useCallback(async () => {
@@ -121,6 +131,13 @@ export default function ContestDocentePage() {
     const ch = ascoltaCorso(supabase.channel(`contest-docente-attivita-${corso.id}`), 'attivita', corso.id, caricaAttivita).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [caricaLista, caricaIscritti, caricaAttivita, corso.id]);
+  useEffect(() => {
+    if (sezione !== 'iscritti') return;
+    caricaIscritti();
+    const t = setInterval(caricaIscritti, 15000);
+    return () => clearInterval(t);
+  }, [sezione, caricaIscritti]);
+
   useEffect(() => {
     caricaProposte();
     const t = setInterval(caricaProposte, 15000);
@@ -298,7 +315,7 @@ export default function ContestDocentePage() {
                 <a href={`/teacher/contest/proiezione?id=${sel.id}`} target="_blank" rel="noreferrer" className="mz-pill lg">Proietta in aula ⤢</a>
               </div>
               <Segmentato etichetta="Sezioni" valore={sezione} onCambia={setSezione}
-                opzioni={[{ id: 'gestione', label: 'Gestione' }, { id: 'proposte', label: `Proposte (${proposte.length})` }, { id: 'dati', label: 'Dati del voto' }, { id: 'iscritti', label: `Chi vota (${iscritti.length})` }]} />
+                opzioni={[{ id: 'gestione', label: 'Gestione' }, { id: 'proposte', label: `Proposte (${proposte.length})` }, { id: 'dati', label: 'Dati del voto' }, { id: 'iscritti', label: `Chi vota (${iscritti.filter(x => x.tipo === 'individuale').length})` }]} />
             </header>
 
             {sezione === 'gestione' && (
@@ -467,26 +484,47 @@ export default function ContestDocentePage() {
               ? <DashboardVoto stat={stat} scarto={scarto} proposte={visibili} />
               : <p className="mz-muted">Carico i dati…</p>)}
 
-            {sezione === 'iscritti' && (
-              <Riquadro n={pad(iscritti.length)} titolo="Chi può votare da remoto" info={`${sel.ambito === 'ateneo' && !corso.spazio_ateneo ? 'Qui sotto gli accessi del corso; votano anche gli altri corsi dell’ateneo e chi si iscrive solo al contest' : 'Team e accessi individuali del corso'}: votano solo gli accessi individuali, un voto a testa.`} azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {iscritti.map((s, i) => {
-                    const puo = s.tipo === 'individuale';
-                    return (
-                      <li key={s.numero} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: puo ? 1 : .45 }}>
-                        <div style={{ minWidth: 0 }}>
-                          <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
-                          <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}</span>
-                          {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
-                        </div>
-                        <span className="mz-mono">{puo ? 'vota' : 'team, non vota'}</span>
-                      </li>
-                    );
-                  })}
-                  {iscritti.length === 0 && <li className="mz-muted">Ancora nessun iscritto nel corso.</li>}
-                </ul>
-              </Riquadro>
-            )}
+            {sezione === 'iscritti' && (() => {
+              const individuali = iscritti.filter(x => x.tipo === 'individuale');
+              const votanti = individuali.filter(x => x.ha_votato).length;
+              const q = filtroIscritti.trim().toLowerCase();
+              const visibili = q ? iscritti.filter(x => x.nome.toLowerCase().includes(q) || (x.corso_nome || '').toLowerCase().includes(q)) : iscritti;
+              return (
+                <Riquadro n={pad(individuali.length)} titolo="Chi può votare da remoto"
+                  info="Votano solo gli accessi individuali, un voto a testa. Per un contest di ateneo compaiono anche gli iscritti solo al contest e gli accessi degli altri corsi. Si vede chi ha votato, mai per quale proposta."
+                  azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
+                  {!elencoCompleto && (
+                    <p role="note" style={{ margin: 0, fontSize: 13.5, color: '#991b1b' }}>Vedi solo gli accessi del corso: per l’elenco completo esegui la migrazione 20261019_votanti_contest.sql.</p>
+                  )}
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'end', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 28 }}>
+                      <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(individuali.length)}</span><span className="mz-mono">iscritti individuali</span></div>
+                      {elencoCompleto && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, color: 'var(--accento)' }}>{pad(votanti)}</span><span className="mz-mono">hanno votato</span></div>}
+                    </div>
+                    <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca un nome o un corso" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
+                  </div>
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    {visibili.map((s, i) => {
+                      const puo = s.tipo === 'individuale';
+                      const origine = s.spazio ? 'solo per il contest' : s.corso_nome;
+                      return (
+                        <li key={s.team_id || s.numero} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: puo ? 1 : .45 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
+                            <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{origine ? `, ${origine}` : ''}</span>
+                            {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
+                          </div>
+                          <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: s.ha_votato ? 'var(--ink)' : undefined }}>
+                            {!puo ? 'team, non vota' : s.ha_votato ? <><span className="mz-live-dot" style={{ width: 7, height: 7 }} />ha votato</> : elencoCompleto ? 'non ancora' : 'vota'}
+                          </span>
+                        </li>
+                      );
+                    })}
+                    {visibili.length === 0 && <li className="mz-muted">{q ? 'Nessun risultato.' : 'Ancora nessun iscritto.'}</li>}
+                  </ul>
+                </Riquadro>
+              );
+            })()}
           </>
         )}
       </div>
