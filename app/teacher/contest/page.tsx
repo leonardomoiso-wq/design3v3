@@ -65,6 +65,15 @@ export default function ContestDocentePage() {
   const [bozza, setBozza] = useState({ titolo: '', sottotitolo: '', descrizione: '', iscrizione: 'individuale' as Iscrizione, mostra_classifica: false, proposte_da: 'docente' as Contest['proposte_da'], ambito: 'corso' as Contest['ambito'] });
   const [scadenza, setScadenza] = useState('');
   const [caricaCopertina, setCaricaCopertina] = useState(false);
+  // Controllo del database: avvisa se le funzioni del Contest non sono allineate
+  // (es. dopo aver rieseguito una migrazione vecchia).
+  const [problemiDb, setProblemiDb] = useState<string[]>([]);
+  useEffect(() => {
+    supabase.rpc('contest_controlla_database').then(({ data, error }) => {
+      if (error) setProblemiDb(/could not find the function|schema cache|PGRST20/i.test(`${error.code} ${error.message}`) ? ['controllo non presente'] : []);
+      else setProblemiDb((data as string[]) || []);
+    });
+  }, []);
   const [durata, setDurata] = useState(120);
   const [codiceLive, setCodiceLive] = useState<string | null>(null);
   const [modifica, setModifica] = useState<{ id: number | null; dati: DatiProposta } | null>(null);
@@ -260,6 +269,13 @@ export default function ContestDocentePage() {
       </aside>
 
       <div style={{ padding: 'clamp(20px, 4vw, 44px)', display: 'grid', alignContent: 'start', gap: 36, minWidth: 0 }}>
+        {problemiDb.length > 0 && (
+          <div role="alert" style={{ padding: '14px 18px', borderRadius: 16, background: '#fef2f2', boxShadow: 'inset 0 0 0 1px #fecaca', color: '#991b1b', fontSize: 14, display: 'grid', gap: 6 }}>
+            <strong>Il database del Contest non è allineato: il voto può dare errori.</strong>
+            <span>Esegui nell’SQL Editor di Supabase <code>supabase/migrations/20261018_riallinea_funzioni_contest.sql</code>, poi ricarica questa pagina.</span>
+            <span className="mz-mono" style={{ color: '#991b1b', textTransform: 'none' }}>{problemiDb.join(' — ')}</span>
+          </div>
+        )}
         {messaggio && (
           <div role="status" className="mz-in" style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 80, padding: '12px 16px', borderRadius: 12, background: messaggio.errore ? '#dc2626' : 'var(--ink)', color: messaggio.errore ? '#fff' : 'var(--bg)', fontSize: 14, maxWidth: 360 }}>{messaggio.testo}</div>
         )}

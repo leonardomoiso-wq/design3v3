@@ -24,9 +24,10 @@
 
 ## 2. Database e migrazioni
 
-- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo, la 20261016 copertina e voto solo individuale, la 20261017 lo stato del contest nell'ateneo.
+- Migrazioni in `supabase/migrations/AAAAMMGG_nome.sql`, in ordine; la 20261007 introduce i corsi, la 20261012 il Contest e i team individuali, la 20261013 la mappa del voto, la 20261014 gli atenei, la 20261015 i contest aperti a tutto l'ateneo, la 20261016 copertina e voto solo individuale, la 20261017 lo stato del contest nell'ateneo, la 20261018 riallinea le funzioni del Contest.
 - Autorizzazione: `richiedi_docente(corso, password)` (password del corso o di amministrazione), `team_verificato(team, password)`; funzioni interne con `revoke execute`.
 - Ogni tabella radice ha `corso_id`; lettura pubblica con RLS, scritture solo via RPC `security definer set search_path = public, extensions`.
+- Rieseguire una migrazione vecchia dopo quelle nuove rimette versioni superate delle funzioni (es. il voto torna a rifiutare gli iscritti di ateneo con «proposta non disponibile»). Rimedio: `20261018_riallinea_funzioni_contest.sql` (toglie tutte le versioni, anche doppie, e rimette l'ultima; si può eseguire sempre). `contest_controlla_database()` elenca i problemi e il pannello Contest lo mostra come avviso. Quando si ridefinisce una funzione del Contest, aggiornarla anche nella 20261018 e nel controllo.
 - Cambiare la firma di una RPC: `drop function if exists f(<firma vecchia>)` e poi `create or replace`, parametri nuovi in fondo con `default`.
 - Realtime: tabelle filtrate per `corso_id` con `replica identity full`; i DELETE arrivano da tutti i corsi.
 

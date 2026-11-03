@@ -123,6 +123,7 @@ export function messaggioErroreContest(codice: string): string {
     case 'stato_non_valido': return 'Stato non valido.';
     case 'immagine_non_valida': return 'Immagine non valida: scegline un\'altra.';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
+    case 'accesso_non_ammesso': return 'Il tuo accesso è di un corso che non partecipa a questo contest. Esci ed entra con «Solo per il contest» o con un corso dell\'ateneo.';
     case 'dispositivo_non_valido': return 'Il browser non permette di riconoscere il dispositivo: prova con un altro browser.';
     default: {
       const testo = codice || '';
