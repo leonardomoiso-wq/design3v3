@@ -425,7 +425,8 @@ grant execute on function contest_statistiche(uuid, text) to anon;
 create or replace function docente_lista_votanti_contest(p_contest_id uuid, p_passcode text)
 returns table(team_id uuid, numero int, nome text, tipo text, membri text[], corso_nome text, spazio boolean,
               creato_il timestamptz, ha_votato boolean, conta boolean, motivo text, escluso boolean,
-              nome_completo boolean, eliminabile boolean)
+              nome_completo boolean, eliminabile boolean,
+              voto_zona text, voto_dispositivo text, voto_il timestamptz)
 language plpgsql stable security definer set search_path = public, extensions as $$
 declare v_corso uuid := (select corso_id from contest where id = p_contest_id);
 begin
@@ -434,7 +435,9 @@ begin
     with vv as materialized (select * from contest_voti_valutati(p_contest_id) where fase = 'remoto')
     select t.id, t.numero, t.nome, t.tipo, t.membri, c.nome, c.spazio_ateneo, t.created_at,
            vv.id is not null, coalesce(vv.conta, false), vv.motivo, coalesce((select x.escluso from contest_voti x where x.id = vv.id), false),
-           nome_completo(t.nome), (t.tipo = 'individuale' and (c.spazio_ateneo or c.id = v_corso))
+           nome_completo(t.nome), (t.tipo = 'individuale' and (c.spazio_ateneo or c.id = v_corso)),
+           -- Da dove e come ha votato (città dall'IP, arrotondata): mai per quale proposta.
+           vv.zona, vv.dispositivo, vv.aggiornato_il
     from team t
     join corsi c on c.id = t.corso_id
     left join vv on vv.votante_hash = contest_impronta(p_contest_id, 't:' || t.id::text)
@@ -516,6 +519,8 @@ begin
   if coalesce(src, '') not like '%contest_voti_valutati%' then v := v || 'contest_statistiche non aggiornata'::text; end if;
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'crea_team';
   if coalesce(src, '') not like '%nome_completo%' then v := v || 'crea_team non aggiornata'::text; end if;
+  select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'docente_lista_votanti_contest';
+  if coalesce(src, '') not like '%vv.zona%' then v := v || 'docente_lista_votanti_contest non aggiornata'::text; end if;
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'contest_di_ateneo';
   if coalesce(src, '') not like '%stato_ateneo%' then v := v || 'contest_di_ateneo non aggiornata'::text; end if;
   return v;

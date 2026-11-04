@@ -6,7 +6,7 @@ import { useDocente } from '@/lib/docente-context';
 import type { StatoAttivita } from '@/lib/attivita';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  ETICHETTA_FASE, MOTIVO_ESCLUSIONE, comprimiImmagine, messaggioErroreContest, pad, useAdesso, useStatistiche,
+  ETICHETTA_DISPOSITIVO, ETICHETTA_FASE, MOTIVO_ESCLUSIONE, comprimiImmagine, messaggioErroreContest, pad, useAdesso, useStatistiche,
   type Contest, type FaseContest, type Iscrizione, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Cornice } from '@/components/moiso/Moiso';
@@ -17,7 +17,7 @@ import { QR } from '@/components/moiso/QR';
 import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
-type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean };
+type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean; voto_zona?: string | null; voto_dispositivo?: string | null; voto_il?: string | null };
 const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
@@ -567,7 +567,7 @@ export default function ContestDocentePage() {
               const votanti = individuali.filter(x => x.ha_votato).length;
               const contano = individuali.filter(x => x.ha_votato && x.conta !== false).length;
               const q = filtroIscritti.trim().toLowerCase();
-              const visibili = q ? iscritti.filter(x => x.nome.toLowerCase().includes(q) || (x.corso_nome || '').toLowerCase().includes(q)) : iscritti;
+              const visibili = q ? iscritti.filter(x => [x.nome, x.corso_nome, x.voto_zona].some(v => (v || '').toLowerCase().includes(q))) : iscritti;
               return (
                 <Riquadro n={pad(individuali.length)} titolo="Chi può votare da remoto"
                   info="Votano solo gli accessi individuali, un voto a testa. Per un contest di ateneo compaiono anche gli iscritti solo al contest e gli accessi degli altri corsi. Si vede chi ha votato, mai per quale proposta."
@@ -581,7 +581,7 @@ export default function ContestDocentePage() {
                       {elencoCompleto && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, color: 'var(--accento)' }}>{pad(votanti)}</span><span className="mz-mono">hanno votato</span></div>}
                       {elencoCompleto && contano !== votanti && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(contano)}</span><span className="mz-mono">voti che contano</span></div>}
                     </div>
-                    <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca un nome o un corso" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
+                    <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca un nome, un corso o una città" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
                   </div>
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     {visibili.map((s, i) => {
@@ -594,6 +594,13 @@ export default function ContestDocentePage() {
                             <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{origine ? `, ${origine}` : ''}</span>
                             {puo && s.nome_completo === false && <span className="mz-chip" style={{ marginLeft: 8, cursor: 'default', fontSize: 11, padding: '2px 8px' }}>solo nome</span>}
                             {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
+                            {s.ha_votato && (s.voto_zona || s.voto_dispositivo || s.voto_il) && (
+                              <div className="mz-muted mz-break" style={{ fontSize: 13, marginTop: 2 }}>
+                                Ha votato{s.voto_zona ? ` da ${s.voto_zona}` : ', posizione non disponibile'}
+                                {s.voto_dispositivo ? `, ${(ETICHETTA_DISPOSITIVO[s.voto_dispositivo] || s.voto_dispositivo).toLowerCase()}` : ''}
+                                {s.voto_il ? `, ${new Date(s.voto_il).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                             <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: s.ha_votato && s.conta !== false ? 'var(--ink)' : undefined }}>
