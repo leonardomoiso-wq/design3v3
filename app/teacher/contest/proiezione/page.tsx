@@ -9,7 +9,7 @@ import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import {
-  ETICHETTA_DISPOSITIVO, pad, riduciMovimento, tempoFa, useAdesso, useStatistiche,
+  ETICHETTA_DISPOSITIVO, pad, punteggio, pesiAttivi, riduciMovimento, tempoFa, useAdesso, useStatistiche,
   type Contest, type Proposta,
 } from '@/lib/contest';
 import { Odometro, Segmentato, Solidi, ContaSu, Cornice } from '@/components/moiso/Moiso';
@@ -20,7 +20,8 @@ import { QR } from '@/components/moiso/QR';
 type Base = 'live' | 'remoto' | 'combinato';
 type Fase = 'gara' | 'tendina' | 'rullo' | 'vincitore';
 
-function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRullo }: {
+function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRullo, punti = false }: {
+  punti?: boolean;
   fase: Fase; vincitore: { p: Proposta; n: number; pari: Proposta[] } | null; secondi: number;
   podio: { p: Proposta; n: number }[]; base: Base; onChiudi: () => void; numeroRullo: number;
 }) {
@@ -99,7 +100,7 @@ function Rivelazione({ fase, vincitore, secondi, podio, base, onChiudi, numeroRu
         <span style={{ fontSize: 'clamp(16px, 1.6vw, 22px)' }} className="mz-break">{vincitore.p.autori}</span>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
           <span className="mz-display" style={{ fontSize: 'clamp(60px, 7vw, 120px)', lineHeight: 1 }}><ContaSu valore={vincitore.n} /></span>
-          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>voti, {secondi}% del totale</span>
+          <span className="mz-mono" style={{ color: 'var(--scena-tenue)', fontSize: 14 }}>{punti ? 'punti' : 'voti'}, {secondi}% del totale</span>
         </span>
         {podio.length > 0 && (
           <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10, borderTop: '1px solid var(--scena-filo)', paddingTop: 16 }}>
@@ -191,9 +192,11 @@ export default function ProiezionePage() {
   const conti = (p: Proposta) => {
     const r = stat?.per_proposta?.find(x => x.id === p.id);
     if (!r) return 0;
-    return base === 'live' ? r.live : base === 'remoto' ? r.remoto : r.live + r.remoto;
+    return base === 'live' ? r.live : base === 'remoto' ? r.remoto : punteggio(r);
   };
   const righe = proposte.map(p => ({ proposta: p, voti: conti(p) }));
+  // In «Tutti», con pesi diversi da 1, la gara è in punti.
+  const inPunti = base === 'combinato' && pesiAttivi(stat);
   const ordinate = [...righe].sort((a, b) => b.voti - a.voti);
   const vincitore = ordinate[0] && ordinate[0].voti > 0
     ? { p: ordinate[0].proposta, n: ordinate[0].voti, pari: ordinate.filter(r => r.voti === ordinate[0].voti).map(r => r.proposta) }
@@ -263,7 +266,7 @@ export default function ProiezionePage() {
             {fine && <Countdown fine={fine} inizio={inizio} adesso={adesso} finito="Voto chiuso" />}
           </div>
           <div style={{ minHeight: 0, overflow: 'hidden' }}>
-            <Classifica righe={righe} coperta={coperta} scuro compatta={righe.length > 6} />
+            <Classifica righe={righe} coperta={coperta} scuro compatta={righe.length > 6} unita={inPunti ? ['punto', 'punti'] : ['voto', 'voti']} />
           </div>
         </section>
 
@@ -318,6 +321,7 @@ export default function ProiezionePage() {
       </div>
 
       <Rivelazione
+        punti={inPunti}
         fase={fase}
         vincitore={vincitore}
         secondi={vincitore && somma ? Math.round((vincitore.n / somma) * 100) : 0}

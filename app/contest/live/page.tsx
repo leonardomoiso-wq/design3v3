@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { NOME_PIATTAFORMA } from '@/lib/brand';
 import {
-  COLONNE_PROPOSTA, rpcVoto, idDispositivo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
+  COLONNE_PROPOSTA, rpcVoto, punteggio, idDispositivo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Cornice, Odometro, Solidi, Sheet } from '@/components/moiso/Moiso';
@@ -149,7 +149,7 @@ export default function VotoLivePage() {
 
   // Vincitore svelato in aula: lo mostriamo anche sui telefoni.
   if (contest && contest.vincitore_rivelato && stat?.per_proposta) {
-    const ord = [...stat.per_proposta].sort((a, b) => (b.live + b.remoto) - (a.live + a.remoto));
+    const ord = [...stat.per_proposta].sort((a, b) => punteggio(b) - punteggio(a));
     const v = proposte.find(p => p.id === ord[0]?.id);
     if (v) {
       return cornice(

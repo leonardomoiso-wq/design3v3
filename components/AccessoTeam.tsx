@@ -20,6 +20,7 @@ export const messaggioErroreTeam = (codice: string) => {
     case 'credenziali_errate': return 'Nome o password errati.';
     case 'team_non_trovato': return 'Nessun team trovato con questo nome.';
     case 'risposta_errata': return 'Risposta segreta errata.';
+    case 'nome_cognome_mancanti': return 'Scrivi nome e cognome, entrambi per intero.';
     default: return 'Qualcosa è andato storto. Riprova.';
   }
 };
@@ -37,6 +38,8 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
   const [tipo, setTipo] = useState<TipoTeam>(soloIndividuale ? 'individuale' : tipoIniziale);
   const individuale = scheda === 'crea' && tipo === 'individuale';
   const [nome, setNome] = useState('');
+  // Iscrizione individuale: nome e cognome in due campi, entrambi obbligatori.
+  const [cognome, setCognome] = useState('');
   const [password, setPassword] = useState('');
   const [domandaSegreta, setDomandaSegreta] = useState('');
   const [rispostaSegreta, setRispostaSegreta] = useState('');
@@ -59,6 +62,11 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
 
   const invia = async () => {
     setErrore('');
+    const parolaValida = (x: string) => x.replace(/[^\p{L}]/gu, '').length >= 2;
+    if (individuale && (!parolaValida(nome) || !parolaValida(cognome))) {
+      setErrore('Scrivi nome e cognome, entrambi per intero.');
+      return;
+    }
     if (!nome.trim() || !password.trim()) {
       setErrore(individuale ? 'Compila nome e password.' : 'Compilate nome e password.');
       return;
@@ -82,7 +90,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         return;
       }
       const { data, error } = await supabase.rpc('crea_team', {
-        p_corso_id: corsoId, p_nome: nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
+        p_corso_id: corsoId, p_nome: individuale ? `${nome.trim()} ${cognome.trim()}` : nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
         p_membri: tipo === 'individuale' ? [] : membri.map(m => m.trim()).filter(Boolean),
         p_tipo: tipo,
       });
@@ -171,7 +179,14 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         )}
 
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-3" aria-hidden={mostraRecupero || undefined}>
-          <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? (soloIndividuale ? 'Nome e cognome' : 'Nome del team (o nome e cognome)') : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          {individuale ? (
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder="Nome" aria-label="Nome" autoComplete="given-name" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+              <input type="text" value={cognome} onChange={e => setCognome(e.target.value)} disabled={mostraRecupero} placeholder="Cognome" aria-label="Cognome" autoComplete="family-name" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+            </div>
+          ) : (
+            <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? (soloIndividuale ? 'Nome e cognome' : 'Nome del team (o nome e cognome)') : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          )}
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} aria-label="Password" placeholder={individuale ? 'La tua password' : 'Password'} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
 
           {scheda === 'crea' && (

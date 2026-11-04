@@ -53,6 +53,8 @@ Il docente vede consegne, round, deduzioni, commenti per immagine; l'attività p
 
 **Docente**: elenco contest, copertina (pagina dell'ateneo e testa del contest; senza copertina un mosaico delle proposte), stato dell'attività, fasi e scadenza, voto dal vivo (durate 1–5 min o senza limite, nuovo codice, chiudi, azzera, svela/copri il vincitore), testi e regole (chi carica le proposte, chi vota, classifica visibile o no), proposte (aggiungi, modifica, nascondi, elimina), dati completi, chi può votare. "Proietta in aula" apre lo schermo scuro: totale gigante con onde a ogni voto, gara a barre con +1, QR e codice, ultimi voti, comandi che spariscono; tasto R per la rivelazione (tendina ambra, 3-2-1, immagine e titolo del vincitore), C per coprire la classifica, F per lo schermo intero.
 
+**Conteggio**: pesi interi 0–10 per remoto e aula (classifica, vincitore e proiezione «Tutti» in punti); voti che non contano senza cancellarli: esclusi a mano, iscritti con il solo nome, senza posizione, zone escluse sulla mappa (`contest_voti_valutati`). Il docente elimina solo accessi individuali iscritti al contest o nel proprio corso. Iscrizione individuale con Nome e Cognome separati, obbligatori (`nome_completo`).
+
 **Regole del voto**: da remoto si vota solo con un accesso individuale, un voto a testa per contest (`iscrizione` regola solo chi candida proposte); nel contest di ateneo login e iscrizione sono solo individuali; mai la propria proposta; anonimo (impronta con sale segreto); posizione da IP arrotondata.
 
 ## 6. Aggiungere una nuova attività

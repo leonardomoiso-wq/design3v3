@@ -18,6 +18,12 @@ export type Contest = {
   copertina?: string;
   // Stato nell'ateneo, indipendente dall'attività nel corso.
   stato_ateneo?: 'bozza' | 'prossimamente' | 'attiva';
+  // Conteggio: pesi (interi 0–10) e regole per i voti che non contano.
+  peso_remoto?: number;
+  peso_live?: number;
+  escludi_nome_singolo?: boolean;
+  escludi_senza_posizione?: boolean;
+  zone_escluse?: string[];
   fase: FaseContest;
   voto_inizio: string | null;
   voto_fine: string | null;
@@ -64,7 +70,12 @@ export type Statistiche = {
   punti?: { lat: number; lon: number; zona: string; n: number; ultimo: string }[];
   andamento: { t: string; remoto: number; live: number }[];
   ultimi: { id: number; t: string; fase: 'remoto' | 'live'; dispositivo: string; zona: string }[];
-  per_proposta: { id: number; remoto: number; live: number }[] | null;
+  per_proposta: { id: number; remoto: number; live: number; punteggio?: number }[] | null;
+  pesi?: { remoto: number; live: number };
+  // Solo per il docente.
+  esclusi?: Record<string, number> | null;
+  punti_tutti?: { chiave: string; zona: string; n: number; esclusa: boolean }[] | null;
+  senza_posizione?: number | null;
 };
 
 // Riga di contest_di_ateneo: i contest aperti a un ateneo, per la sua pagina.
@@ -88,6 +99,22 @@ export async function rpcVoto(nome: 'vota_live' | 'vota_remoto', args: Record<st
   const { p_lat, p_lon, ...senza } = args; // eslint-disable-line @typescript-eslint/no-unused-vars
   return supabase.rpc(nome, senza);
 }
+
+// Punti di una proposta: voti da remoto e in aula moltiplicati per i pesi.
+export function punteggio(r: { remoto: number; live: number; punteggio?: number }) {
+  return typeof r.punteggio === 'number' ? r.punteggio : r.remoto + r.live;
+}
+// Vero se i pesi non sono 1 e 1: allora si parla di "punti", non di "voti".
+export function pesiAttivi(stat: { pesi?: { remoto: number; live: number } } | null | undefined) {
+  return !!stat?.pesi && (stat.pesi.remoto !== 1 || stat.pesi.live !== 1);
+}
+
+export const MOTIVO_ESCLUSIONE: Record<string, string> = {
+  escluso_docente: 'escluso a mano',
+  solo_nome: 'solo nome',
+  senza_posizione: 'senza posizione',
+  zona_esclusa: 'zona esclusa',
+};
 
 export const ETICHETTA_FASE: Record<FaseContest, string> = {
   bozza: 'Bozza',
@@ -123,6 +150,9 @@ export function messaggioErroreContest(codice: string): string {
     case 'stato_non_valido': return 'Stato non valido.';
     case 'immagine_non_valida': return 'Immagine non valida: scegline un\'altra.';
     case 'passcode_errato': return 'Password docente non valida: esci e rientra.';
+    case 'peso_non_valido': return 'I pesi vanno da 0 a 10 e non possono essere entrambi 0.';
+    case 'utenza_non_eliminabile': return 'Questa utenza è di un altro corso: puoi solo escluderne il voto.';
+    case 'voto_non_trovato': return 'Questa persona non ha ancora votato.';
     case 'accesso_non_ammesso': return 'Il tuo accesso è di un corso che non partecipa a questo contest. Esci ed entra con «Solo per il contest» o con un corso dell\'ateneo.';
     case 'dispositivo_non_valido': return 'Il browser non permette di riconoscere il dispositivo: prova con un altro browser.';
     default: {

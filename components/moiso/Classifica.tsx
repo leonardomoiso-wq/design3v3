@@ -9,8 +9,9 @@ import { ContaSu } from './Moiso';
 
 export type RigaClassifica = { proposta: Proposta; voti: number };
 
-export function Classifica({ righe, coperta = false, scuro = false, compatta = false, evidenzia, onApri }: {
+export function Classifica({ righe, coperta = false, scuro = false, compatta = false, evidenzia, onApri, unita = ['voto', 'voti'] }: {
   righe: RigaClassifica[];
+  unita?: [string, string];
   coperta?: boolean;
   scuro?: boolean;
   compatta?: boolean;
@@ -111,7 +112,7 @@ export function Classifica({ righe, coperta = false, scuro = false, compatta = f
             ))}
             {hover === r.proposta.id && !coperta && (
               <span className="mz-tip" style={{ left: '50%', top: 0 }}>
-                {r.proposta.titolo}: {r.voti} {r.voti === 1 ? 'voto' : 'voti'} ({perc}%)
+                {r.proposta.titolo}: {r.voti} {r.voti === 1 ? unita[0] : unita[1]} ({perc}%)
               </span>
             )}
           </li>

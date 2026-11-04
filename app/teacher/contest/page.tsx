@@ -6,7 +6,7 @@ import { useDocente } from '@/lib/docente-context';
 import type { StatoAttivita } from '@/lib/attivita';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  ETICHETTA_FASE, comprimiImmagine, messaggioErroreContest, pad, useAdesso, useStatistiche,
+  ETICHETTA_FASE, MOTIVO_ESCLUSIONE, comprimiImmagine, messaggioErroreContest, pad, useAdesso, useStatistiche,
   type Contest, type FaseContest, type Iscrizione, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Cornice } from '@/components/moiso/Moiso';
@@ -17,7 +17,7 @@ import { QR } from '@/components/moiso/QR';
 import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
-type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean };
+type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean };
 const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
@@ -65,6 +65,11 @@ export default function ContestDocentePage() {
   const [bozza, setBozza] = useState({ titolo: '', sottotitolo: '', descrizione: '', iscrizione: 'individuale' as Iscrizione, mostra_classifica: false, proposte_da: 'docente' as Contest['proposte_da'], ambito: 'corso' as Contest['ambito'] });
   const [scadenza, setScadenza] = useState('');
   const [caricaCopertina, setCaricaCopertina] = useState(false);
+  // Regole del conteggio (pesi, voti che non contano), salvate a parte.
+  type Regole = { peso_remoto: number; peso_live: number; nome_singolo: boolean; senza_posizione: boolean; zone: string[] };
+  const regoleDi = (c: Contest | null): Regole => ({ peso_remoto: c?.peso_remoto ?? 1, peso_live: c?.peso_live ?? 1, nome_singolo: !!c?.escludi_nome_singolo, senza_posizione: !!c?.escludi_senza_posizione, zone: c?.zone_escluse || [] });
+  const [regole, setRegole] = useState<Regole>(regoleDi(null));
+  const [confermaElimina, setConfermaElimina] = useState<string | null>(null);
   // Controllo del database: avvisa se le funzioni del Contest non sono allineate
   // (es. dopo aver rieseguito una migrazione vecchia).
   const [problemiDb, setProblemiDb] = useState<string[]>([]);
@@ -144,6 +149,8 @@ export default function ContestDocentePage() {
     return () => clearInterval(t);
   }, [caricaProposte]);
 
+  useEffect(() => { setRegole(regoleDi(sel)); }, [sel?.id, sel?.peso_remoto, sel?.peso_live, sel?.escludi_nome_singolo, sel?.escludi_senza_posizione, (sel?.zone_escluse || []).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!sel) return;
     setBozza({ titolo: sel.titolo, sottotitolo: sel.sottotitolo, descrizione: sel.descrizione, iscrizione: sel.iscrizione, mostra_classifica: sel.mostra_classifica, proposte_da: sel.proposte_da || 'docente', ambito: sel.ambito || 'corso' });
@@ -167,6 +174,13 @@ export default function ContestDocentePage() {
   const modificato = !!sel && (bozza.titolo !== sel.titolo || bozza.sottotitolo !== sel.sottotitolo || bozza.descrizione !== sel.descrizione
     || bozza.iscrizione !== sel.iscrizione || bozza.mostra_classifica !== sel.mostra_classifica
     || bozza.proposte_da !== (sel.proposte_da || 'docente'));
+  const regoleModificate = !!sel && JSON.stringify(regole) !== JSON.stringify(regoleDi(sel));
+  const salvaRegole = () => sel && rpc('docente_regole_conteggio', {
+    p_id: sel.id, p_peso_remoto: regole.peso_remoto, p_peso_live: regole.peso_live,
+    p_escludi_nome_singolo: regole.nome_singolo, p_escludi_senza_posizione: regole.senza_posizione, p_zone_escluse: regole.zone,
+  }, 'Conteggio aggiornato');
+  const escludiVoto = async (teamId: string, escluso: boolean) => { if (sel) { await rpc('docente_escludi_voto', { p_contest_id: sel.id, p_team_id: teamId, p_escluso: escluso }, escluso ? 'Voto escluso dal conteggio' : 'Voto riammesso'); caricaIscritti(); } };
+  const eliminaVotante = async (teamId: string) => { if (sel) { await rpc('docente_elimina_votante', { p_contest_id: sel.id, p_team_id: teamId }, 'Utenza eliminata'); setConfermaElimina(null); caricaIscritti(); } };
   const salvaImpostazioni = () => sel && rpc('docente_salva_contest', {
     p_corso_id: corso.id,
     p_id: sel.id, p_titolo: bozza.titolo, p_sottotitolo: bozza.sottotitolo, p_descrizione: bozza.descrizione,
@@ -289,7 +303,7 @@ export default function ContestDocentePage() {
         {problemiDb.length > 0 && (
           <div role="alert" style={{ padding: '14px 18px', borderRadius: 16, background: '#fef2f2', boxShadow: 'inset 0 0 0 1px #fecaca', color: '#991b1b', fontSize: 14, display: 'grid', gap: 6 }}>
             <strong>Il database del Contest non è allineato: il voto può dare errori.</strong>
-            <span>Esegui nell’SQL Editor di Supabase <code>supabase/migrations/20261018_riallinea_funzioni_contest.sql</code>, poi ricarica questa pagina.</span>
+            <span>Esegui nell’SQL Editor di Supabase l’ultima migrazione del Contest, <code>supabase/migrations/20261020_contest_pesi_esclusioni.sql</code>, poi ricarica questa pagina.</span>
             <span className="mz-mono" style={{ color: '#991b1b', textTransform: 'none' }}>{problemiDb.join(' — ')}</span>
           </div>
         )}
@@ -436,7 +450,71 @@ export default function ContestDocentePage() {
                   </div>
                 </Riquadro>
 
-                <Riquadro n="04" titolo="Zona pericolosa">
+                <Riquadro n="04" titolo="Conteggio dei voti" info="I voti esclusi restano salvati: puoi riammetterli quando vuoi. Classifica e vincitore usano i punti pesati.">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 18 }}>
+                    {([['peso_remoto', 'Peso del voto da remoto'], ['peso_live', 'Peso del voto in aula']] as const).map(([k, etichetta]) => (
+                      <div key={k} className="mz-field">
+                        <span className="mz-mono">{etichetta}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <button type="button" className="mz-pill sm o" aria-label={`Riduci ${etichetta.toLowerCase()}`} disabled={regole[k] <= 0} onClick={() => setRegole({ ...regole, [k]: Math.max(0, regole[k] - 1) })}>−</button>
+                          <span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, minWidth: 64, textAlign: 'center' }}>×{regole[k]}</span>
+                          <button type="button" className="mz-pill sm o" aria-label={`Aumenta ${etichetta.toLowerCase()}`} disabled={regole[k] >= 10} onClick={() => setRegole({ ...regole, [k]: Math.min(10, regole[k] + 1) })}>+</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 14.5 }}>
+                    {regole.peso_remoto === regole.peso_live
+                      ? 'Remoto e aula valgono uguale.'
+                      : regole.peso_remoto === 0 ? 'Conta solo il voto in aula.'
+                      : regole.peso_live === 0 ? 'Conta solo il voto da remoto.'
+                      : `Un voto ${regole.peso_live > regole.peso_remoto ? 'in aula' : 'da remoto'} vale ${Math.max(regole.peso_live, regole.peso_remoto)} punti, uno ${regole.peso_live > regole.peso_remoto ? 'da remoto' : 'in aula'} ${Math.min(regole.peso_live, regole.peso_remoto)}.`}
+                  </p>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <span className="mz-mono">Non contare</span>
+                    <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
+                      <input type="checkbox" checked={regole.nome_singolo} onChange={e => setRegole({ ...regole, nome_singolo: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
+                      chi si è iscritto con il solo nome{stat?.esclusi?.solo_nome ? ` (${stat.esclusi.solo_nome})` : ''}
+                    </label>
+                    <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
+                      <input type="checkbox" checked={regole.senza_posizione} onChange={e => setRegole({ ...regole, senza_posizione: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
+                      i voti senza posizione{typeof stat?.senza_posizione === 'number' ? ` (${stat.senza_posizione})` : ''}
+                    </label>
+                  </div>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <span className="mz-mono">
+                      Zone del voto
+                      <Info lato="destra">Tocca una zona per escluderla dal conteggio (per esempio i voti da città lontane). Tocca di nuovo per riammetterla.</Info>
+                    </span>
+                    {(stat?.punti_tutti || []).length === 0
+                      ? <span className="mz-muted" style={{ fontSize: 13.5 }}>Le zone compaiono quando arrivano voti con posizione.</span>
+                      : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {(stat?.punti_tutti || []).map(z => {
+                            const esclusa = regole.zone.includes(z.chiave);
+                            return (
+                              <button key={z.chiave} type="button" aria-pressed={!esclusa} className={`mz-chip ${esclusa ? '' : 'on'}`}
+                                style={esclusa ? { textDecoration: 'line-through', opacity: .6 } : undefined}
+                                onClick={() => setRegole({ ...regole, zone: esclusa ? regole.zone.filter(x => x !== z.chiave) : [...regole.zone, z.chiave] })}>
+                                {z.zona} <span className="mz-mono">{z.n}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                  </div>
+                  {stat?.esclusi && Object.keys(stat.esclusi).length > 0 && (
+                    <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">
+                      Ora non contano {Object.values(stat.esclusi).reduce((a, b) => a + b, 0)} voti: {Object.entries(stat.esclusi).map(([m, n]) => `${n} ${MOTIVO_ESCLUSIONE[m] || m}`).join(', ')}.
+                    </p>
+                  )}
+                  <div className={`barra-salva ${regoleModificate ? 'attiva' : ''}`}>
+                    <span style={{ fontSize: 14 }} className={regoleModificate ? '' : 'mz-muted'}>{regoleModificate ? 'Modifiche non salvate' : 'Tutto salvato'}</span>
+                    <button type="button" className="mz-pill b lg" onClick={salvaRegole} disabled={!regoleModificate || regole.peso_remoto + regole.peso_live === 0}>Applica al conteggio</button>
+                  </div>
+                </Riquadro>
+
+                <Riquadro n="05" titolo="Zona pericolosa">
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {conferma === 'azzera-remoto'
                       ? <button type="button" className="mz-pill" style={{ background: '#dc2626', color: '#fff' }} onClick={() => { rpc('docente_azzera_voti_remoti', { p_id: sel.id }, 'Voti da remoto azzerati'); setConferma(null); }}>Sicuro? Cancella i voti da remoto</button>
@@ -487,6 +565,7 @@ export default function ContestDocentePage() {
             {sezione === 'iscritti' && (() => {
               const individuali = iscritti.filter(x => x.tipo === 'individuale');
               const votanti = individuali.filter(x => x.ha_votato).length;
+              const contano = individuali.filter(x => x.ha_votato && x.conta !== false).length;
               const q = filtroIscritti.trim().toLowerCase();
               const visibili = q ? iscritti.filter(x => x.nome.toLowerCase().includes(q) || (x.corso_nome || '').toLowerCase().includes(q)) : iscritti;
               return (
@@ -500,6 +579,7 @@ export default function ContestDocentePage() {
                     <div style={{ display: 'flex', gap: 28 }}>
                       <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(individuali.length)}</span><span className="mz-mono">iscritti individuali</span></div>
                       {elencoCompleto && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, color: 'var(--accento)' }}>{pad(votanti)}</span><span className="mz-mono">hanno votato</span></div>}
+                      {elencoCompleto && contano !== votanti && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(contano)}</span><span className="mz-mono">voti che contano</span></div>}
                     </div>
                     <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca un nome o un corso" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
                   </div>
@@ -512,11 +592,24 @@ export default function ContestDocentePage() {
                           <div style={{ minWidth: 0 }}>
                             <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
                             <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{origine ? `, ${origine}` : ''}</span>
+                            {puo && s.nome_completo === false && <span className="mz-chip" style={{ marginLeft: 8, cursor: 'default', fontSize: 11, padding: '2px 8px' }}>solo nome</span>}
                             {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
                           </div>
-                          <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: s.ha_votato ? 'var(--ink)' : undefined }}>
-                            {!puo ? 'team, non vota' : s.ha_votato ? <><span className="mz-live-dot" style={{ width: 7, height: 7 }} />ha votato</> : elencoCompleto ? 'non ancora' : 'vota'}
-                          </span>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                            <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: s.ha_votato && s.conta !== false ? 'var(--ink)' : undefined }}>
+                              {!puo ? 'team, non vota'
+                                : s.ha_votato ? (s.conta === false
+                                  ? <>ha votato, non conta{s.motivo ? `: ${MOTIVO_ESCLUSIONE[s.motivo] || s.motivo}` : ''}</>
+                                  : <><span className="mz-live-dot" style={{ width: 7, height: 7 }} />ha votato</>)
+                                : elencoCompleto ? 'non ancora' : 'vota'}
+                            </span>
+                            {puo && s.team_id && s.ha_votato && (
+                              <button type="button" className="mz-pill sm ghost" onClick={() => escludiVoto(s.team_id!, !s.escluso)}>{s.escluso ? 'Riammetti' : 'Escludi'}</button>
+                            )}
+                            {s.team_id && s.eliminabile && (confermaElimina === s.team_id
+                              ? <button type="button" className="mz-pill sm" style={{ background: '#dc2626', color: '#fff' }} onClick={() => eliminaVotante(s.team_id!)}>Sicuro? Elimina</button>
+                              : <button type="button" className="mz-pill sm ghost danger" onClick={() => setConfermaElimina(s.team_id!)}>Elimina</button>)}
+                          </div>
                         </li>
                       );
                     })}

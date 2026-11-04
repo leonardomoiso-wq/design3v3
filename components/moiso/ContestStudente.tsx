@@ -9,7 +9,7 @@ import Info from '@/components/Info';
 import { caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
 import { ascoltaCorso } from '@/lib/realtime';
 import {
-  COLONNE_PROPOSTA, rpcVoto, ETICHETTA_FASE, caricaContestAteneo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
+  COLONNE_PROPOSTA, rpcVoto, punteggio, pesiAttivi, ETICHETTA_FASE, caricaContestAteneo, messaggioErroreContest, rilevaDispositivo, ottieniPosizione, type Posizione,
   useAdesso, useStatistiche, type Contest, type Proposta,
 } from '@/lib/contest';
 import { Segmentato, Sheet, Solidi, Ticker, useTendina, Cornice } from '@/components/moiso/Moiso';
@@ -210,7 +210,7 @@ export default function ContestStudente(props: Proprieta) {
   // Vincitore: visibile quando la classifica è svelata.
   const vincitore = useMemo(() => {
     if (!stat?.per_proposta || !(stat.remoto_finito || stat.vincitore_rivelato)) return null;
-    const conti = stat.per_proposta.map(r => ({ id: r.id, n: r.remoto + r.live })).sort((a, b) => b.n - a.n);
+    const conti = stat.per_proposta.map(r => ({ id: r.id, n: punteggio(r) })).sort((a, b) => b.n - a.n);
     if (!conti.length || conti[0].n === 0) return null;
     const p = proposte.find(x => x.id === conti[0].id);
     return p ? { p, n: conti[0].n, pari: conti.length > 1 && conti[1].n === conti[0].n } : null;
@@ -435,7 +435,7 @@ export default function ContestStudente(props: Proprieta) {
               <section className="mz-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(20px, 3vw, 40px)', alignItems: 'end', background: 'var(--scena)', color: 'var(--scena-testo)', borderRadius: 6, padding: 'clamp(18px, 3vw, 32px)' }}>
                 <Cornice src={vincitore.p.immagine} alt="" style={{ aspectRatio: '16 / 10' }} />
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'}<Sep />{vincitore.n} voti</span>
+                  <span className="mz-mono" style={{ color: 'var(--scena-tenue)' }}>{vincitore.pari ? 'In testa, a pari merito' : 'La proposta vincitrice'}<Sep />{vincitore.n} {pesiAttivi(stat) ? 'punti' : 'voti'}</span>
                   <h2 className="mz-display mz-break" style={{ fontSize: 'clamp(40px, 6vw, 88px)' }}>{vincitore.p.titolo}</h2>
                   <span className="mz-break" style={{ fontSize: 15 }}>{vincitore.p.autori}</span>
                   <button type="button" className="mz-pill" style={{ background: 'var(--scena-testo)', color: 'var(--scena-su-testo)', justifySelf: 'start' }} onClick={() => apri(vincitore.p)}>Apri la proposta →</button>

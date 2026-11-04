@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Sep from '@/components/Sep';
 import type { Proposta, Statistiche } from '@/lib/contest';
-import { ETICHETTA_DISPOSITIVO, tempoFa, useAdesso } from '@/lib/contest';
+import { ETICHETTA_DISPOSITIVO, pesiAttivi, punteggio, tempoFa, useAdesso } from '@/lib/contest';
 import { Odometro, ContaSu } from './Moiso';
 import { Countdown } from './Countdown';
 import { Classifica } from './Classifica';
@@ -158,7 +158,8 @@ export function DashboardVoto({ stat, scarto, proposte, mioVoto, onApri, fase = 
   const dispositivi = Object.entries(stat.dispositivi).map(([k, n]) => ({ nome: ETICHETTA_DISPOSITIVO[k] || k, n })).sort((a, b) => b.n - a.n);
   const zone = stat.zone.map(z => ({ nome: z.zona, n: z.n }));
   const perId = new Map((stat.per_proposta || []).map(p => [p.id, p]));
-  const righe = proposte.map(p => ({ proposta: p, voti: (perId.get(p.id)?.remoto || 0) + (perId.get(p.id)?.live || 0) }));
+  const righe = proposte.map(p => { const r = perId.get(p.id); return { proposta: p, voti: r ? punteggio(r) : 0 }; });
+  const unita: [string, string] = pesiAttivi(stat) ? ['punto', 'punti'] : ['voto', 'voti'];
   const coperta = !stat.classifica_visibile || !stat.per_proposta;
 
   return (
@@ -231,7 +232,7 @@ export function DashboardVoto({ stat, scarto, proposte, mioVoto, onApri, fase = 
           {coperta && <Info lato="destra">Resta coperta fino allo scadere del countdown, così nessuno vota guardando chi è in testa.</Info>}
           {mioVoto && <Info lato="destra">Il contorno ambra indica la proposta che hai votato. Lo vedi solo tu.</Info>}
         </Titoletto>
-        <Classifica righe={righe} coperta={coperta} evidenzia={mioVoto ?? null} onApri={onApri} />
+        <Classifica righe={righe} coperta={coperta} evidenzia={mioVoto ?? null} onApri={onApri} unita={unita} />
       </section>
     </div>
   );
