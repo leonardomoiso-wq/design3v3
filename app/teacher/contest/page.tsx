@@ -181,6 +181,44 @@ export default function ContestDocentePage() {
   }, 'Conteggio aggiornato');
   const escludiVoto = async (teamId: string, escluso: boolean) => { if (sel) { await rpc('docente_escludi_voto', { p_contest_id: sel.id, p_team_id: teamId, p_escluso: escluso }, escluso ? 'Voto escluso dal conteggio' : 'Voto riammesso'); caricaIscritti(); } };
   const eliminaVotante = async (teamId: string) => { if (sel) { await rpc('docente_elimina_votante', { p_contest_id: sel.id, p_team_id: teamId }, 'Utenza eliminata'); setConfermaElimina(null); caricaIscritti(); } };
+  // CSV di tutti i votanti (per Excel in italiano: «;» e BOM UTF-8).
+  const scaricaCsv = async () => {
+    if (!sel) return;
+    await caricaIscritti();
+    const { data, error } = await supabase.rpc('docente_lista_votanti_contest', { p_contest_id: sel.id, p_passcode: passcode });
+    const righe = (error ? iscritti : ((data || []) as Iscritto[]));
+    const data_ = (x?: string | null) => x ? new Date(x).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const cella = (v: unknown) => {
+      let t = v === null || v === undefined ? '' : String(v);
+      if (/^[=+\-@]/.test(t)) t = "'" + t; // niente formule involontarie in Excel
+      return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+    };
+    const intestazione = ['Nome', 'Tipo', 'Membri', 'Iscrizione', 'Iscritto il', 'Ha votato', 'Il voto conta', 'Motivo', 'Città del voto', 'Dispositivo', 'Votato il'];
+    const corpo = righe.map(r => {
+      const individuale = r.tipo === 'individuale';
+      return [
+        r.nome,
+        individuale ? 'individuale' : 'team',
+        individuale ? '' : (r.membri || []).join(', '),
+        r.spazio ? 'solo per il contest' : (r.corso_nome || corso.nome),
+        data_(r.creato_il),
+        !individuale ? 'non vota' : r.ha_votato ? 'sì' : 'no',
+        individuale && r.ha_votato ? (r.conta === false ? 'no' : 'sì') : '',
+        r.motivo ? (MOTIVO_ESCLUSIONE[r.motivo] || r.motivo) : '',
+        r.voto_zona || '',
+        r.voto_dispositivo ? (ETICHETTA_DISPOSITIVO[r.voto_dispositivo] || r.voto_dispositivo) : '',
+        data_(r.voto_il),
+      ];
+    });
+    const testo = '\ufeff' + [intestazione, ...corpo].map(r => r.map(cella).join(';')).join('\r\n');
+    const slug = sel.titolo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'contest';
+    const url = URL.createObjectURL(new Blob([testo], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `votanti-${slug}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    avvisa(`CSV scaricato: ${righe.length} righe`);
+  };
   const salvaImpostazioni = () => sel && rpc('docente_salva_contest', {
     p_corso_id: corso.id,
     p_id: sel.id, p_titolo: bozza.titolo, p_sottotitolo: bozza.sottotitolo, p_descrizione: bozza.descrizione,
@@ -571,7 +609,10 @@ export default function ContestDocentePage() {
               return (
                 <Riquadro n={pad(individuali.length)} titolo="Chi può votare da remoto"
                   info="Votano solo gli accessi individuali, un voto a testa. Per un contest di ateneo compaiono anche gli iscritti solo al contest e gli accessi degli altri corsi. Si vede chi ha votato, mai per quale proposta."
-                  azioni={<a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>}>
+                  azioni={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" className="mz-pill sm" onClick={scaricaCsv} disabled={iscritti.length === 0}>Scarica CSV ↓</button>
+                    <a href="/teacher/team" className="mz-pill sm ghost">Gestisci i team →</a>
+                  </div>}>
                   {!elencoCompleto && (
                     <p role="note" style={{ margin: 0, fontSize: 13.5, color: '#991b1b' }}>Vedi solo gli accessi del corso: per l’elenco completo esegui la migrazione 20261019_votanti_contest.sql.</p>
                   )}
