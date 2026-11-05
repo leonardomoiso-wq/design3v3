@@ -272,7 +272,7 @@ export default function ContestStudente(props: Proprieta) {
           <div style={{ padding: 'clamp(20px, 4vw, 40px)', display: 'grid', gap: 18, justifyItems: 'center' }}>
             <h2 className="mz-display" style={{ fontSize: 'clamp(32px, 4vw, 52px)', margin: 0, textAlign: 'center' }}>Una persona, <span className="mz-blue">un voto</span>.</h2>
             <p className="mz-muted" style={{ margin: 0, fontSize: 15, textAlign: 'center', maxWidth: 420 }}>Il team resta attivo per le altre attività.</p>
-            <AccessoTeam corsoId={corso.id} soloIndividuale conMatricola={richiedeMatricola} conTitolo={false} schedaIniziale="crea"
+            <AccessoTeam corsoId={corso.id} soloIndividuale conMatricola={richiedeMatricola} contestId={contest?.id} conTitolo={false} schedaIniziale="crea"
               onAccesso={t => { if (io) votanteSalvato.accedi(t); else accedi(t); setAccessoVoto(false); }} />
           </div>
         </Sheet>
@@ -365,6 +365,7 @@ export default function ContestStudente(props: Proprieta) {
                 onScegli={setCorsoAccesso}
                 onAccesso={accedi}
                 conMatricola={richiedeMatricola}
+                contestId={contest.id}
               />
             ) : (
               <>
@@ -438,7 +439,7 @@ export default function ContestStudente(props: Proprieta) {
       {puoVotare && serveMatricola && votante && (
         <div role="note" className="mz-in" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))' }}>
           <div style={{ padding: '16px 18px', borderRadius: 16, background: 'var(--accento-tenue)', boxShadow: 'inset 0 0 0 1px var(--accento-bordo)' }}>
-            <CompletaMatricola team={votante} onFatto={aggiornaVotante} />
+            <CompletaMatricola team={votante} onFatto={aggiornaVotante} contestId={contest.id} />
           </div>
         </div>
       )}
@@ -512,7 +513,7 @@ export default function ContestStudente(props: Proprieta) {
               ) : serveMatricola && votante ? (
                 <div style={{ display: 'grid', gap: 8 }}>
                   <p style={{ margin: 0, fontSize: 14 }}>Per votare serve la tua matricola: una matricola, un voto.</p>
-                  <CompletaMatricola team={votante} onFatto={aggiornaVotante} compatto />
+                  <CompletaMatricola team={votante} onFatto={aggiornaVotante} compatto contestId={contest.id} />
                 </div>
               ) : propria ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla.</p>

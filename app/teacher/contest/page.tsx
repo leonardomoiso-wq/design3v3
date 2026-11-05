@@ -17,7 +17,7 @@ import { QR } from '@/components/moiso/QR';
 import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
-type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean; voto_zona?: string | null; voto_dispositivo?: string | null; voto_il?: string | null; matricola?: string | null; ha_votato_live?: boolean; live_conta?: boolean; voto_live_il?: string | null };
+type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean; voto_zona?: string | null; voto_dispositivo?: string | null; voto_il?: string | null; matricola?: string | null; ha_votato_live?: boolean; live_conta?: boolean; voto_live_il?: string | null; in_elenco?: boolean | null };
 const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
@@ -50,6 +50,92 @@ function Riquadro({ n, titolo, children, azioni, info }: { n: string; titolo: st
       </div>
       {children}
     </section>
+  );
+}
+
+
+// Legge un CSV (o testo copiato da Excel) con le matricole ammesse.
+// Con intestazione: colonne «matricola», «nome», «cognome». Senza: la
+// colonna fatta di codici è la matricola; delle altre, la prima è il
+// cognome e la seconda il nome.
+function leggiElencoMatricole(testo: string): { matricola: string; nome: string; cognome: string }[] {
+  const righe = testo.replace(/^﻿/, '').split(/\r?\n/).map(r => r.trim()).filter(Boolean);
+  if (!righe.length) return [];
+  const prima = righe[0];
+  const sep = [';', '\t', ','].sort((a, b) => prima.split(b).length - prima.split(a).length)[0];
+  const celle = (r: string) => r.split(sep).map(c => c.trim().replace(/^"(.*)"$/, '$1').trim());
+  const testa = celle(prima).map(c => c.toLowerCase());
+  const conTesta = testa.some(c => c.includes('matricol'));
+  const dati = (conTesta ? righe.slice(1) : righe).map(celle);
+  let iM = -1, iN = -1, iC = -1;
+  if (conTesta) {
+    iM = testa.findIndex(c => c.includes('matricol'));
+    iC = testa.findIndex(c => c.includes('cognom') || c.includes('surname'));
+    iN = testa.findIndex((c, i) => i !== iC && (c === 'nome' || c.startsWith('nome') || c.includes('name')) && !c.includes('cognom') && !c.includes('surname'));
+  } else {
+    const colonne = Math.max(...dati.map(r => r.length));
+    const codici = (i: number) => dati.filter(r => /^[A-Za-z]*\d[A-Za-z0-9]*$/.test((r[i] || '').replace(/\s+/g, ''))).length;
+    iM = Array.from({ length: colonne }, (_, i) => i).sort((a, b) => codici(b) - codici(a))[0] ?? 0;
+    const altre = Array.from({ length: colonne }, (_, i) => i).filter(i => i !== iM);
+    iC = altre[0] ?? -1; iN = altre[1] ?? -1;
+  }
+  return dati
+    .map(r => ({ matricola: (r[iM] || '').replace(/\s+/g, '').toUpperCase(), cognome: iC >= 0 ? r[iC] || '' : '', nome: iN >= 0 ? r[iN] || '' : '' }))
+    .filter(r => /^[A-Z0-9]{4,12}$/.test(r.matricola));
+}
+
+function ElencoMatricole({ contestId, passcode, onAvviso }: { contestId: string; passcode: string; onAvviso: (t: string, errore?: boolean) => void }) {
+  const [info, setInfo] = useState<{ totale: number; con_cognome: number } | null>(null);
+  const [anteprima, setAnteprima] = useState<{ righe: ReturnType<typeof leggiElencoMatricole>; file: string } | null>(null);
+  const [svuota, setSvuota] = useState(false);
+  const carica = useCallback(async () => {
+    const { data } = await supabase.rpc('docente_info_matricole', { p_contest_id: contestId, p_passcode: passcode });
+    setInfo((data as any) || null);
+  }, [contestId, passcode]);
+  useEffect(() => { carica(); }, [carica]);
+  const invia = async (righe: ReturnType<typeof leggiElencoMatricole>) => {
+    const { data, error } = await supabase.rpc('docente_carica_matricole', { p_contest_id: contestId, p_righe: righe, p_passcode: passcode });
+    if (error) { onAvviso(messaggioErroreContest(error.message), true); return; }
+    onAvviso(righe.length ? `Elenco caricato: ${data} matricole` : 'Elenco svuotato');
+    setAnteprima(null); setSvuota(false); carica();
+  };
+  return (
+    <div style={{ display: 'grid', gap: 10, paddingTop: 12, borderTop: '1px solid var(--accento-bordo)' }}>
+      <span style={{ fontSize: 14 }}>
+        <strong>Elenco delle matricole ammesse</strong>{' '}
+        <Info lato="destra">Carica un CSV (anche esportato da Excel) con la colonna «matricola» e, se li hai, «cognome» e «nome». Se c’è un elenco, ci si iscrive e si vota solo con una matricola presente; se c’è il cognome, deve corrispondere. I voti fuori elenco non contano.</Info>
+      </span>
+      <span className="mz-muted" style={{ fontSize: 13.5 }}>
+        {info && info.totale > 0 ? `${info.totale} matricole caricate${info.con_cognome ? `, ${info.con_cognome} con il cognome` : ''}. Si vota solo con queste.` : 'Nessun elenco: vale qualsiasi matricola, purché unica.'}
+      </span>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <label className="mz-pill sm" style={{ cursor: 'pointer' }}>
+          {info && info.totale > 0 ? 'Sostituisci l’elenco (CSV)' : 'Carica l’elenco (CSV)'}
+          <input type="file" accept=".csv,.txt,text/csv,text/plain" style={{ display: 'none' }} aria-label="File CSV delle matricole" onChange={async e => {
+            const f = e.target.files?.[0]; e.target.value = '';
+            if (!f) return;
+            const righe = leggiElencoMatricole(await f.text());
+            if (!righe.length) { onAvviso('Nel file non ho trovato matricole valide (da 4 a 12 lettere o cifre).', true); return; }
+            setAnteprima({ righe, file: f.name });
+          }} />
+        </label>
+        {info && info.totale > 0 && (svuota
+          ? <button type="button" className="mz-pill sm" style={{ background: '#dc2626', color: '#fff' }} onClick={() => invia([])}>Sicuro? Svuota l’elenco</button>
+          : <button type="button" className="mz-pill sm ghost danger" onClick={() => setSvuota(true)}>Svuota l’elenco</button>)}
+      </div>
+      {anteprima && (
+        <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 12, background: 'var(--surface)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
+          <span style={{ fontSize: 14 }}>{anteprima.file}: <strong>{anteprima.righe.length}</strong> matricole valide. Prime righe:</span>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5 }} className="mz-muted">
+            {anteprima.righe.slice(0, 3).map(r => <li key={r.matricola}><span style={{ fontFamily: 'monospace' }}>{r.matricola}</span>{r.cognome || r.nome ? ` — ${[r.cognome, r.nome].filter(Boolean).join(' ')}` : ''}</li>)}
+          </ul>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="mz-pill sm b" onClick={() => invia(anteprima.righe)}>Carica {anteprima.righe.length} matricole</button>
+            <button type="button" className="mz-pill sm ghost" onClick={() => setAnteprima(null)}>Annulla</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -194,12 +280,13 @@ export default function ContestDocentePage() {
       if (/^[=+\-@]/.test(t)) t = "'" + t; // niente formule involontarie in Excel
       return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
     };
-    const intestazione = ['Nome', 'Matricola', 'Tipo', 'Membri', 'Iscrizione', 'Iscritto il', 'Ha votato da remoto', 'Il voto conta', 'Motivo', 'Città del voto', 'Dispositivo', 'Votato il', 'Ha votato in aula', 'Il voto in aula conta', 'Votato in aula il'];
+    const intestazione = ['Nome', 'Matricola', 'Nell’elenco', 'Tipo', 'Membri', 'Iscrizione', 'Iscritto il', 'Ha votato da remoto', 'Il voto conta', 'Motivo', 'Città del voto', 'Dispositivo', 'Votato il', 'Ha votato in aula', 'Il voto in aula conta', 'Votato in aula il'];
     const corpo = righe.map(r => {
       const individuale = r.tipo === 'individuale';
       return [
         r.nome,
         r.matricola || '',
+        r.in_elenco === true ? 'sì' : r.in_elenco === false ? 'no' : '',
         individuale ? 'individuale' : 'team',
         individuale ? '' : (r.membri || []).join(', '),
         r.spazio ? 'solo per il contest' : (r.corso_nome || corso.nome),
@@ -506,6 +593,7 @@ export default function ContestDocentePage() {
                     <button type="button" className={`mz-pill ${sel.richiedi_matricola ? 'o' : 'b'}`} onClick={() => rpc('docente_imposta_matricola_contest', { p_id: sel.id, p_richiedi: !sel.richiedi_matricola }, sel.richiedi_matricola ? 'Matricola non più richiesta' : 'Matricola richiesta per votare')}>
                       {sel.richiedi_matricola ? 'Disattiva' : 'Richiedi la matricola'}
                     </button>
+                    {sel.richiedi_matricola && <div style={{ flexBasis: '100%' }}><ElencoMatricole contestId={sel.id} passcode={passcode} onAvviso={avvisa} /></div>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 18 }}>
                     {([['peso_remoto', 'Peso del voto da remoto'], ['peso_live', 'Peso del voto in aula']] as const).map(([k, etichetta]) => (
@@ -658,6 +746,7 @@ export default function ContestDocentePage() {
                             <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
                             <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{s.matricola ? `, matricola ${s.matricola}` : ''}{origine ? `, ${origine}` : ''}</span>
                             {puo && s.nome_completo === false && <span className="mz-chip" style={{ marginLeft: 8, cursor: 'default', fontSize: 11, padding: '2px 8px' }}>solo nome</span>}
+                            {puo && s.in_elenco === false && <span className="mz-chip" style={{ marginLeft: 8, cursor: 'default', fontSize: 11, padding: '2px 8px', color: '#991b1b', borderColor: '#fecaca' }}>fuori elenco</span>}
                             {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
                             {s.ha_votato && (s.voto_zona || s.voto_dispositivo || s.voto_il) && (
                               <div className="mz-muted mz-break" style={{ fontSize: 13, marginTop: 2 }}>

@@ -9,9 +9,9 @@ import { Segmentato } from '@/components/moiso/Moiso';
 
 // Accesso al Contest di ateneo: con l'accesso di un corso dell'ateneo,
 // oppure iscrivendosi solo al contest (nessun corso da frequentare).
-export default function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso, conMatricola = false }: {
+export default function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso, conMatricola = false, contestId }: {
   corsi: { id: string; nome: string }[]; spazioId: string | null; corsoScelto: string | null;
-  onScegli: (id: string | null) => void; onAccesso: (t: TeamInfo) => void; conMatricola?: boolean;
+  onScegli: (id: string | null) => void; onAccesso: (t: TeamInfo) => void; conMatricola?: boolean; contestId?: string;
 }) {
   const [modo, setModo] = useState<'contest' | 'corso'>(spazioId && corsoScelto !== null && corsoScelto !== spazioId ? 'corso' : spazioId ? 'contest' : 'corso');
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, 
         </label>
       )}
       {corsoScelto && (
-        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} soloIndividuale conMatricola={conMatricola} schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
+        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} soloIndividuale conMatricola={conMatricola} contestId={contestId} schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
       )}
     </div>
   );

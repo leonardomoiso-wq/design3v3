@@ -254,7 +254,7 @@ export default function VotoLivePage() {
         <p style={{ margin: 0, fontSize: 15, textAlign: 'center', maxWidth: 460 }}>Nome, cognome e matricola: una matricola, un voto. Il voto resta anonimo.</p>
         {accesso ? (
           <AccessoAteneo corsi={accesso.corsi} spazioId={accesso.spazioId} corsoScelto={corsoScelto} onScegli={setCorsoScelto}
-            onAccesso={t => sessione.accedi(t)} conMatricola />
+            onAccesso={t => sessione.accedi(t)} conMatricola contestId={contest.id} />
         ) : <Solidi piccoli />}
       </section>,
     );
@@ -263,7 +263,7 @@ export default function VotoLivePage() {
     return cornice(
       <section style={{ display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 20, padding: 24 }}>
         <h1 className="mz-display" style={{ fontSize: 'clamp(38px, 9vw, 80px)', textAlign: 'center', margin: 0 }}>Manca la <span className="mz-blue">matricola</span>.</h1>
-        <CompletaMatricola team={votante} onFatto={t => sessione.accedi(t)} />
+        <CompletaMatricola team={votante} onFatto={t => sessione.accedi(t)} contestId={contest.id} />
         <button type="button" className="mz-pill sm ghost" onClick={() => sessione.logout()}>Entra con un altro accesso</button>
       </section>,
     );

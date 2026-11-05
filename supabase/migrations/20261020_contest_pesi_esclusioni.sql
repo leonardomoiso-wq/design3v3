@@ -13,6 +13,10 @@
 --   per accesso, non modificabile. Senza matricola non si vota, né da
 --   remoto né in aula. In aula, con la matricola richiesta, si vota con
 --   il proprio accesso (non più per dispositivo).
+-- * Elenco delle matricole ammesse (per contest, caricato dal docente):
+--   se c'è, la matricola deve esserci (e il cognome, se presente, deve
+--   corrispondere) per iscriversi, aggiungerla e votare; i voti fuori
+--   elenco non contano.
 -- * Il docente può eliminare un accesso individuale iscritto solo al
 --   contest o nel proprio corso (con i suoi voti); gli altri accessi si
 --   possono solo escludere, i team non si eliminano da qui.
@@ -56,6 +60,34 @@ language sql stable security definer set search_path = public, extensions as $$
 $$;
 revoke execute on function matricola_libera(uuid, text, uuid) from public, anon, authenticated;
 
+-- Elenco delle matricole ammesse a un contest (mai leggibile dal client).
+create table if not exists contest_matricole (
+  contest_id uuid not null references contest(id) on delete cascade,
+  matricola text not null,
+  nome text not null default '',
+  cognome text not null default '',
+  primary key (contest_id, matricola)
+);
+alter table contest_matricole enable row level security;
+revoke all on contest_matricole from anon, authenticated;
+
+-- Testo confrontabile: minuscolo, senza accenti, solo lettere.
+create or replace function testo_confronto(p text) returns text
+language sql immutable as $$
+  select regexp_replace(translate(lower(coalesce(p, '')), 'àáâäãèéêëìíîïòóôöõùúûüçñ''’', 'aaaaaeeeeiiiiooooouuuucn  '), '[^a-z]', '', 'g');
+$$;
+
+-- La matricola (con questo nome e cognome) è nell'elenco del contest?
+-- Vero anche quando il contest non ha un elenco.
+create or replace function contest_matricola_ammessa(p_contest_id uuid, p_matricola text, p_nome text) returns boolean
+language sql stable security definer set search_path = public, extensions as $$
+  select not exists (select 1 from contest_matricole where contest_id = p_contest_id)
+      or exists (select 1 from contest_matricole m
+                 where m.contest_id = p_contest_id and m.matricola = normalizza_matricola(p_matricola)
+                   and (m.cognome = '' or position(testo_confronto(m.cognome) in testo_confronto(p_nome)) > 0));
+$$;
+revoke execute on function contest_matricola_ammessa(uuid, text, text) from public, anon, authenticated;
+
 -- Nome e cognome: almeno due parole, ognuna con almeno due lettere.
 create or replace function nome_completo(p text) returns boolean
 language sql immutable as $$
@@ -72,7 +104,8 @@ begin
                                'team_salva_proposta', 'team_ritira_proposta', 'vota_remoto', 'vota_live', 'contest_di_ateneo',
                                'crea_team', 'docente_lista_votanti_contest', 'contest_voti_valutati',
                                'login_team', 'mio_voto_live', 'docente_regole_conteggio', 'docente_escludi_voto',
-                               'docente_elimina_votante', 'team_imposta_matricola', 'team_matricola', 'docente_imposta_matricola_contest')
+                               'docente_elimina_votante', 'team_imposta_matricola', 'team_matricola', 'docente_imposta_matricola_contest',
+                               'contest_verifica_matricola', 'docente_carica_matricole', 'docente_info_matricole')
   loop
     execute 'drop function ' || r.firma;
   end loop;
@@ -207,6 +240,7 @@ begin
   if v_t.tipo <> 'individuale' then raise exception 'voto_solo_individuale'; end if;
   -- Contest con matricola: senza matricola non si vota.
   if v_c.richiedi_matricola and v_t.matricola is null then raise exception 'matricola_richiesta'; end if;
+  if v_c.richiedi_matricola and not contest_matricola_ammessa(v_c.id, v_t.matricola, v_t.nome) then raise exception 'matricola_non_in_elenco'; end if;
   if v_pr.team_id = v_t.id then raise exception 'propria_proposta'; end if;
   insert into contest_segreti (contest_id) values (v_c.id) on conflict do nothing;
   insert into contest_voti (contest_id, proposta_id, fase, votante_hash, dispositivo, zona, lat, lon)
@@ -246,6 +280,7 @@ begin
     v_t := team_verificato(p_team_id, p_password);
     if v_t.tipo <> 'individuale' then raise exception 'voto_solo_individuale'; end if;
     if v_t.matricola is null then raise exception 'matricola_richiesta'; end if;
+    if not contest_matricola_ammessa(p_contest_id, v_t.matricola, v_t.nome) then raise exception 'matricola_non_in_elenco'; end if;
     if not contest_ammette(p_contest_id, v_t.corso_id) then raise exception 'accesso_non_ammesso'; end if;
     v_chi := 't:' || v_t.id::text;
   else
@@ -397,7 +432,7 @@ grant execute on function login_team(uuid, text, text) to anon;
 
 -- Aggiunge la matricola a un accesso individuale che non ce l'ha.
 -- Una volta impostata non si cambia (si libererebbe per un altro accesso).
-create or replace function team_imposta_matricola(p_team_id uuid, p_password text, p_matricola text)
+create or replace function team_imposta_matricola(p_team_id uuid, p_password text, p_matricola text, p_contest_id uuid default null)
 returns text language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_t team%rowtype := team_verificato(p_team_id, p_password);
@@ -405,6 +440,7 @@ declare
 begin
   if v_t.tipo <> 'individuale' then raise exception 'matricola_solo_individuale'; end if;
   if not matricola_valida(v_m) then raise exception 'matricola_non_valida'; end if;
+  if p_contest_id is not null and not contest_matricola_ammessa(p_contest_id, v_m, v_t.nome) then raise exception 'matricola_non_in_elenco'; end if;
   if v_t.matricola is not null then
     if v_t.matricola = v_m then return v_m; end if;
     raise exception 'matricola_gia_impostata';
@@ -414,7 +450,7 @@ begin
   update team set matricola = v_m where id = v_t.id;
   return v_m;
 end; $$;
-grant execute on function team_imposta_matricola(uuid, text, text) to anon;
+grant execute on function team_imposta_matricola(uuid, text, text, uuid) to anon;
 
 create or replace function team_matricola(p_team_id uuid, p_password text) returns text
 language plpgsql security definer set search_path = public, extensions as $$
@@ -433,16 +469,53 @@ begin
 end; $$;
 grant execute on function docente_imposta_matricola_contest(uuid, boolean, text) to anon;
 
+-- Verifica prima dell'iscrizione: la matricola (con nome e cognome) è
+-- ammessa a questo contest? Solo sì o no, senza dire perché.
+create or replace function contest_verifica_matricola(p_contest_id uuid, p_matricola text, p_nome text) returns boolean
+language sql stable security definer set search_path = public, extensions as $$
+  select matricola_valida(p_matricola) and contest_matricola_ammessa(p_contest_id, p_matricola, p_nome);
+$$;
+grant execute on function contest_verifica_matricola(uuid, text, text) to anon;
+
+-- Il docente carica (sostituisce) o svuota l'elenco delle matricole.
+-- p_righe: [{ "matricola": "312345", "nome": "Anna", "cognome": "Bianchi" }, ...]
+create or replace function docente_carica_matricole(p_contest_id uuid, p_righe jsonb, p_passcode text)
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare n int;
+begin
+  perform richiedi_docente((select corso_id from contest where id = p_contest_id), p_passcode);
+  delete from contest_matricole where contest_id = p_contest_id;
+  insert into contest_matricole (contest_id, matricola, nome, cognome)
+  select distinct on (normalizza_matricola(r->>'matricola')) p_contest_id, normalizza_matricola(r->>'matricola'),
+         trim(coalesce(r->>'nome', '')), trim(coalesce(r->>'cognome', ''))
+  from jsonb_array_elements(coalesce(p_righe, '[]'::jsonb)) r
+  where matricola_valida(r->>'matricola');
+  get diagnostics n = row_count;
+  return n;
+end; $$;
+grant execute on function docente_carica_matricole(uuid, jsonb, text) to anon;
+
+create or replace function docente_info_matricole(p_contest_id uuid, p_passcode text)
+returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
+begin
+  perform richiedi_docente((select corso_id from contest where id = p_contest_id), p_passcode);
+  return jsonb_build_object(
+    'totale', (select count(*) from contest_matricole where contest_id = p_contest_id),
+    'con_cognome', (select count(*) from contest_matricole where contest_id = p_contest_id and cognome <> ''));
+end; $$;
+grant execute on function docente_info_matricole(uuid, text) to anon;
+
 -- Ogni voto del contest, con "conta" e il motivo se non conta.
 create or replace function contest_voti_valutati(p_contest_id uuid)
 returns table(id bigint, proposta_id bigint, fase text, dispositivo text, zona text, lat numeric, lon numeric,
               creato_il timestamptz, aggiornato_il timestamptz, votante_hash text, conta boolean, motivo text)
 language sql stable security definer set search_path = public, extensions as $$
-  with k as (select * from contest where contest.id = p_contest_id),
+  with k as (select contest.*, exists (select 1 from contest_matricole cm where cm.contest_id = p_contest_id) as elenco
+             from contest where contest.id = p_contest_id),
   autori as (
     -- Solo se servono le regole su nome o matricola: impronta di voto di ogni accesso ammesso.
     select contest_impronta(p_contest_id, 't:' || t.id::text) h, t.nome, t.matricola
-    from team t, k where (k.escludi_nome_singolo or k.escludi_senza_matricola) and contest_ammette(p_contest_id, t.corso_id)
+    from team t, k where (k.escludi_nome_singolo or k.escludi_senza_matricola or k.elenco) and contest_ammette(p_contest_id, t.corso_id)
   )
   select v.id, v.proposta_id, v.fase, v.dispositivo, v.zona, v.lat, v.lon, v.creato_il, v.aggiornato_il, v.votante_hash,
          m.motivo is null, m.motivo
@@ -456,6 +529,8 @@ language sql stable security definer set search_path = public, extensions as $$
       when v.fase = 'remoto' and k.escludi_nome_singolo and a.nome is not null and not nome_completo(a.nome) then 'solo_nome'
       -- Senza matricola: accessi che non ce l'hanno, e voti in aula per dispositivo.
       when k.escludi_senza_matricola and (a.h is null or a.matricola is null) then 'senza_matricola'
+      -- Con un elenco di matricole: chi non c'è (o ha un cognome diverso) non conta.
+      when k.elenco and a.h is not null and (a.matricola is null or not contest_matricola_ammessa(p_contest_id, a.matricola, a.nome)) then 'fuori_elenco'
       else null end as motivo) m
   where v.contest_id = p_contest_id;
 $$;
@@ -549,7 +624,7 @@ returns table(team_id uuid, numero int, nome text, tipo text, membri text[], cor
               creato_il timestamptz, ha_votato boolean, conta boolean, motivo text, escluso boolean,
               nome_completo boolean, eliminabile boolean,
               voto_zona text, voto_dispositivo text, voto_il timestamptz,
-              matricola text, ha_votato_live boolean, live_conta boolean, voto_live_il timestamptz)
+              matricola text, ha_votato_live boolean, live_conta boolean, voto_live_il timestamptz, in_elenco boolean)
 language plpgsql stable security definer set search_path = public, extensions as $$
 declare v_corso uuid := (select corso_id from contest where id = p_contest_id);
 begin
@@ -564,7 +639,8 @@ begin
            -- Da dove e come ha votato (città dall'IP, arrotondata): mai per quale proposta.
            vv.zona, vv.dispositivo, vv.aggiornato_il,
            -- Matricola e voto in aula (con l'accesso, quando il contest la richiede).
-           t.matricola, vl.id is not null, coalesce(vl.conta, false), vl.aggiornato_il
+           t.matricola, vl.id is not null, coalesce(vl.conta, false), vl.aggiornato_il,
+           case when t.matricola is null then null else contest_matricola_ammessa(p_contest_id, t.matricola, t.nome) end
     from team t
     join corsi c on c.id = t.corso_id
     left join vv on vv.votante_hash = contest_impronta(p_contest_id, 't:' || t.id::text)
@@ -651,7 +727,7 @@ begin
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'crea_team';
   if coalesce(src, '') not like '%nome_completo%' or src not like '%matricola_libera%' then v := v || 'crea_team non aggiornata'::text; end if;
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'vota_live';
-  if coalesce(src, '') not like '%richiedi_matricola%' then v := v || 'vota_live non aggiornata'::text; end if;
+  if coalesce(src, '') not like '%contest_matricola_ammessa%' then v := v || 'vota_live non aggiornata'::text; end if;
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'docente_lista_votanti_contest';
   if coalesce(src, '') not like '%vv.zona%' then v := v || 'docente_lista_votanti_contest non aggiornata'::text; end if;
   select string_agg(prosrc, ' ') into src from pg_proc where pronamespace = 'public'::regnamespace and proname = 'contest_di_ateneo';

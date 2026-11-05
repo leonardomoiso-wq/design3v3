@@ -25,6 +25,7 @@ export const messaggioErroreTeam = (codice: string) => {
     case 'matricola_non_valida': return 'La matricola ha da 4 a 12 lettere o cifre, senza spazi.';
     case 'matricola_gia_impostata': return 'La matricola di questo accesso è già impostata e non si può cambiare.';
     case 'matricola_solo_individuale': return 'La matricola si usa solo per gli accessi individuali.';
+    case 'matricola_non_in_elenco': return 'Matricola non trovata nell’elenco del contest, oppure il cognome non corrisponde. Controlla e riprova.';
     default: return 'Qualcosa è andato storto. Riprova.';
   }
 };
@@ -35,7 +36,7 @@ const DOMANDE_SUGGERITE = [
   'Il soprannome del gruppo alle superiori?',
 ];
 
-export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi', soloIndividuale = false, conMatricola = false }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea'; soloIndividuale?: boolean; conMatricola?: boolean }) {
+export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi', soloIndividuale = false, conMatricola = false, contestId }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea'; soloIndividuale?: boolean; conMatricola?: boolean; contestId?: string }) {
   const [scheda, setScheda] = useState<'accedi' | 'crea'>(schedaIniziale);
   // Iscrizione di gruppo o individuale: per alcune attività (es. il
   // Contest) l'impegno è di una persona sola.
@@ -98,6 +99,12 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         setInCorso(false);
         setErrore('Scegliete anche una domanda segreta e la sua risposta: servirà per recuperare la password.');
         return;
+      }
+      // Contest con elenco delle matricole: si verifica prima di creare l'accesso
+      // (la matricola poi non si cambia).
+      if (individuale && conMatricola && contestId) {
+        const { data: ok, error: errVerifica } = await supabase.rpc('contest_verifica_matricola', { p_contest_id: contestId, p_matricola: matricola, p_nome: `${nome.trim()} ${cognome.trim()}` });
+        if (!errVerifica && ok === false) { setInCorso(false); setErrore(messaggioErroreTeam('matricola_non_in_elenco')); return; }
       }
       const { data, error } = await supabase.rpc('crea_team', {
         p_corso_id: corsoId, p_nome: individuale ? `${nome.trim()} ${cognome.trim()}` : nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
@@ -280,7 +287,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
 
 // Per chi ha già un accesso individuale senza matricola: la aggiunge una
 // volta sola (poi non si cambia). Serve nei contest che la richiedono.
-export function CompletaMatricola({ team, onFatto, compatto = false }: { team: TeamInfo; onFatto: (team: TeamInfo) => void; compatto?: boolean }) {
+export function CompletaMatricola({ team, onFatto, compatto = false, contestId }: { team: TeamInfo; onFatto: (team: TeamInfo) => void; compatto?: boolean; contestId?: string }) {
   const [valore, setValore] = useState('');
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
@@ -288,7 +295,7 @@ export function CompletaMatricola({ team, onFatto, compatto = false }: { team: T
     setErrore('');
     if (!/^[A-Za-z0-9]{4,12}$/.test(valore.replace(/\s+/g, ''))) { setErrore('Scrivi la tua matricola: da 4 a 12 lettere o cifre.'); return; }
     setInCorso(true);
-    const { data, error } = await supabase.rpc('team_imposta_matricola', { p_team_id: team.id, p_password: team.password, p_matricola: valore });
+    const { data, error } = await supabase.rpc('team_imposta_matricola', { p_team_id: team.id, p_password: team.password, p_matricola: valore, ...(contestId ? { p_contest_id: contestId } : {}) });
     setInCorso(false);
     if (error) { setErrore(messaggioErroreTeam(error.message)); return; }
     onFatto({ ...team, matricola: (data as string) || valore });
