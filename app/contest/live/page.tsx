@@ -1,7 +1,8 @@
 'use client';
-// Voto dal pubblico, in aula: niente iscrizione, un voto per
-// dispositivo, il codice a 4 cifre proiettato sullo schermo (o
-// già dentro il QR code).
+// Voto dal pubblico, in aula, con il codice a 4 cifre proiettato sullo
+// schermo (o già dentro il QR code). Di norma un voto per dispositivo;
+// se il contest richiede la matricola, il QR apre prima l'accesso (nome,
+// cognome e matricola) e il voto è legato alla persona, come da remoto.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { NOME_PIATTAFORMA } from '@/lib/brand';
@@ -13,6 +14,10 @@ import { Cornice, Odometro, Solidi, Sheet } from '@/components/moiso/Moiso';
 import { Countdown } from '@/components/moiso/Countdown';
 import { Celebrazione } from '@/components/moiso/Celebrazione';
 import { DettaglioProposta } from '@/components/moiso/Proposte';
+import { useSessioneTeam } from '@/lib/team-context';
+import { caricaCorsiPubblici, caricaCorsoPerId, caricaSpazioAteneo } from '@/lib/corsi';
+import AccessoAteneo from '@/components/AccessoAteneo';
+import { CompletaMatricola } from '@/components/AccessoTeam';
 
 export default function VotoLivePage() {
   const [contest, setContest] = useState<Contest | null>(null);
@@ -37,6 +42,34 @@ export default function VotoLivePage() {
   // arriva dentro il QR (?codice=1234). Così non serve scegliere il corso.
   const [contestId, setContestId] = useState<string | null>(null);
   const CHIAVE = 'design3_voto_live';
+
+  // Accesso per votare in aula (solo se il contest richiede la matricola).
+  const richiede = !!contest?.richiedi_matricola;
+  const sessione = useSessioneTeam(contest?.id ?? null, 'edu_live_votante_');
+  const votante = richiede ? sessione.team : null;
+  const [accesso, setAccesso] = useState<{ spazioId: string | null; corsi: { id: string; nome: string }[] } | null>(null);
+  const [corsoScelto, setCorsoScelto] = useState<string | null>(null);
+  const corsoContest = contest?.corso_id;
+  useEffect(() => {
+    if (!richiede || !corsoContest) return;
+    (async () => {
+      const c = await caricaCorsoPerId(corsoContest);
+      if (!c) return;
+      if (!c.ateneo_id) { setAccesso({ spazioId: null, corsi: [{ id: c.id, nome: c.nome }] }); setCorsoScelto(c.id); return; }
+      const spazio = c.spazio_ateneo ? c : await caricaSpazioAteneo(c.ateneo_id);
+      const corsi = (await caricaCorsiPubblici(c.ateneo_id)).map(x => ({ id: x.id, nome: x.nome }));
+      if (!c.spazio_ateneo && !corsi.some(x => x.id === c.id)) corsi.push({ id: c.id, nome: c.nome });
+      setAccesso({ spazioId: spazio?.id || null, corsi });
+    })();
+  }, [richiede, corsoContest]);
+  // Accessi già salvati senza matricola: la si legge dal database.
+  const letta = useRef<string | null>(null);
+  useEffect(() => {
+    if (!votante || votante.matricola !== undefined || letta.current === votante.id) return;
+    letta.current = votante.id;
+    supabase.rpc('team_matricola', { p_team_id: votante.id, p_password: votante.password })
+      .then(({ data, error }) => { if (!error) sessione.accedi({ ...votante, matricola: (data as string) || null }); });
+  }, [votante, sessione]);
 
   const carica = useCallback(async () => {
     if (!contestId) { setCaricato(true); return; }
@@ -90,9 +123,9 @@ export default function VotoLivePage() {
     if (!cid) return;
     supabase.from('contest_proposte').select(COLONNE_PROPOSTA).eq('contest_id', cid).order('creato_il')
       .then(({ data }) => setProposte(((data || []) as any[]).map(p => ({ ...p, id: Number(p.id), galleria: p.galleria || [] }))));
-    supabase.rpc('mio_voto_live', { p_contest_id: cid, p_dispositivo_id: idDispositivo() })
+    supabase.rpc('mio_voto_live', { p_contest_id: cid, p_dispositivo_id: idDispositivo(), ...(votante ? { p_team_id: votante.id, p_password: votante.password } : {}) })
       .then(({ data }) => { if (data) { setMioVoto(Number(data)); setScelta(Number(data)); } });
-  }, [cid]);
+  }, [cid, votante]);
 
   const verifica = (valore: string) => prova(valore);
 
@@ -121,6 +154,7 @@ export default function VotoLivePage() {
       p_contest_id: contest.id, p_proposta_id: scelta, p_dispositivo_id: idDispositivo(), p_codice: codice,
       p_dispositivo: rilevaDispositivo(), p_zona: posizione?.zona || 'In aula',
       p_lat: posizione?.lat ?? null, p_lon: posizione?.lon ?? null,
+      ...(votante ? { p_team_id: votante.id, p_password: votante.password } : {}),
     });
     setInvio(false);
     if (error) {
@@ -138,8 +172,11 @@ export default function VotoLivePage() {
   const cornice = (contenuto: React.ReactNode) => (
     <main style={{ minHeight: '100vh', display: 'grid', gridTemplateRows: 'auto 1fr', gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <header className="mz-rail">
-        <span style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}><span style={{ fontWeight: 600, fontSize: 14 }}>{NOME_PIATTAFORMA}</span><span className="mz-mono">Voto dal vivo</span></span>
-        <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><span className={`mz-live-dot ${aperto ? '' : 'off'}`} />{aperto ? 'Aperto' : 'Chiuso'}</span>
+        <span style={{ display: 'flex', gap: 10, alignItems: 'baseline', minWidth: 0 }}><span style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{NOME_PIATTAFORMA}</span><span className={`mz-mono ${votante ? 'max-sm:hidden' : ''}`} style={{ whiteSpace: 'nowrap' }}>Voto dal vivo</span></span>
+        <span style={{ display: 'inline-flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+          {votante && <button type="button" className="mz-pill sm ghost" title={`Esci (${votante.nome})`} onClick={() => { sessione.logout(); setMioVoto(null); setScelta(null); }}>Esci</button>}
+          <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', whiteSpace: 'nowrap' }}><span className={`mz-live-dot ${aperto ? '' : 'off'}`} />{aperto ? 'Aperto' : 'Chiuso'}</span>
+        </span>
       </header>
       {contenuto}
     </main>
@@ -206,6 +243,31 @@ export default function VotoLivePage() {
   }
 
   if (!contest) return cornice(<div style={{ display: 'grid', placeItems: 'center' }}><Solidi /></div>);
+
+  // Contest con matricola: prima l'accesso, poi il voto.
+  if (richiede && !sessione.pronto) return cornice(<div style={{ display: 'grid', placeItems: 'center' }}><Solidi /></div>);
+  if (richiede && !votante) {
+    return cornice(
+      <section style={{ display: 'grid', alignContent: 'start', justifyItems: 'center', gap: 20, padding: '32px max(20px, env(safe-area-inset-left)) 60px' }}>
+        <span className="mz-mono">{contest.titolo}</span>
+        <h1 className="mz-display" style={{ fontSize: 'clamp(38px, 9vw, 80px)', textAlign: 'center', margin: 0 }}>Prima di votare, <span className="mz-blue">chi sei</span>?</h1>
+        <p style={{ margin: 0, fontSize: 15, textAlign: 'center', maxWidth: 460 }}>Nome, cognome e matricola: una matricola, un voto. Il voto resta anonimo.</p>
+        {accesso ? (
+          <AccessoAteneo corsi={accesso.corsi} spazioId={accesso.spazioId} corsoScelto={corsoScelto} onScegli={setCorsoScelto}
+            onAccesso={t => sessione.accedi(t)} conMatricola />
+        ) : <Solidi piccoli />}
+      </section>,
+    );
+  }
+  if (richiede && votante && votante.matricola === null) {
+    return cornice(
+      <section style={{ display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 20, padding: 24 }}>
+        <h1 className="mz-display" style={{ fontSize: 'clamp(38px, 9vw, 80px)', textAlign: 'center', margin: 0 }}>Manca la <span className="mz-blue">matricola</span>.</h1>
+        <CompletaMatricola team={votante} onFatto={t => sessione.accedi(t)} />
+        <button type="button" className="mz-pill sm ghost" onClick={() => sessione.logout()}>Entra con un altro accesso</button>
+      </section>,
+    );
+  }
 
   return cornice(
     <div style={{ paddingBottom: 140 }}>

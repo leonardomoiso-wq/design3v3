@@ -24,6 +24,9 @@ export type Contest = {
   escludi_nome_singolo?: boolean;
   escludi_senza_posizione?: boolean;
   zone_escluse?: string[];
+  // Un voto a matricola (da remoto e in aula, con l'accesso).
+  richiedi_matricola?: boolean;
+  escludi_senza_matricola?: boolean;
   fase: FaseContest;
   voto_inizio: string | null;
   voto_fine: string | null;
@@ -113,6 +116,7 @@ export const MOTIVO_ESCLUSIONE: Record<string, string> = {
   escluso_docente: 'escluso a mano',
   solo_nome: 'solo nome',
   senza_posizione: 'senza posizione',
+  senza_matricola: 'senza matricola',
   zona_esclusa: 'zona esclusa',
 };
 
@@ -153,6 +157,8 @@ export function messaggioErroreContest(codice: string): string {
     case 'peso_non_valido': return 'I pesi vanno da 0 a 10 e non possono essere entrambi 0.';
     case 'utenza_non_eliminabile': return 'Questa utenza è di un altro corso: puoi solo escluderne il voto.';
     case 'voto_non_trovato': return 'Questa persona non ha ancora votato.';
+    case 'matricola_richiesta': return 'Per votare serve la tua matricola: aggiungila qui sopra.';
+    case 'accesso_richiesto': return 'Per votare in aula entra con nome, cognome e matricola.';
     case 'accesso_non_ammesso': return 'Il tuo accesso è di un corso che non partecipa a questo contest. Esci ed entra con «Solo per il contest» o con un corso dell\'ateneo.';
     case 'dispositivo_non_valido': return 'Il browser non permette di riconoscere il dispositivo: prova con un altro browser.';
     default: {

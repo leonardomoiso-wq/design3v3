@@ -1,9 +1,10 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useSessioneTeam, etichettaTeam } from '@/lib/team-context';
-import AccessoTeam from '@/components/AccessoTeam';
+import AccessoTeam, { CompletaMatricola } from '@/components/AccessoTeam';
+import AccessoAteneo from '@/components/AccessoAteneo';
 import { scalaTitolo } from '@/components/Vetrina';
 import Info from '@/components/Info';
 import { caricaCorsiPubblici, percorsoCorso, type Ateneo, type Corso } from '@/lib/corsi';
@@ -205,6 +206,20 @@ export default function ContestStudente(props: Proprieta) {
   const candidatureAperte = contest?.proposte_da === 'studenti' && contest.fase === 'anteprima';
   // Si vota solo con un accesso individuale; `iscrizione` regola le candidature.
   const puoVotare = !io || !!votante;
+  // Contest con matricola: chi vota deve averla (un voto a matricola).
+  const richiedeMatricola = !!contest?.richiedi_matricola;
+  const aggiornaVotante = useCallback((t: NonNullable<typeof io>) => {
+    if (io && t.id === io.id) accedi(t); else votanteSalvato.accedi(t);
+  }, [io, accedi, votanteSalvato]);
+  const matricolaChiesta = useRef<string | null>(null);
+  useEffect(() => {
+    // Accessi salvati prima della matricola: la si legge una volta dal database.
+    if (!richiedeMatricola || !votante || votante.matricola !== undefined || matricolaChiesta.current === votante.id) return;
+    matricolaChiesta.current = votante.id;
+    supabase.rpc('team_matricola', { p_team_id: votante.id, p_password: votante.password })
+      .then(({ data, error }) => { if (!error) aggiornaVotante({ ...votante, matricola: (data as string) || null }); });
+  }, [richiedeMatricola, votante, aggiornaVotante]);
+  const serveMatricola = richiedeMatricola && !!votante && votante.matricola === null;
   const tipoAmmesso = !contest || !io || contest.iscrizione === 'entrambe' || contest.iscrizione === (io.tipo || 'gruppo');
 
   // Vincitore: visibile quando la classifica è svelata.
@@ -257,7 +272,7 @@ export default function ContestStudente(props: Proprieta) {
           <div style={{ padding: 'clamp(20px, 4vw, 40px)', display: 'grid', gap: 18, justifyItems: 'center' }}>
             <h2 className="mz-display" style={{ fontSize: 'clamp(32px, 4vw, 52px)', margin: 0, textAlign: 'center' }}>Una persona, <span className="mz-blue">un voto</span>.</h2>
             <p className="mz-muted" style={{ margin: 0, fontSize: 15, textAlign: 'center', maxWidth: 420 }}>Il team resta attivo per le altre attività.</p>
-            <AccessoTeam corsoId={corso.id} soloIndividuale conTitolo={false} schedaIniziale="crea"
+            <AccessoTeam corsoId={corso.id} soloIndividuale conMatricola={richiedeMatricola} conTitolo={false} schedaIniziale="crea"
               onAccesso={t => { if (io) votanteSalvato.accedi(t); else accedi(t); setAccessoVoto(false); }} />
           </div>
         </Sheet>
@@ -349,6 +364,7 @@ export default function ContestStudente(props: Proprieta) {
                 corsoScelto={corsoAccesso ?? null}
                 onScegli={setCorsoAccesso}
                 onAccesso={accedi}
+                conMatricola={richiedeMatricola}
               />
             ) : (
               <>
@@ -403,7 +419,7 @@ export default function ContestStudente(props: Proprieta) {
             )}
             {contest.fase === 'anteprima' && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">{candidatureAperte ? 'Candidature aperte' : 'Il voto si apre più avanti'}</p>}
             {votoFinito && <p style={{ margin: 0, fontSize: 15 }} className="mz-muted">Votazione conclusa</p>}
-            {votoAperto && puoVotare && (
+            {votoAperto && puoVotare && !serveMatricola && (
               <p style={{ margin: 0, fontSize: 14 }}>
                 {mioVoto ? <>Hai votato. Puoi cambiarlo fino alla scadenza.</> : <>Hai <strong>un voto</strong>. Apri una proposta per votarla.</>}
               </p>
@@ -418,6 +434,14 @@ export default function ContestStudente(props: Proprieta) {
         </div>
       )}
       {proposte.length > 1 && scheda === 'proposte' && <Ticker voci={proposte.map(p => p.titolo)} />}
+
+      {puoVotare && serveMatricola && votante && (
+        <div role="note" className="mz-in" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))' }}>
+          <div style={{ padding: '16px 18px', borderRadius: 16, background: 'var(--accento-tenue)', boxShadow: 'inset 0 0 0 1px var(--accento-bordo)' }}>
+            <CompletaMatricola team={votante} onFatto={aggiornaVotante} />
+          </div>
+        </div>
+      )}
 
       {!puoVotare && (
         <div role="note" className="mz-in" style={{ maxWidth: 1440, margin: '18px auto 0', padding: '0 max(20px, env(safe-area-inset-left))' }}>
@@ -485,6 +509,11 @@ export default function ContestStudente(props: Proprieta) {
                   <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">Per votare serve il tuo accesso individuale.</p>
                   <button type="button" className="mz-pill b lg" onClick={() => { setAperta(null); setAccessoVoto(true); }}>Accedi da solo/a per votare →</button>
                 </div>
+              ) : serveMatricola && votante ? (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <p style={{ margin: 0, fontSize: 14 }}>Per votare serve la tua matricola: una matricola, un voto.</p>
+                  <CompletaMatricola team={votante} onFatto={aggiornaVotante} compatto />
+                </div>
               ) : propria ? (
                 <p style={{ margin: 0, fontSize: 14 }} className="mz-muted">È la tua proposta: non puoi votarla.</p>
               ) : !votoAperto ? (
@@ -528,43 +557,5 @@ export default function ContestStudente(props: Proprieta) {
         />
       )}
     </main>
-  );
-}
-
-// Accesso al Contest di ateneo: con l'accesso di un corso dell'ateneo,
-// oppure iscrivendosi solo al contest (nessun corso da frequentare).
-function AccessoAteneo({ corsi, spazioId, corsoScelto, onScegli, onAccesso }: {
-  corsi: { id: string; nome: string }[]; spazioId: string | null; corsoScelto: string | null;
-  onScegli: (id: string | null) => void; onAccesso: (t: any) => void;
-}) {
-  const [modo, setModo] = useState<'contest' | 'corso'>(spazioId && corsoScelto !== null && corsoScelto !== spazioId ? 'corso' : spazioId ? 'contest' : 'corso');
-  useEffect(() => {
-    if (modo === 'contest' && spazioId && corsoScelto !== spazioId) onScegli(spazioId);
-    if (modo === 'corso' && corsoScelto === spazioId) onScegli(null);
-  }, [modo, spazioId, corsoScelto, onScegli]);
-  const ordinati = [...corsi].sort((a, b) => a.nome.localeCompare(b.nome));
-  return (
-    <div style={{ width: '100%', maxWidth: 460, textAlign: 'left', display: 'grid', gap: 18 }}>
-      {spazioId && corsi.length > 0 && (
-        <Segmentato
-          etichetta="Come entri"
-          valore={modo}
-          onCambia={setModo}
-          opzioni={[{ id: 'contest', label: 'Solo per il contest' }, { id: 'corso', label: 'Con il mio corso' }]}
-        />
-      )}
-      {modo === 'corso' && (
-        <label className="mz-field">
-          <span className="mz-mono">Il tuo corso</span>
-          <select className="mz-input" value={corsoScelto || ''} onChange={e => onScegli(e.target.value || null)}>
-            <option value="">Scegli il corso…</option>
-            {ordinati.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-        </label>
-      )}
-      {corsoScelto && (
-        <AccessoTeam key={corsoScelto} corsoId={corsoScelto} onAccesso={onAccesso} soloIndividuale schedaIniziale={modo === 'contest' ? 'crea' : 'accedi'} conTitolo={false} />
-      )}
-    </div>
   );
 }

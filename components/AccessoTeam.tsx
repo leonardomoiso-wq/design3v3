@@ -21,6 +21,10 @@ export const messaggioErroreTeam = (codice: string) => {
     case 'team_non_trovato': return 'Nessun team trovato con questo nome.';
     case 'risposta_errata': return 'Risposta segreta errata.';
     case 'nome_cognome_mancanti': return 'Scrivi nome e cognome, entrambi per intero.';
+    case 'matricola_gia_usata': return 'Questa matricola è già registrata. Entra con l’accesso che hai già (se l’hai creato in un corso, scegli «Con il mio corso»).';
+    case 'matricola_non_valida': return 'La matricola ha da 4 a 12 lettere o cifre, senza spazi.';
+    case 'matricola_gia_impostata': return 'La matricola di questo accesso è già impostata e non si può cambiare.';
+    case 'matricola_solo_individuale': return 'La matricola si usa solo per gli accessi individuali.';
     default: return 'Qualcosa è andato storto. Riprova.';
   }
 };
@@ -31,7 +35,7 @@ const DOMANDE_SUGGERITE = [
   'Il soprannome del gruppo alle superiori?',
 ];
 
-export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi', soloIndividuale = false }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea'; soloIndividuale?: boolean }) {
+export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo', conTitolo = true, schedaIniziale = 'accedi', soloIndividuale = false, conMatricola = false }: { corsoId: string; onAccesso: (team: TeamInfo) => void; tipoIniziale?: TipoTeam; conTitolo?: boolean; schedaIniziale?: 'accedi' | 'crea'; soloIndividuale?: boolean; conMatricola?: boolean }) {
   const [scheda, setScheda] = useState<'accedi' | 'crea'>(schedaIniziale);
   // Iscrizione di gruppo o individuale: per alcune attività (es. il
   // Contest) l'impegno è di una persona sola.
@@ -40,6 +44,8 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
   const [nome, setNome] = useState('');
   // Iscrizione individuale: nome e cognome in due campi, entrambi obbligatori.
   const [cognome, setCognome] = useState('');
+  // Matricola: richiesta dai contest che la vogliono (un voto a matricola).
+  const [matricola, setMatricola] = useState('');
   const [password, setPassword] = useState('');
   const [domandaSegreta, setDomandaSegreta] = useState('');
   const [rispostaSegreta, setRispostaSegreta] = useState('');
@@ -67,6 +73,10 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
       setErrore('Scrivi nome e cognome, entrambi per intero.');
       return;
     }
+    if (individuale && conMatricola && !/^[A-Za-z0-9]{4,12}$/.test(matricola.replace(/\s+/g, ''))) {
+      setErrore('Scrivi la tua matricola: da 4 a 12 lettere o cifre.');
+      return;
+    }
     if (!nome.trim() || !password.trim()) {
       setErrore(individuale ? 'Compila nome e password.' : 'Compilate nome e password.');
       return;
@@ -82,7 +92,7 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         setErrore('Questo è l’accesso di un team. Per votare serve un accesso individuale: scegli «Iscriviti» e registrati con il tuo nome.');
         return;
       }
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : 'gruppo' });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : 'gruppo', matricola: riga.matricola ?? null });
     } else {
       if (!domandaSegreta.trim() || !rispostaSegreta.trim()) {
         setInCorso(false);
@@ -93,11 +103,12 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         p_corso_id: corsoId, p_nome: individuale ? `${nome.trim()} ${cognome.trim()}` : nome, p_password: password, p_domanda_segreta: domandaSegreta, p_risposta_segreta: rispostaSegreta,
         p_membri: tipo === 'individuale' ? [] : membri.map(m => m.trim()).filter(Boolean),
         p_tipo: tipo,
+        ...(individuale && conMatricola ? { p_matricola: matricola } : {}),
       });
       setInCorso(false);
       if (error || !data?.[0]) { setErrore(messaggioErroreTeam(error?.message || '')); return; }
       const riga = data[0];
-      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : tipo });
+      onAccesso({ id: riga.id, numero: riga.numero, nome: riga.nome, password, membri: riga.membri || [], tipo: riga.tipo === 'individuale' ? 'individuale' : tipo, matricola: riga.matricola ?? null });
     }
   };
 
@@ -187,6 +198,9 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
           ) : (
             <input type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={mostraRecupero} placeholder={scheda === 'accedi' ? (soloIndividuale ? 'Nome e cognome' : 'Nome del team (o nome e cognome)') : individuale ? 'Nome e cognome' : 'Nome del team'} aria-label="Nome" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
           )}
+          {individuale && conMatricola && (
+            <input type="text" value={matricola} onChange={e => setMatricola(e.target.value)} disabled={mostraRecupero} placeholder="Matricola (es. 312345)" aria-label="Matricola" inputMode="text" autoCapitalize="characters" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 font-mono focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
+          )}
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={mostraRecupero} aria-label="Password" placeholder={individuale ? 'La tua password' : 'Password'} className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-stone-50/50 focus:outline-none focus:ring-2 focus:ring-stone-900 disabled:opacity-50" />
 
           {scheda === 'crea' && (
@@ -261,5 +275,32 @@ export default function AccessoTeam({ corsoId, onAccesso, tipoIniziale = 'gruppo
         </div>
       )}
     </>
+  );
+}
+
+// Per chi ha già un accesso individuale senza matricola: la aggiunge una
+// volta sola (poi non si cambia). Serve nei contest che la richiedono.
+export function CompletaMatricola({ team, onFatto, compatto = false }: { team: TeamInfo; onFatto: (team: TeamInfo) => void; compatto?: boolean }) {
+  const [valore, setValore] = useState('');
+  const [errore, setErrore] = useState('');
+  const [inCorso, setInCorso] = useState(false);
+  const salva = async () => {
+    setErrore('');
+    if (!/^[A-Za-z0-9]{4,12}$/.test(valore.replace(/\s+/g, ''))) { setErrore('Scrivi la tua matricola: da 4 a 12 lettere o cifre.'); return; }
+    setInCorso(true);
+    const { data, error } = await supabase.rpc('team_imposta_matricola', { p_team_id: team.id, p_password: team.password, p_matricola: valore });
+    setInCorso(false);
+    if (error) { setErrore(messaggioErroreTeam(error.message)); return; }
+    onFatto({ ...team, matricola: (data as string) || valore });
+  };
+  return (
+    <form onSubmit={e => { e.preventDefault(); salva(); }} style={{ display: 'grid', gap: 10, width: '100%', maxWidth: compatto ? undefined : 440 }}>
+      {!compatto && <p style={{ margin: 0, fontSize: 15 }}>Per votare serve la tua <strong>matricola</strong>: una matricola, un voto. Una volta inserita non si cambia.</p>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input value={valore} onChange={e => setValore(e.target.value)} placeholder="Matricola (es. 312345)" aria-label="Matricola" autoCapitalize="characters" className="mz-input" style={{ flex: '1 1 180px', fontFamily: 'var(--f-label, monospace)' }} />
+        <button type="submit" className="mz-pill b" disabled={inCorso}>{inCorso ? 'Salvo…' : 'Aggiungi la matricola'}</button>
+      </div>
+      {errore && <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: 14 }}>{errore}</p>}
+    </form>
   );
 }

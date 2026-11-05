@@ -354,7 +354,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il voto dal vivo in aula</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Il/la docente può aprire anche un voto dal vivo per il pubblico: inquadrate il QR sullo schermo oppure aprite <b>/contest/live</b> e scrivete il codice di 4 cifre. Non serve iscriversi: un voto per telefono.
+              Il/la docente può aprire anche un voto dal vivo per il pubblico: inquadrate il QR sullo schermo oppure aprite <b>/contest/live</b> e scrivete il codice di 4 cifre. Di norma non serve iscriversi (un voto per telefono); se il contest richiede la matricola, prima si entra con nome, cognome e matricola: una matricola, un voto.
             </p>
           </div>
         </div>

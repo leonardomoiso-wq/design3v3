@@ -17,7 +17,7 @@ import { QR } from '@/components/moiso/QR';
 import Info from '@/components/Info';
 
 type Sezione = 'gestione' | 'proposte' | 'dati' | 'iscritti';
-type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean; voto_zona?: string | null; voto_dispositivo?: string | null; voto_il?: string | null };
+type Iscritto = { numero: number; tipo?: 'individuale' | 'gruppo'; nome: string; membri: string[]; creato_il: string; team_id?: string; corso_nome?: string; spazio?: boolean; ha_votato?: boolean; conta?: boolean; motivo?: string | null; escluso?: boolean; nome_completo?: boolean; eliminabile?: boolean; voto_zona?: string | null; voto_dispositivo?: string | null; voto_il?: string | null; matricola?: string | null; ha_votato_live?: boolean; live_conta?: boolean; voto_live_il?: string | null };
 const STATI_ATTIVITA: { id: StatoAttivita; label: string }[] = [
   { id: 'bozza', label: 'Bozza' }, { id: 'prossimamente', label: 'In arrivo' }, { id: 'attiva', label: 'Attiva' }, { id: 'archiviata', label: 'Archiviata' },
 ];
@@ -66,8 +66,8 @@ export default function ContestDocentePage() {
   const [scadenza, setScadenza] = useState('');
   const [caricaCopertina, setCaricaCopertina] = useState(false);
   // Regole del conteggio (pesi, voti che non contano), salvate a parte.
-  type Regole = { peso_remoto: number; peso_live: number; nome_singolo: boolean; senza_posizione: boolean; zone: string[] };
-  const regoleDi = (c: Contest | null): Regole => ({ peso_remoto: c?.peso_remoto ?? 1, peso_live: c?.peso_live ?? 1, nome_singolo: !!c?.escludi_nome_singolo, senza_posizione: !!c?.escludi_senza_posizione, zone: c?.zone_escluse || [] });
+  type Regole = { peso_remoto: number; peso_live: number; nome_singolo: boolean; senza_posizione: boolean; zone: string[]; senza_matricola: boolean };
+  const regoleDi = (c: Contest | null): Regole => ({ peso_remoto: c?.peso_remoto ?? 1, peso_live: c?.peso_live ?? 1, nome_singolo: !!c?.escludi_nome_singolo, senza_posizione: !!c?.escludi_senza_posizione, zone: c?.zone_escluse || [], senza_matricola: !!c?.escludi_senza_matricola });
   const [regole, setRegole] = useState<Regole>(regoleDi(null));
   const [confermaElimina, setConfermaElimina] = useState<string | null>(null);
   // Controllo del database: avvisa se le funzioni del Contest non sono allineate
@@ -149,7 +149,7 @@ export default function ContestDocentePage() {
     return () => clearInterval(t);
   }, [caricaProposte]);
 
-  useEffect(() => { setRegole(regoleDi(sel)); }, [sel?.id, sel?.peso_remoto, sel?.peso_live, sel?.escludi_nome_singolo, sel?.escludi_senza_posizione, (sel?.zone_escluse || []).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRegole(regoleDi(sel)); }, [sel?.id, sel?.peso_remoto, sel?.peso_live, sel?.escludi_nome_singolo, sel?.escludi_senza_posizione, (sel?.zone_escluse || []).join('|'), sel?.escludi_senza_matricola]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sel) return;
@@ -178,6 +178,7 @@ export default function ContestDocentePage() {
   const salvaRegole = () => sel && rpc('docente_regole_conteggio', {
     p_id: sel.id, p_peso_remoto: regole.peso_remoto, p_peso_live: regole.peso_live,
     p_escludi_nome_singolo: regole.nome_singolo, p_escludi_senza_posizione: regole.senza_posizione, p_zone_escluse: regole.zone,
+    p_escludi_senza_matricola: regole.senza_matricola,
   }, 'Conteggio aggiornato');
   const escludiVoto = async (teamId: string, escluso: boolean) => { if (sel) { await rpc('docente_escludi_voto', { p_contest_id: sel.id, p_team_id: teamId, p_escluso: escluso }, escluso ? 'Voto escluso dal conteggio' : 'Voto riammesso'); caricaIscritti(); } };
   const eliminaVotante = async (teamId: string) => { if (sel) { await rpc('docente_elimina_votante', { p_contest_id: sel.id, p_team_id: teamId }, 'Utenza eliminata'); setConfermaElimina(null); caricaIscritti(); } };
@@ -193,11 +194,12 @@ export default function ContestDocentePage() {
       if (/^[=+\-@]/.test(t)) t = "'" + t; // niente formule involontarie in Excel
       return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
     };
-    const intestazione = ['Nome', 'Tipo', 'Membri', 'Iscrizione', 'Iscritto il', 'Ha votato', 'Il voto conta', 'Motivo', 'Città del voto', 'Dispositivo', 'Votato il'];
+    const intestazione = ['Nome', 'Matricola', 'Tipo', 'Membri', 'Iscrizione', 'Iscritto il', 'Ha votato da remoto', 'Il voto conta', 'Motivo', 'Città del voto', 'Dispositivo', 'Votato il', 'Ha votato in aula', 'Il voto in aula conta', 'Votato in aula il'];
     const corpo = righe.map(r => {
       const individuale = r.tipo === 'individuale';
       return [
         r.nome,
+        r.matricola || '',
         individuale ? 'individuale' : 'team',
         individuale ? '' : (r.membri || []).join(', '),
         r.spazio ? 'solo per il contest' : (r.corso_nome || corso.nome),
@@ -208,6 +210,9 @@ export default function ContestDocentePage() {
         r.voto_zona || '',
         r.voto_dispositivo ? (ETICHETTA_DISPOSITIVO[r.voto_dispositivo] || r.voto_dispositivo) : '',
         data_(r.voto_il),
+        !individuale ? '' : r.ha_votato_live ? 'sì' : 'no',
+        individuale && r.ha_votato_live ? (r.live_conta === false ? 'no' : 'sì') : '',
+        data_(r.voto_live_il),
       ];
     });
     const testo = '\ufeff' + [intestazione, ...corpo].map(r => r.map(cella).join(';')).join('\r\n');
@@ -405,7 +410,7 @@ export default function ContestDocentePage() {
                   </div>
                 </Riquadro>
 
-                <Riquadro n="02" titolo="Voto dal vivo, dal pubblico" info="Il pubblico vota dal telefono senza iscriversi, un voto per dispositivo, con il QR o il codice proiettato. Un voto dal vivo aperto alla volta.">
+                <Riquadro n="02" titolo="Voto dal vivo, dal pubblico" info={sel.richiedi_matricola ? 'Il pubblico vota dal telefono con il QR o il codice proiettato: prima entra con nome, cognome e matricola, poi vota (una matricola, un voto). Un voto dal vivo aperto alla volta.' : 'Il pubblico vota dal telefono senza iscriversi, un voto per dispositivo, con il QR o il codice proiettato. Un voto dal vivo aperto alla volta.'}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 24, alignItems: 'start' }}>
                     <div style={{ display: 'grid', gap: 14 }}>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -489,6 +494,19 @@ export default function ContestDocentePage() {
                 </Riquadro>
 
                 <Riquadro n="04" titolo="Conteggio dei voti" info="I voti esclusi restano salvati: puoi riammetterli quando vuoi. Classifica e vincitore usano i punti pesati.">
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '14px 16px', borderRadius: 14, background: sel.richiedi_matricola ? 'var(--accento-tenue)' : 'var(--paper)', boxShadow: `inset 0 0 0 1px ${sel.richiedi_matricola ? 'var(--accento-bordo)' : 'var(--line)'}` }}>
+                    <div style={{ display: 'grid', gap: 4, minWidth: 0, flex: '1 1 320px' }}>
+                      <strong style={{ fontSize: 15 }}>Un voto a matricola</strong>
+                      <span style={{ fontSize: 13.5 }} className="mz-muted">
+                        {sel.richiedi_matricola
+                          ? 'Attivo: per votare servono nome, cognome e matricola, da remoto e in aula. Il QR apre prima l’accesso.'
+                          : 'Spento: da remoto basta l’accesso individuale, in aula si vota per dispositivo.'}
+                      </span>
+                    </div>
+                    <button type="button" className={`mz-pill ${sel.richiedi_matricola ? 'o' : 'b'}`} onClick={() => rpc('docente_imposta_matricola_contest', { p_id: sel.id, p_richiedi: !sel.richiedi_matricola }, sel.richiedi_matricola ? 'Matricola non più richiesta' : 'Matricola richiesta per votare')}>
+                      {sel.richiedi_matricola ? 'Disattiva' : 'Richiedi la matricola'}
+                    </button>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 18 }}>
                     {([['peso_remoto', 'Peso del voto da remoto'], ['peso_live', 'Peso del voto in aula']] as const).map(([k, etichetta]) => (
                       <div key={k} className="mz-field">
@@ -517,6 +535,10 @@ export default function ContestDocentePage() {
                     <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
                       <input type="checkbox" checked={regole.senza_posizione} onChange={e => setRegole({ ...regole, senza_posizione: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
                       i voti senza posizione{typeof stat?.senza_posizione === 'number' ? ` (${stat.senza_posizione})` : ''}
+                    </label>
+                    <label style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', fontSize: 14 }}>
+                      <input type="checkbox" checked={regole.senza_matricola} onChange={e => setRegole({ ...regole, senza_matricola: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--accento)' }} />
+                      i voti senza matricola, anche quelli in aula per dispositivo{stat?.esclusi?.senza_matricola ? ` (${stat.esclusi.senza_matricola})` : ''}
                     </label>
                   </div>
                   <div style={{ display: 'grid', gap: 10 }}>
@@ -604,10 +626,11 @@ export default function ContestDocentePage() {
               const individuali = iscritti.filter(x => x.tipo === 'individuale');
               const votanti = individuali.filter(x => x.ha_votato).length;
               const contano = individuali.filter(x => x.ha_votato && x.conta !== false).length;
+              const inAula = individuali.filter(x => x.ha_votato_live).length;
               const q = filtroIscritti.trim().toLowerCase();
-              const visibili = q ? iscritti.filter(x => [x.nome, x.corso_nome, x.voto_zona].some(v => (v || '').toLowerCase().includes(q))) : iscritti;
+              const visibili = q ? iscritti.filter(x => [x.nome, x.corso_nome, x.voto_zona, x.matricola].some(v => (v || '').toLowerCase().includes(q))) : iscritti;
               return (
-                <Riquadro n={pad(individuali.length)} titolo="Chi può votare da remoto"
+                <Riquadro n={pad(individuali.length)} titolo="Chi può votare"
                   info="Votano solo gli accessi individuali, un voto a testa. Per un contest di ateneo compaiono anche gli iscritti solo al contest e gli accessi degli altri corsi. Si vede chi ha votato, mai per quale proposta."
                   azioni={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button type="button" className="mz-pill sm" onClick={scaricaCsv} disabled={iscritti.length === 0}>Scarica CSV ↓</button>
@@ -619,10 +642,11 @@ export default function ContestDocentePage() {
                   <div style={{ display: 'flex', gap: 16, alignItems: 'end', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', gap: 28 }}>
                       <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(individuali.length)}</span><span className="mz-mono">iscritti individuali</span></div>
-                      {elencoCompleto && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, color: 'var(--accento)' }}>{pad(votanti)}</span><span className="mz-mono">hanno votato</span></div>}
+                      {elencoCompleto && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1, color: 'var(--accento)' }}>{pad(votanti)}</span><span className="mz-mono">{inAula ? 'hanno votato da remoto' : 'hanno votato'}</span></div>}
+                      {inAula > 0 && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(inAula)}</span><span className="mz-mono">in aula</span></div>}
                       {elencoCompleto && contano !== votanti && <div style={{ display: 'grid' }}><span className="mz-display mz-num" style={{ fontSize: 44, lineHeight: 1 }}>{pad(contano)}</span><span className="mz-mono">voti che contano</span></div>}
                     </div>
-                    <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca un nome, un corso o una città" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
+                    <input className="mz-input" style={{ maxWidth: 280 }} placeholder="Cerca nome, matricola, corso o città" aria-label="Cerca tra gli iscritti" value={filtroIscritti} onChange={e => setFiltroIscritti(e.target.value)} />
                   </div>
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     {visibili.map((s, i) => {
@@ -632,7 +656,7 @@ export default function ContestDocentePage() {
                         <li key={s.team_id || s.numero} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: i ? '1px solid var(--line)' : undefined, opacity: puo ? 1 : .45 }}>
                           <div style={{ minWidth: 0 }}>
                             <span className="mz-break" style={{ fontFamily: 'var(--f-display)', fontSize: 19 }}>{s.nome}</span>{' '}
-                            <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{origine ? `, ${origine}` : ''}</span>
+                            <span className="mz-mono">{s.tipo === 'individuale' ? 'individuale' : `gruppo ${s.numero}, ${s.membri.length} membri`}{s.matricola ? `, matricola ${s.matricola}` : ''}{origine ? `, ${origine}` : ''}</span>
                             {puo && s.nome_completo === false && <span className="mz-chip" style={{ marginLeft: 8, cursor: 'default', fontSize: 11, padding: '2px 8px' }}>solo nome</span>}
                             {s.tipo !== 'individuale' && s.membri.length > 0 && <div className="mz-muted mz-break" style={{ fontSize: 13 }}>{s.membri.join(', ')}</div>}
                             {s.ha_votato && (s.voto_zona || s.voto_dispositivo || s.voto_il) && (
@@ -642,6 +666,11 @@ export default function ContestDocentePage() {
                                 {s.voto_il ? `, ${new Date(s.voto_il).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
                               </div>
                             )}
+                            {s.ha_votato_live && (
+                              <div className="mz-muted" style={{ fontSize: 13, marginTop: 2 }}>
+                                Ha votato in aula{s.voto_live_il ? `, ${new Date(s.voto_live_il).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}{s.live_conta === false ? ', non conta' : ''}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                             <span className="mz-mono" style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: s.ha_votato && s.conta !== false ? 'var(--ink)' : undefined }}>
@@ -649,9 +678,10 @@ export default function ContestDocentePage() {
                                 : s.ha_votato ? (s.conta === false
                                   ? <>ha votato, non conta{s.motivo ? `: ${MOTIVO_ESCLUSIONE[s.motivo] || s.motivo}` : ''}</>
                                   : <><span className="mz-live-dot" style={{ width: 7, height: 7 }} />ha votato</>)
+                                : s.ha_votato_live ? 'ha votato in aula'
                                 : elencoCompleto ? 'non ancora' : 'vota'}
                             </span>
-                            {puo && s.team_id && s.ha_votato && (
+                            {puo && s.team_id && (s.ha_votato || s.ha_votato_live) && (
                               <button type="button" className="mz-pill sm ghost" onClick={() => escludiVoto(s.team_id!, !s.escluso)}>{s.escluso ? 'Riammetti' : 'Escludi'}</button>
                             )}
                             {s.team_id && s.eliminabile && (confermaElimina === s.team_id

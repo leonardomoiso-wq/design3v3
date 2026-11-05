@@ -19,7 +19,7 @@ const chiaveSessione = (corsoId: string) => `edu_team_sessione_${corsoId}`;
 // salvate prima dell'iscrizione individuale non hanno il campo: valgono
 // come 'gruppo'.
 export type TipoTeam = 'gruppo' | 'individuale';
-export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[]; tipo?: TipoTeam };
+export type TeamInfo = { id: string; numero: number; nome: string; password: string; membri: string[]; tipo?: TipoTeam; matricola?: string | null };
 
 export const etichettaTeam = (t: Pick<TeamInfo, 'numero' | 'nome' | 'tipo'>) =>
   t.tipo === 'individuale' ? `${t.nome} (individuale)` : `Gruppo ${t.numero} — ${t.nome}`;
