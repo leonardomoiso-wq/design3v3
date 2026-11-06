@@ -292,7 +292,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-titolo { font-size: clamp(38px, 5.6vw, 84px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
 @media (max-width: 760px) { .c8-testata { grid-template-columns: 1fr; } }
 
-.c8-fasi { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); border-top: 1px solid var(--ink); }
+.c8-fasi { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); border-top: 1px solid var(--ink); }
 .c8-fase { all: unset; box-sizing: border-box; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 4px; padding: 12px 12px 14px; border-right: 1px solid var(--line); color: var(--ink); }
 .c8-fase:last-child { border-right: 0; }
 .c8-fase::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-tenue); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .5s var(--ease); }

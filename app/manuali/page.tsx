@@ -215,30 +215,21 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Su cosa lavorate</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scrivete il vostro <b>sotto-ambito</b>: è il primo dei vostri contesti.
+              Scegliete dalla <b>bacheca</b> i contesti preparati dal docente: quanti ne potete scegliere lo decide il docente.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">2</span>
-              <h2 className="text-lg font-serif font-bold">La bacheca dei contesti</h2>
+              <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete dalla bacheca i contesti preparati dal docente: quanti ne potete scegliere lo decide il docente.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">3</span>
-              <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
-            </div>
-            <p className="text-sm text-stone-600">
-              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto, e inviatele. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
               <h2 className="text-lg font-serif font-bold">Gli sketch</h2>
             </div>
             <p className="text-sm text-stone-600">
@@ -247,7 +238,7 @@ function ManualiContenuto() {
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">5</span>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
               <h2 className="text-lg font-serif font-bold">I due migliori</h2>
             </div>
             <p className="text-sm text-stone-600">
@@ -256,7 +247,7 @@ function ManualiContenuto() {
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">6</span>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">5</span>
               <h2 className="text-lg font-serif font-bold">Il prompt</h2>
             </div>
             <p className="text-sm text-stone-600">
@@ -265,7 +256,7 @@ function ManualiContenuto() {
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">7</span>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">6</span>
               <h2 className="text-lg font-serif font-bold">Le immagini generate</h2>
             </div>
             <p className="text-sm text-stone-600">

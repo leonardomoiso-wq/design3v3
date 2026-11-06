@@ -64,7 +64,7 @@ export function PannelloContesti({ attivitaId, passcode, contesti, contestiPerTe
             <input type="number" min={0} max={50} value={valore} onChange={e => setValore(e.target.value)} onBlur={() => salvaConfig(Math.max(0, Math.min(50, Number(valore) || 0)))} className="mz-input" style={{ width: 80, padding: '6px 10px' }} aria-label="Numero di contesti per team" />
           </label>
         </div>
-        <p className="text-xs text-stone-500">Il sotto-ambito del team conta già come primo contesto. 0 = nessun limite.</p>
+        <p className="text-xs text-stone-500">È la prima scelta dei team entrando in Crazy 8. 0 = nessun limite.</p>
       </section>
 
       <section className="space-y-2">
@@ -223,7 +223,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
             <div>
               <p className="mz-display" style={{ fontSize: 40 }}>{teamDi(corrente.submission)?.nome || corrente.submission.gruppo_nome}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--ink-2)' }}>{(teamDi(corrente.submission)?.membri || []).join(', ') || `Gruppo ${corrente.submission.gruppo_num}`}</p>
-              {corrente.submission.hmw_o_tema && <p className="mz-mono mt-2" style={{ textTransform: 'none' }}>Sotto-ambito: {corrente.submission.hmw_o_tema}</p>}
+              {corrente.submission.hmw_o_tema && <p className="mz-mono mt-2" style={{ textTransform: 'none' }}>Contesti: {corrente.submission.hmw_o_tema}</p>}
             </div>
             {(corrente.submission.hmw as Hmw[]).map((h, i) => {
               const rev = (corrente.submission.hmw_revisione || [])[i] || null;

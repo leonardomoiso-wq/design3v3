@@ -107,13 +107,12 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Su cosa lavorate', sottotitolo: 'Il vostro sotto-ambito: è il primo dei vostri contesti.' },
-  { n: 2, icona: '📌', breve: 'Contesti', titolo: 'Scegliete i contesti', sottotitolo: 'Dalla bacheca preparata dal/dalla docente scegliete i contesti in cui portare il vostro lavoro.' },
-  { n: 3, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Componete due domande "Come potremmo…": il/la docente le rivede e, quando sono pronte, sblocca gli sketch.' },
-  { n: 4, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ognuna delle due domande, 8 idee di prodotto su carta. Poi una foto per sketch, dal telefono.' },
-  { n: 5, icona: '🔍', breve: 'Selezione', titolo: 'I due migliori', sottotitolo: 'Per ogni domanda scegliete lo sketch che risponde meglio e scrivete cosa ci vedete.' },
-  { n: 6, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Componete il prompt per migliorare lo sketch con l\'AI image-to-image e apritelo nel modello che preferite.' },
-  { n: 7, icona: '🖼️', breve: 'Immagini', titolo: 'Le immagini generate', sottotitolo: 'Caricate le immagini migliori ottenute dal modello.' },
+  { n: 1, icona: '📌', breve: 'Contesti', titolo: 'Su cosa lavorate', sottotitolo: 'Scegliete dalla bacheca i contesti preparati dal/dalla docente.' },
+  { n: 2, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Componete due domande "Come potremmo…": il/la docente le rivede e, quando sono pronte, sblocca gli sketch.' },
+  { n: 3, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ognuna delle due domande, 8 idee di prodotto su carta. Poi una foto per sketch, dal telefono.' },
+  { n: 4, icona: '🔍', breve: 'Selezione', titolo: 'I due migliori', sottotitolo: 'Per ogni domanda scegliete lo sketch che risponde meglio e scrivete cosa ci vedete.' },
+  { n: 5, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Componete il prompt per migliorare lo sketch con l\'AI image-to-image e apritelo nel modello che preferite.' },
+  { n: 6, icona: '🖼️', breve: 'Immagini', titolo: 'Le immagini generate', sottotitolo: 'Caricate le immagini migliori ottenute dal modello.' },
 ] as const;
 
 export const NUMERO_FASI = FASI.length;
@@ -158,14 +157,13 @@ export const sottoAmbitiDi = (s: Pick<Submission, 'hmw_o_tema'> | null) =>
 export function faseEffettiva(s: Submission): number {
   let fase = Math.max(1, s.fase_raggiunta || 1);
   const sketch = s.immagini || [];
-  if (sottoAmbitiDi(s).length > 0) fase = Math.max(fase, 2);
-  if ((s.contesti || []).length > 0) fase = Math.max(fase, 3);
-  if (s.sketch_sbloccato && s.hmw_inviate) fase = Math.max(fase, 4);
-  if (sketch.length > 0) fase = Math.max(fase, 5);
-  if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 6);
-  if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 7);
+  if ((s.contesti || []).length > 0) fase = Math.max(fase, 2);
+  if (s.sketch_sbloccato && s.hmw_inviate) fase = Math.max(fase, 3);
+  if (sketch.length > 0) fase = Math.max(fase, 4);
+  if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 5);
+  if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 6);
   // gli sketch si aprono solo quando il/la docente li sblocca
-  if (!s.sketch_sbloccato) fase = Math.min(fase, 3);
+  if (!s.sketch_sbloccato) fase = Math.min(fase, 2);
   return Math.min(NUMERO_FASI, fase);
 }
 

@@ -2,13 +2,12 @@
 import type { Contesto } from './shared';
 
 // Bacheca dei contesti preparata dal/dalla docente: il team ne sceglie
-// quanti ne permette l'attività (0 = quanti vuole). Il sotto-ambito del
-// team è sempre il primo contesto, già "appuntato".
-export default function BachecaContesti({ contesti, scelti, massimo, sottoAmbiti, onCambia }: {
+// quanti ne permette l'attività (0 = quanti vuole). È il primo passo del
+// percorso: i contesti scelti diventano gli ambiti su cui lavora il team.
+export default function BachecaContesti({ contesti, scelti, massimo, onCambia }: {
   contesti: Contesto[];
   scelti: string[];
   massimo: number;
-  sottoAmbiti: string[];
   onCambia: (ids: string[]) => void;
 }) {
   const pieno = massimo > 0 && scelti.length >= massimo;
@@ -26,12 +25,6 @@ export default function BachecaContesti({ contesti, scelti, massimo, sottoAmbiti
         {pieno && <span className="text-xs text-stone-500">Per cambiarne uno, togliete prima un contesto scelto.</span>}
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 entra-cascata">
-        {sottoAmbiti.map(sa => (
-          <div key={sa} className="rounded-2xl p-5 bg-stone-900 text-white min-h-[140px] flex flex-col justify-between">
-            <span className="mz-mono" style={{ color: 'var(--accent-vivo)' }}>Il vostro sotto-ambito</span>
-            <span className="text-2xl leading-tight" style={{ fontFamily: 'var(--f-display)', letterSpacing: '-.02em' }}>{sa}</span>
-          </div>
-        ))}
         {contesti.map((c, i) => {
           const on = scelti.includes(c.id);
           const spento = !on && pieno;

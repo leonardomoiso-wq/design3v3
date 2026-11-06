@@ -10,7 +10,7 @@ import { percorsoCorso, type Corso } from '../../lib/corsi';
 import { Solidi } from '../../components/moiso/Moiso';
 import { due } from '../../components/Vetrina';
 import {
-  FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, sottoAmbitiDi, visioneDi, useControlloDbCrazy8,
+  FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
   nomeContesto, testoHmw, type Contesto, type Generazione, type Hmw, type Sketch, type Submission,
 } from '../../components/crazy8/shared';
 import PromptConfiguratore, { MOTORI } from '../../components/crazy8/PromptConfiguratore';
@@ -29,7 +29,7 @@ const TUTORIAL_VISTO_KEY = 'crazy8_fasi_tutorial_visto';
 
 const TUTORIAL_SLIDES = [
   { icona: '👥', titolo: 'Prima il team', testo: 'Ogni attività ha i suoi team: uno di voi lo crea, gli altri entrano con nome e password.' },
-  { icona: '📌', titolo: 'Sotto-ambito e contesti', testo: 'Partite dal vostro sotto-ambito e scegliete altri contesti dalla bacheca del docente.' },
+  { icona: '📌', titolo: 'Scegliete i contesti', testo: 'Dalla bacheca preparata dal docente scegliete i contesti su cui lavorare.' },
   { icona: '❓', titolo: 'Due domande "Come potremmo…"', testo: 'Riempite gli spazi della formula. Il docente le rivede in aula e sblocca gli sketch.' },
   { icona: '✏️', titolo: '8 sketch per domanda', testo: 'Su carta, poi una foto dal telefono. Scegliete il migliore per ogni domanda e miglioratelo con l\'AI.' },
 ];
@@ -81,17 +81,38 @@ function normalizza(s: any): Submission {
 
 function TutorialOverlay({ onChiudi }: { onChiudi: () => void }) {
   const [indice, setIndice] = useState(0);
+  const primo = indice === 0;
   const ultimo = indice === TUTORIAL_SLIDES.length - 1;
   const slide = TUTORIAL_SLIDES[indice];
+  const avanti = () => (ultimo ? onChiudi() : setIndice(i => i + 1));
+  const indietro = () => setIndice(i => Math.max(0, i - 1));
+
+  // frecce della tastiera per scorrere, Esc per chiudere
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setIndice(i => Math.min(TUTORIAL_SLIDES.length - 1, i + 1));
+      if (e.key === 'ArrowLeft') setIndice(i => Math.max(0, i - 1));
+      if (e.key === 'Escape') onChiudi();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onChiudi]);
+
   return (
     <div className="mz c8-tutorial" style={{ background: 'var(--ink)', color: 'var(--paper)' }} role="dialog" aria-modal="true" aria-label="Come funziona Crazy 8">
+      <button type="button" className="mz-pill sm ghost" style={{ position: 'absolute', top: 20, right: 20, color: '#a8a29e' }} onClick={onChiudi} aria-label="Chiudi il tutorial">Salta ✕</button>
       <div key={indice} className="mz-in" style={{ maxWidth: 760, width: '100%', display: 'grid', gap: 22 }}>
         <span className="mz-mono" style={{ color: 'var(--accent-vivo)' }}>Crazy 8 ({due(indice + 1)} / {due(TUTORIAL_SLIDES.length)})</span>
         <h2 className="mz-display">{slide.titolo}</h2>
         <p style={{ margin: 0, fontSize: 'clamp(17px, 1.8vw, 22px)', lineHeight: 1.45, color: '#d6d3d1', maxWidth: 560 }}>{slide.testo}</p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', paddingTop: 8 }}>
-          <button type="button" className="mz-pill b lg" onClick={() => (ultimo ? onChiudi() : setIndice(i => i + 1))}>{ultimo ? 'Inizia' : 'Avanti →'}</button>
-          {!ultimo && <button type="button" className="mz-pill ghost" style={{ color: '#a8a29e' }} onClick={onChiudi}>Salta</button>}
+        <div style={{ display: 'flex', gap: 6 }} aria-hidden="true">
+          {TUTORIAL_SLIDES.map((_, i) => (
+            <span key={i} style={{ height: 4, width: i === indice ? 28 : 10, borderRadius: 4, background: i === indice ? 'var(--accent-vivo)' : '#57534e', transition: 'width .4s' }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', paddingTop: 4 }}>
+          <button type="button" className="mz-pill ghost" style={{ color: '#d6d3d1' }} disabled={primo} onClick={indietro}>← Indietro</button>
+          <button type="button" className="mz-pill b lg" onClick={avanti}>{ultimo ? 'Inizia' : 'Avanti →'}</button>
         </div>
       </div>
     </div>
@@ -260,7 +281,6 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const segnalaCaricamento = (attivo: boolean) => setCaricamentiAttivi(n => Math.max(0, n + (attivo ? 1 : -1)));
   const [fase, setFase] = useState(1);
   const [erroreAzione, setErroreAzione] = useState('');
-  const [sottoAmbiti, setSottoAmbiti] = useState<string[]>(['']);
   const [promptInviato, setPromptInviato] = useState(false);
   const [sketchInRevisione, setSketchInRevisione] = useState<string | null>(null);
   const faseImpostata = useRef(false);
@@ -338,8 +358,6 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     if (attiva && !faseImpostata.current) {
       faseImpostata.current = true;
       setFase(faseEffettiva(attiva));
-      const salvati = sottoAmbitiDi(attiva);
-      setSottoAmbiti(salvati.length ? salvati : ['']);
     }
   }, [attiva]);
 
@@ -393,14 +411,6 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       if (!ok) return;
     }
     vaiAFase(n);
-  };
-
-  // === fase 1 ===
-  const salvaSottoAmbiti = async () => {
-    const puliti = sottoAmbiti.map(s => s.trim()).filter(Boolean);
-    if (puliti.length === 0) { setErroreAzione('Serve almeno un sotto-ambito.'); return; }
-    patch({ hmw_o_tema: puliti.join('; ') });
-    if (await salvaCampi({ sotto_ambito: puliti.join('; ') })) avanzaA(2);
   };
 
   // === fase 4: sketch per domanda ===
@@ -521,11 +531,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
   // === dati derivati ===
   const massimoContesti = Number(attivitaInfo.config?.contesti_per_team ?? 2);
-  const sottoAmbitiAttiva = sottoAmbitiDi(attiva);
   const sceltiValidi = attiva.contesti.filter(id => contesti.some(c => c.id === id));
   const contestiRichiesti = contesti.length === 0 ? 0 : massimoContesti > 0 ? Math.min(massimoContesti, contesti.length) : 1;
   const opzioniContesto = [
-    ...sottoAmbitiAttiva.map(sa => ({ id: `proprio:${sa}`, etichetta: sa, proprio: true })),
     ...sceltiValidi.map(id => ({ id, etichetta: nomeContesto(id, contesti), proprio: false })),
   ];
   const sketchTutti = attiva.immagini;
@@ -539,36 +547,21 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     switch (fase) {
       case 1:
         return (
-          <div className="space-y-5 max-w-2xl">
-            <div className="space-y-2">
-              {sottoAmbiti.map((sa, i) => (
-                <div key={i} className="flex gap-1.5 items-center">
-                  <input type="text" value={sa} onChange={e => setSottoAmbiti(prev => prev.map((x, j) => (j === i ? e.target.value : x)))} placeholder={sottoAmbiti.length > 1 ? `Sotto-ambito ${i + 1}` : 'Il vostro sotto-ambito progettuale'} aria-label={`Sotto-ambito ${i + 1}`} className="mz-input" style={{ fontSize: 18 }} />
-                  {sottoAmbiti.length > 1 && (
-                    <button type="button" onClick={() => setSottoAmbiti(prev => prev.filter((_, j) => j !== i))} className="mz-pill sm ghost danger" aria-label="Rimuovi">✕</button>
-                  )}
-                </div>
-              ))}
-              <button type="button" onClick={() => setSottoAmbiti(prev => [...prev, ''])} className="mz-pill sm ghost">+ Un altro sotto-ambito</button>
-            </div>
-            <NavigazioneFase fase={1} onIndietro={() => {}} onAvanti={salvaSottoAmbiti} avantiPossibile={sottoAmbiti.some(sa => sa.trim())} motivoBlocco="Scrivete il vostro sotto-ambito" etichettaAvanti="Avanti: i contesti" />
-          </div>
-        );
-
-      case 2:
-        return (
           <div className="space-y-6">
             <BachecaContesti
               contesti={contesti}
               scelti={sceltiValidi}
               massimo={massimoContesti}
-              sottoAmbiti={sottoAmbitiAttiva}
-              onCambia={ids => { patch({ contesti: ids }); salvaCampi({ contesti: ids }); }}
+              onCambia={ids => {
+                const titoli = ids.map(id => nomeContesto(id, contesti)).filter(Boolean).join('; ');
+                patch({ contesti: ids, hmw_o_tema: titoli });
+                salvaCampi({ contesti: ids, sotto_ambito: titoli });
+              }}
             />
             <NavigazioneFase
-              fase={2}
-              onIndietro={() => vaiAFase(1)}
-              onAvanti={() => avanzaA(3)}
+              fase={1}
+              onIndietro={() => {}}
+              onAvanti={() => avanzaA(2)}
               avantiPossibile={sceltiValidi.length >= contestiRichiesti}
               motivoBlocco={massimoContesti > 0 ? `Scegliete ${contestiRichiesti} contest${contestiRichiesti === 1 ? 'o' : 'i'}` : 'Scegliete almeno un contesto'}
               etichettaAvanti="Avanti: le domande"
@@ -576,7 +569,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           </div>
         );
 
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
             <ComponiHmw
@@ -589,9 +582,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onInvia={async () => { patch({ hmw_inviate: true }); await salvaCampi({ hmw_inviate: true }); }}
             />
             <NavigazioneFase
-              fase={3}
-              onIndietro={() => vaiAFase(2)}
-              onAvanti={() => avanzaA(4)}
+              fase={2}
+              onIndietro={() => vaiAFase(1)}
+              onAvanti={() => avanzaA(3)}
               avantiPossibile={attiva.sketch_sbloccato}
               motivoBlocco={attiva.hmw_inviate ? 'In attesa che il/la docente sblocchi gli sketch' : 'Inviate le due domande al docente'}
               etichettaAvanti="Avanti: gli sketch"
@@ -599,7 +592,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           </div>
         );
 
-      case 4:
+      case 3:
         return (
           <div className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-5">
@@ -638,9 +631,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               })}
             </div>
             <NavigazioneFase
-              fase={4}
-              onIndietro={() => vaiAFase(3)}
-              onAvanti={() => avanzaA(5)}
+              fase={3}
+              onIndietro={() => vaiAFase(2)}
+              onAvanti={() => avanzaA(4)}
               avantiPossibile={sketchDi(0).length > 0 && sketchDi(1).length > 0}
               motivoBlocco="Caricate gli sketch di entrambe le domande"
               etichettaAvanti="Abbiamo finito: scegliamo i migliori"
@@ -648,7 +641,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           </div>
         );
 
-      case 5: {
+      case 4: {
         const inPrimoPiano = sketchTutti.find(s => s.id === sketchInRevisione) || sketchSelezionati[0] || sketchTutti[0] || null;
         return (
           <div className="space-y-6">
@@ -687,12 +680,12 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 </section>
               )}
             </div>
-            <NavigazioneFase fase={5} onIndietro={() => vaiAFase(4)} onAvanti={() => avanzaA(6)} avantiPossibile={!!migliore(0) && !!migliore(1)} motivoBlocco="Scegliete uno sketch per ogni domanda (★)" etichettaAvanti="Avanti: il prompt" />
+            <NavigazioneFase fase={4} onIndietro={() => vaiAFase(3)} onAvanti={() => avanzaA(5)} avantiPossibile={!!migliore(0) && !!migliore(1)} motivoBlocco="Scegliete uno sketch per ogni domanda (★)" etichettaAvanti="Avanti: il prompt" />
           </div>
         );
       }
 
-      case 6:
+      case 5:
         return (
           <div className="space-y-6">
             <PromptConfiguratore
@@ -707,20 +700,20 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onPromptInviato={(sketchId, prompt, motore) => {
                 try { localStorage.setItem(chiaveUltimoPrompt(sketchId), JSON.stringify({ prompt, motore })); } catch { /* non bloccante */ }
                 setPromptInviato(true);
-                if (raggiunta < 7) { patch({ fase_raggiunta: 7 }); salvaCampi({ fase_raggiunta: 7 }); }
+                if (raggiunta < 6) { patch({ fase_raggiunta: 6 }); salvaCampi({ fase_raggiunta: 6 }); }
               }}
             />
             {promptInviato && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
                 <p className="text-sm text-emerald-800 m-0">Quando il modello vi ha restituito qualcosa di interessante, salvate le immagini migliori e caricatele.</p>
-                <button type="button" onClick={() => avanzaA(7)} className="mz-pill sm">Carica le immagini →</button>
+                <button type="button" onClick={() => avanzaA(6)} className="mz-pill sm">Carica le immagini →</button>
               </div>
             )}
-            <NavigazioneFase fase={6} onIndietro={() => vaiAFase(5)} onAvanti={() => avanzaA(7)} avantiPossibile={sketchSelezionati.length > 0} etichettaAvanti="Ho generato: carico le immagini" />
+            <NavigazioneFase fase={5} onIndietro={() => vaiAFase(4)} onAvanti={() => avanzaA(6)} avantiPossibile={sketchSelezionati.length > 0} etichettaAvanti="Ho generato: carico le immagini" />
           </div>
         );
 
-      case 7:
+      case 6:
         return (
           <div className="space-y-6">
             {sketchSelezionati.map(s => (
@@ -747,7 +740,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               </section>
             ))}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
-              <button type="button" onClick={() => vaiAFase(6)} className="mz-pill ghost">← Prompt</button>
+              <button type="button" onClick={() => vaiAFase(5)} className="mz-pill ghost">← Prompt</button>
               {attiva.stato === 'consegnato' || attiva.stato === 'revisionato' ? (
                 <span className="text-sm font-medium text-emerald-700">✓ Consegnato. Potete ancora aggiungere immagini.</span>
               ) : (
@@ -779,10 +772,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               <span className="mz-sup">({due(fase)} / {due(NUMERO_FASI)})</span>
               {infoFase.sottotitolo && <Info>{infoFase.sottotitolo}</Info>}
             </h1>
-            {sottoAmbitiAttiva.length > 0 && fase > 1 && (
+            {sceltiValidi.length > 0 && fase > 1 && (
               <div className="flex flex-wrap gap-1.5">
-                {sottoAmbitiAttiva.map(sa => <span key={sa} className="mz-chip on" style={{ cursor: 'default' }}>{sa}</span>)}
-                {sceltiValidi.map(id => <span key={id} className="mz-chip" style={{ cursor: 'default' }}>{nomeContesto(id, contesti)}</span>)}
+                {sceltiValidi.map(id => <span key={id} className="mz-chip on" style={{ cursor: 'default' }}>{nomeContesto(id, contesti)}</span>)}
               </div>
             )}
           </div>

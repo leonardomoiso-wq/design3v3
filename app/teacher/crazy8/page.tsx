@@ -464,7 +464,7 @@ export default function Crazy8DocentePage() {
         ) : (
           <div key={`${corrente.sketch.id}-${corrente.round?.id ?? 'sketch'}`} className="flex-1 flex flex-col items-center justify-center px-12 pb-10 animate-fade-in-up">
             <span className="text-xs uppercase tracking-widest text-stone-500 mb-2">Gruppo {corrente.submission.gruppo_num} — {corrente.submission.gruppo_nome}</span>
-            <h1 className="text-3xl font-serif font-bold text-white text-center max-w-3xl mb-2">{corrente.submission.hmw_o_tema || 'Senza sotto-ambito'}</h1>
+            <h1 className="text-3xl font-serif font-bold text-white text-center max-w-3xl mb-2">{corrente.submission.hmw_o_tema || 'Contesti non ancora scelti'}</h1>
             <p className="text-stone-500 text-xs uppercase tracking-widest mb-8">{corrente.round ? `Round ${corrente.round.ordine}` : 'Sketch di partenza'}</p>
 
             {!corrente.round ? (
@@ -558,7 +558,7 @@ export default function Crazy8DocentePage() {
             onClick={() => setSelezionataId(s.id)}
             className={`w-full text-left p-3 rounded-xl border transition ${selezionataId === s.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-400'}`}
           >
-            <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</div>
+            <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Contesti non ancora scelti'}</div>
             <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} — {s.gruppo_nome}</div>
             <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')}<Sep />{s.immagini.length} sketch</div>
             {s.team_attivita_id && (
@@ -586,7 +586,7 @@ export default function Crazy8DocentePage() {
             <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
                 <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
-                <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Senza sotto-ambito'}</h1>
+                <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Contesti non ancora scelti'}</h1>
                 {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
                 <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} — {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
               </div>
