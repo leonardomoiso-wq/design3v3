@@ -5,7 +5,9 @@ import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
-import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, visioniDi, type Submission } from '@/components/crazy8/shared';
+import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, visioniDi, nomeContesto, testoHmw, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
+import { PannelloContesti, WallHmw, type TeamAttivitaElenco } from '@/components/crazy8/Docente';
+import { BottomSheet } from '@/components/PannelliMobile';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -288,6 +290,42 @@ export default function Crazy8DocentePage() {
   };
   const [vistaDettaglio, setVistaDettaglio] = useState<'galleria' | 'timeline'>('galleria');
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
+  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number } } | null>(null);
+  const [contesti, setContesti] = useState<Contesto[]>([]);
+  const [teamsAtt, setTeamsAtt] = useState<TeamAttivitaElenco[]>([]);
+  const [mostraContesti, setMostraContesti] = useState(false);
+  const [mostraWall, setMostraWall] = useState(false);
+
+  // attività Crazy 8 del corso, con la sua bacheca e i suoi team
+  const caricaAttivitaC8 = async () => {
+    const { data } = await supabase.from('attivita').select('id, config').eq('corso_id', corso.id).eq('tipo', 'crazy8_ai').maybeSingle();
+    if (!data) return;
+    setAttivitaC8({ id: data.id, config: data.config || {} });
+    const [{ data: c }, { data: t }] = await Promise.all([
+      supabase.from('contesti_crazy8').select('id, titolo, descrizione, ordine').eq('attivita_id', data.id).order('ordine'),
+      supabase.rpc('elenco_team_attivita', { p_attivita_id: data.id }),
+    ]);
+    setContesti((c || []) as Contesto[]);
+    setTeamsAtt((t || []) as TeamAttivitaElenco[]);
+  };
+
+  const eliminaConsegna = async (s: any) => {
+    if (!window.confirm(`Eliminare la consegna di "${s.gruppo_nome}"? Sketch, domande e immagini generate verranno cancellati. Non si può annullare.`)) return;
+    const { error } = await supabase.rpc('docente_elimina_submission_crazy8', { p_id: s.id, p_passcode: passcode });
+    if (error) { window.alert('Eliminazione non riuscita: password docente non valida o database da aggiornare.'); return; }
+    setSubmissions(prev => prev.filter(x => x.id !== s.id));
+    setSelezionataId(null);
+  };
+
+  const revisionaHmw = async (s: any, indice: number, stato: 'ok' | 'rivedere' | null) => {
+    const { error } = await supabase.rpc('docente_revisione_hmw_crazy8', { p_id: s.id, p_indice: indice, p_stato: stato, p_passcode: passcode });
+    if (!error) caricaSubmissions();
+  };
+
+  const sbloccaSketch = async (s: any, valore: boolean) => {
+    const { error } = await supabase.rpc('docente_sblocca_sketch_crazy8', { p_id: s.id, p_valore: valore, p_passcode: passcode });
+    if (!error) caricaSubmissions();
+  };
 
   const caricaSubmissions = async () => {
     const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').eq('corso_id', corso.id).order('created_at', { ascending: false });
@@ -324,6 +362,7 @@ export default function Crazy8DocentePage() {
   useEffect(() => {
     caricaSubmissions();
     caricaCommenti();
+    caricaAttivitaC8();
 
     const channel = supabase
       .channel(`realtime-crazy8-docente-${corso.id}`)
@@ -331,6 +370,7 @@ export default function Crazy8DocentePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commenti' }, caricaCommenti)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contesti_crazy8' }, caricaAttivitaC8)
       .subscribe();
 
     return () => {
@@ -479,6 +519,22 @@ export default function Crazy8DocentePage() {
           <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Consegne ({submissions.length})</h2>
           <div className="flex gap-1.5">
             <button
+              onClick={() => setMostraContesti(true)}
+              disabled={!attivitaC8}
+              title="Bacheca dei contesti"
+              className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition disabled:opacity-30"
+            >
+              📌
+            </button>
+            <button
+              onClick={() => { caricaAttivitaC8(); setMostraWall(true); }}
+              disabled={!attivitaC8}
+              title="Wall delle domande HMW"
+              className="text-[10px] bg-amber-400 text-stone-900 px-2.5 py-1 rounded-full font-bold hover:bg-amber-300 transition disabled:opacity-30"
+            >
+              Wall HMW
+            </button>
+            <button
               onClick={() => setMostraPromptSuggeriti(true)}
               title="Prompt suggeriti"
               className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition"
@@ -505,6 +561,12 @@ export default function Crazy8DocentePage() {
             <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</div>
             <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} — {s.gruppo_nome}</div>
             <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')}<Sep />{s.immagini.length} sketch</div>
+            {s.team_attivita_id && (
+              <div className="flex gap-1 mt-1.5 flex-wrap">
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${s.hmw_inviate ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>{s.hmw_inviate ? 'HMW inviate' : 'HMW in corso'}</span>
+                {s.sketch_sbloccato && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Sketch aperti</span>}
+              </div>
+            )}
           </button>
         ))}
       </div>
@@ -529,6 +591,7 @@ export default function Crazy8DocentePage() {
                 <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} — {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
               </div>
               <div className="flex gap-1.5">
+                <button type="button" onClick={() => eliminaConsegna(selezionata)} className="text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 text-stone-500 hover:border-red-500 hover:text-red-600 transition">Elimina consegna</button>
                 {STATI.map(st => (
                   <button
                     key={st}
@@ -569,6 +632,45 @@ export default function Crazy8DocentePage() {
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Riflessione Finale</h3>
                     <p className="text-xs text-stone-700 leading-relaxed">{selezionata.riflessione}</p>
                   </div>
+                )}
+              </div>
+            )}
+
+            {selezionata.team_attivita_id && (
+              <div className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Team dell&apos;attività</h3>
+                    <p className="text-sm text-stone-800 mt-1">{(teamsAtt.find(t => t.id === selezionata.team_attivita_id)?.membri || []).join(', ') || selezionata.gruppo_nome}</p>
+                    {Array.isArray(selezionata.contesti) && selezionata.contesti.length > 0 && (
+                      <p className="text-xs text-stone-500 mt-1">Contesti: {selezionata.contesti.map((id: string) => nomeContesto(id, contesti) || '—').join(', ')}</p>
+                    )}
+                  </div>
+                  {selezionata.sketch_sbloccato ? (
+                    <button type="button" onClick={() => sbloccaSketch(selezionata, false)} className="text-xs px-3 py-1.5 rounded-full border border-stone-200 text-stone-600 hover:border-stone-400">Sketch aperti — richiudi</button>
+                  ) : (
+                    <button type="button" onClick={() => sbloccaSketch(selezionata, true)} className="text-xs px-3 py-1.5 rounded-full bg-amber-400 text-stone-900 font-bold hover:bg-amber-300">Sblocca gli sketch</button>
+                  )}
+                </div>
+                {Array.isArray(selezionata.hmw) && selezionata.hmw.length > 0 ? (
+                  <div className="space-y-2">
+                    {(selezionata.hmw as Hmw[]).map((h, i) => {
+                      const rev = (selezionata.hmw_revisione || [])[i] || null;
+                      return (
+                        <div key={i} className={`rounded-xl border p-3 ${rev === 'ok' ? 'border-emerald-300 bg-emerald-50/50' : rev === 'rivedere' ? 'border-red-300 bg-red-50/50' : 'border-stone-200'}`}>
+                          <p className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Domanda {i + 1} — {nomeContesto(h.contesto, contesti) || 'contesto'}</p>
+                          <p className="text-sm text-stone-900 mt-1">{testoHmw(h)}</p>
+                          <div className="flex gap-1.5 mt-2">
+                            <button type="button" onClick={() => revisionaHmw(selezionata, i, rev === 'ok' ? null : 'ok')} className={`text-[11px] px-2.5 py-1 rounded-full border ${rev === 'ok' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-stone-200 text-stone-600'}`}>✓ Pertinente</button>
+                            <button type="button" onClick={() => revisionaHmw(selezionata, i, rev === 'rivedere' ? null : 'rivedere')} className={`text-[11px] px-2.5 py-1 rounded-full border ${rev === 'rivedere' ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 text-stone-600'}`}>Da rivedere</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!selezionata.hmw_inviate && <p className="text-xs text-stone-400">Il team non ha ancora inviato le domande.</p>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-400">Nessuna domanda ancora.</p>
                 )}
               </div>
             )}
@@ -663,6 +765,14 @@ export default function Crazy8DocentePage() {
           onCambiaIndice={i => setLightbox(l => (l ? { ...l, indice: i } : l))}
           onChiudi={() => setLightbox(null)}
         />
+      )}
+      {attivitaC8 && (
+        <BottomSheet aperto={mostraContesti} onChiudi={() => setMostraContesti(false)} etichetta="Bacheca dei contesti" titolo="Bacheca dei contesti" larghezzaDesktop="md:max-w-xl">
+          <PannelloContesti attivitaId={attivitaC8.id} passcode={passcode} contesti={contesti} contestiPerTeam={Number(attivitaC8.config.contesti_per_team ?? 2)} onCambiato={caricaAttivitaC8} />
+        </BottomSheet>
+      )}
+      {mostraWall && attivitaC8 && (
+        <WallHmw attivitaId={attivitaC8.id} submissions={submissions} contesti={contesti} teams={teamsAtt} passcode={passcode} onChiudi={() => setMostraWall(false)} onCambiato={caricaSubmissions} />
       )}
       {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} corsoId={corso.id} onChiudi={() => setMostraPromptSuggeriti(false)} />}
     </div>

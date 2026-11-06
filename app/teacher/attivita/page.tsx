@@ -13,6 +13,59 @@ const STATI: { valore: StatoAttivita; etichetta: string; descrizione: string }[]
   { valore: 'archiviata', etichetta: 'Archiviata', descrizione: 'Non più mostrata in home' },
 ];
 
+// Ogni attività ha la sua composizione dei team (tabella team_attivita):
+// qui si vede chi c'è, con nomi e membri, e si può eliminare un team
+// (con la sua consegna) o svuotare tutto per ripartire.
+function TeamDellAttivita({ attivitaId, passcode }: { attivitaId: string; passcode: string }) {
+  const [teams, setTeams] = useState<{ id: string; numero: number; nome: string; membri: string[] }[] | null>(null);
+  const [aperto, setAperto] = useState(false);
+  const [errore, setErrore] = useState('');
+
+  const carica = async () => {
+    const { data, error } = await supabase.rpc('elenco_team_attivita', { p_attivita_id: attivitaId });
+    setTeams(error ? [] : ((data || []) as any[]));
+  };
+  useEffect(() => { carica(); }, [attivitaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const elimina = async (id: string, nome: string) => {
+    if (!window.confirm(`Eliminare il team "${nome}"? Si cancella anche la sua consegna in questa attività.`)) return;
+    const { error } = await supabase.rpc('docente_elimina_team_attivita', { p_id: id, p_passcode: passcode });
+    if (error) setErrore('Eliminazione non riuscita.'); else carica();
+  };
+
+  const svuota = async () => {
+    if (!window.confirm('Eliminare tutti i team di questa attività (e le loro consegne)? Gli studenti dovranno ricomporli.')) return;
+    const { error } = await supabase.rpc('docente_svuota_team_attivita', { p_attivita_id: attivitaId, p_passcode: passcode });
+    if (error) setErrore('Operazione non riuscita.'); else carica();
+  };
+
+  if (teams === null) return null;
+  return (
+    <div className="pt-3 border-t border-stone-100 space-y-2">
+      <button type="button" onClick={() => setAperto(v => !v)} className="w-full flex items-center justify-between text-left" aria-expanded={aperto}>
+        <span className="text-xs font-bold uppercase tracking-widest text-stone-500">Team dell&apos;attività ({teams.length})</span>
+        <span className="text-stone-400 text-sm">{aperto ? '−' : '+'}</span>
+      </button>
+      {aperto && (
+        <div className="space-y-1.5">
+          {teams.length === 0 && <p className="text-xs text-stone-400">Nessun team ancora: si compongono quando gli studenti entrano nell&apos;attività.</p>}
+          {teams.map(t => (
+            <div key={t.id} className="flex items-start justify-between gap-3 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-stone-900">{String(t.numero).padStart(2, '0')} {t.nome}</p>
+                <p className="text-xs text-stone-500">{t.membri.join(', ')}</p>
+              </div>
+              <button type="button" onClick={() => elimina(t.id, t.nome)} className="text-[11px] text-stone-400 hover:text-red-600 flex-shrink-0">Elimina</button>
+            </div>
+          ))}
+          {teams.length > 0 && <button type="button" onClick={svuota} className="text-[11px] text-stone-400 hover:text-red-600">Elimina tutti i team di questa attività</button>}
+          {errore && <p className="text-xs text-red-600">{errore}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
@@ -276,6 +329,7 @@ export default function AttivitaPannelloPage() {
                   label="Riflessione obbligatoria"
                 />
               </div>
+              <TeamDellAttivita attivitaId={a.id} passcode={passcode} />
             </div>
           );
         })}

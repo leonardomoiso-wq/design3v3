@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Sep from '@/components/Sep';
 import { Miniatura, scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
 
-type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string };
+type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string; domanda?: string | null; nomeContesto?: string | null };
 
 // Configuratore del prompt per il miglioramento generativo degli sketch.
 // Le scelte "a chip" danno struttura, ma da sole producono immagini che
@@ -145,12 +145,14 @@ function componi(c: Config, sottoAmbito: string | null, interpretazione: string 
   const obiettivo = OBIETTIVI.find(o => o.id === c.obiettivo) || OBIETTIVI[0];
   seg.push({ testo: obiettivo.testo + '.', tipo: 'scelta' });
   if (sottoAmbito) seg.push({ testo: ` Ambito di progetto: ${sottoAmbito}.`, tipo: 'base' });
+  if (contesto.nomeContesto) seg.push({ testo: ` Contesto: ${contesto.nomeContesto}.`, tipo: 'base' });
+  if (contesto.domanda) seg.push({ testo: ` L'idea risponde alla domanda: "${contesto.domanda}"`, tipo: 'vostro' });
   if (OBIETTIVI_NEL_MONDO.includes(c.obiettivo) && contesto.visione) {
     const pulisci = (t: string) => t.trim().replace(/[.?]$/, '');
     const parti: string[] = [];
     if (contesto.visione.segnale) parti.push(`oggi ${pulisci(contesto.visione.segnale)}`);
     if (contesto.visione.visione) parti.push(`${contesto.orizzonte ? `nel ${contesto.orizzonte}` : 'tra qualche anno'} ${pulisci(contesto.visione.visione)}`);
-    if (parti.length) seg.push({ testo: ` Contesto: ${parti.join('; ')}.`, tipo: 'vostro' });
+    if (parti.length) seg.push({ testo: ` Scenario: ${parti.join('; ')}.`, tipo: 'vostro' });
   }
   if (c.cosa.trim()) seg.push({ testo: ` Il progetto: ${c.cosa.trim().replace(/\.$/, '')}.`, tipo: 'vostro' });
   else if (interpretazione?.trim()) seg.push({ testo: ` Il progetto: ${interpretazione.trim().replace(/\.$/, '')}.`, tipo: 'base' });
@@ -230,8 +232,9 @@ function Chip({ attivo, onClick, children }: { attivo: boolean; onClick: () => v
 }
 
 export default function PromptConfiguratore({
-  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, visioneDi, orizzonte = '',
+  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, visioneDi, orizzonte = '', domandaDi,
 }: {
+  domandaDi?: (sketch: Sketch) => { domanda: string; contesto: string } | null;
   visioneDi: (sottoAmbito: string | null) => VisioneSottoAmbito | null;
   orizzonte?: string;
   sketchSelezionati: Sketch[];
@@ -279,8 +282,12 @@ export default function PromptConfiguratore({
 
   const sketch = sketchSelezionati.find(s => s.id === sketchId) || null;
   const segmenti = useMemo(
-    () => componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente, { visione: visioneDi(sketch?.sotto_ambito || null), orizzonte }),
-    [config, sketch, suggerimentiDocente, visioneDi, orizzonte],
+    () => {
+      const d = sketch && domandaDi ? domandaDi(sketch) : null;
+      return componi(config, sketch?.sotto_ambito || null, sketch?.interpretazione || null, suggerimentiDocente,
+        { visione: visioneDi(sketch?.sotto_ambito || null), orizzonte, domanda: d?.domanda || null, nomeContesto: d?.contesto || null });
+    },
+    [config, sketch, suggerimentiDocente, visioneDi, orizzonte, domandaDi],
   );
   const promptComposto = segmenti.map(s => s.testo).join('').trim();
   const promptFinale = (config.manuale ?? promptComposto).trim();

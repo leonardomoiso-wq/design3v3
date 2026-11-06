@@ -202,83 +202,74 @@ function ManualiContenuto() {
         <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">1</span>
-              <h2 className="text-lg font-serif font-bold">Sotto-ambiti</h2>
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">0</span>
+              <h2 className="text-lg font-serif font-bold">Il team dell&apos;attività</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Indicate i vostri <b>sotto-ambiti</b>. Per ognuno scrivete in una riga <b>cosa sta cambiando oggi</b> e <b>come potrebbe essere tra qualche anno</b>. Se volete, scegliete un orizzonte (2030–2050).
+              Ogni attività ha i suoi team. Entrando in Crazy 8 uno di voi <b>crea il team</b> (nome, membri, password), gli altri <b>entrano</b> con nome e password. Il docente vede i team nel pannello attività.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">1</span>
+              <h2 className="text-lg font-serif font-bold">Su cosa lavorate</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              Scrivete il vostro <b>sotto-ambito</b>: è il primo dei vostri contesti.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">2</span>
-              <h2 className="text-lg font-serif font-bold">Sketch col telefono</h2>
+              <h2 className="text-lg font-serif font-bold">La bacheca dei contesti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Fate gli 8 sketch su carta, poi apriteli dal telefono (col team loggato la consegna si riapre da sola) e usate <b>Scatta una foto</b>. Ogni sketch si collega a un sotto-ambito e compare subito anche sul portatile.
+              Scegliete dalla bacheca i contesti preparati dal docente: quanti ne potete scegliere lo decide il docente.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">3</span>
-              <h2 className="text-lg font-serif font-bold">Revisione e selezione</h2>
+              <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Galleria a sinistra, sketch in grande a destra: segnate con la ★ i più promettenti e scrivete cosa ci vedete. Il testo si salva da solo.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto, e inviatele. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
-              <h2 className="text-lg font-serif font-bold">Configuratore di prompt</h2>
+              <h2 className="text-lg font-serif font-bold">Gli sketch</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete cosa ottenere (come se esistesse, scena d&apos;uso, pubblicità, packaging, oppure solo migliorare lo sketch): il contesto del sotto-ambito entra da solo nel prompt. Poi aggiungete qualcosa di vostro nella sezione <b>Rendetelo vostro</b>: i bottoni verso ChatGPT, Gemini, Copilot o Firefly si sbloccano solo così.
+              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>).
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">5</span>
-              <h2 className="text-lg font-serif font-bold">Caricare i risultati</h2>
+              <h2 className="text-lg font-serif font-bold">I due migliori</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Caricate solo le immagini generate migliori: il prompt è già compilato, indicate il modello usato.
+              Per ogni domanda scegliete con la ★ lo sketch che risponde meglio e scrivete cosa ci vedete.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">6</span>
-              <h2 className="text-lg font-serif font-bold">Riflessione</h2>
+              <h2 className="text-lg font-serif font-bold">Il prompt</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni immagine: cosa funziona, cosa no, cosa chiederete al prossimo giro. <b>Reitera</b> riporta al configuratore con lo spunto già inserito.
+              Il configuratore compone il prompt partendo dallo sketch e dalla sua domanda; aggiungete qualcosa di vostro per sbloccare ChatGPT, Gemini, Copilot o Firefly, allegate lo sketch e generate.
             </p>
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">7</span>
-              <h2 className="text-lg font-serif font-bold">Moodboard</h2>
+              <h2 className="text-lg font-serif font-bold">Le immagini generate</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete 4-5 immagini (la prima è la copertina), una didascalia per ognuna, il nome del concept, le caratteristiche e le motivazioni.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">8</span>
-              <h2 className="text-lg font-serif font-bold">Valutazione</h2>
-            </div>
-            <p className="text-sm text-stone-600">
-              Per ogni immagine finale: un nome, i <b>tag del corso</b> e i <b>4 driver</b>, come per i casi studio. Il/la docente può poi confrontarle sul radar.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">9</span>
-              <h2 className="text-lg font-serif font-bold">Share</h2>
-            </div>
-            <p className="text-sm text-stone-600">
-              Presentate il concept a schermo intero: sotto-ambiti, moodboard e punteggi, con qualche domanda per aprire la discussione.
+              Caricate le immagini migliori ottenute dal modello e, quando avete finito, consegnate.
             </p>
           </div>
         </div>

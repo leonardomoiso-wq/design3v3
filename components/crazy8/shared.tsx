@@ -26,6 +26,7 @@ export type Sketch = {
   selezionato: boolean;
   interpretazione: string | null;
   sotto_ambito: string | null;
+  domanda: number | null; // 0 o 1: a quale delle due HMW risponde
   generazioni_crazy8: Generazione[];
 };
 
@@ -42,6 +43,29 @@ export type VoceMoodboard = {
   tags?: string[];
   driver?: ValutazioneDriver;
 };
+
+// Una domanda "How Might We" composta a spazi vuoti: Come potremmo
+// [azione] per [utente] così che [risultato]? Il contesto è l'id di un
+// contesto della bacheca oppure "proprio:<sotto-ambito>".
+export type Hmw = { contesto: string; azione: string; utente: string; risultato: string };
+
+export const HMW_VUOTA: Hmw = { contesto: '', azione: '', utente: '', risultato: '' };
+
+export const hmwCompleta = (h: Hmw | undefined) => !!h && !!h.azione.trim() && !!h.utente.trim() && !!h.risultato.trim();
+
+export function testoHmw(h: Hmw | undefined): string {
+  if (!h) return '';
+  const p = (t: string, segnaposto: string) => t.trim().replace(/[.?]+$/, '') || segnaposto;
+  return `Come potremmo ${p(h.azione, '…')} per ${p(h.utente, '…')} così che ${p(h.risultato, '…')}?`;
+}
+
+export type Contesto = { id: string; titolo: string; descrizione: string | null; ordine: number };
+
+// Etichetta del contesto di una HMW (bacheca del docente o sotto-ambito del team)
+export function nomeContesto(id: string, contesti: Contesto[]): string {
+  if (id.startsWith('proprio:')) return id.slice('proprio:'.length);
+  return contesti.find(c => c.id === id)?.titolo || '';
+}
 
 // Fase 1: per ogni sotto-ambito, cosa sta cambiando oggi e come
 // potrebbe essere tra qualche anno. Le chiavi segnale/what_if/tipo_futuro/
@@ -67,6 +91,12 @@ export type Submission = {
   fase_raggiunta: number;
   moodboard: VoceMoodboard[] | null;
   scenario: Scenario | null;
+  team_attivita_id: string | null;
+  contesti: string[];
+  hmw: Hmw[];
+  hmw_inviate: boolean;
+  hmw_revisione: (('ok' | 'rivedere') | null)[];
+  sketch_sbloccato: boolean;
   concept_titolo: string | null;
   concept_descrizione: string | null;
   concept_motivazioni: string | null;
@@ -77,15 +107,13 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Su cosa lavorate', sottotitolo: 'Per ognuno: cosa sta cambiando oggi e come potrebbe essere tra qualche anno. Tutto il lavoro partirà da qui.' },
-  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Gli 8 sketch', sottotitolo: '8 idee in 8 minuti sui vostri sotto-ambiti, su carta. Poi una foto per ogni sketch, dal telefono.' },
-  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Scegliete gli sketch', sottotitolo: 'Scegliete gli sketch più promettenti per ogni sotto-ambito e scrivete cosa ci vedete.' },
-  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Fate vedere l\'idea nel suo contesto: componete il prompt, rendetelo vostro e apritelo nel modello che preferite.' },
-  { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Le immagini migliori', sottotitolo: 'Solo quelle che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
-  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Cosa funziona', sottotitolo: 'Cosa funziona, cosa no, e cosa chiederete al prossimo giro.' },
-  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'La moodboard', sottotitolo: '4-5 immagini che raccontano il concept dei vostri sotto-ambiti, con una didascalia ciascuna.' },
-  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'La valutazione', sottotitolo: 'Per ogni immagine: un nome, i tag del corso e i 4 driver, come per i casi studio.' },
-  { n: 9, icona: '📣', breve: 'Share', titolo: 'Presentate il concept', sottotitolo: 'Raccontate il concept sotto-ambito per sotto-ambito e motivate le vostre scelte.' },
+  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Su cosa lavorate', sottotitolo: 'Il vostro sotto-ambito: è il primo dei vostri contesti.' },
+  { n: 2, icona: '📌', breve: 'Contesti', titolo: 'Scegliete i contesti', sottotitolo: 'Dalla bacheca preparata dal/dalla docente scegliete i contesti in cui portare il vostro lavoro.' },
+  { n: 3, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Componete due domande "Come potremmo…": il/la docente le rivede e, quando sono pronte, sblocca gli sketch.' },
+  { n: 4, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ognuna delle due domande, 8 idee di prodotto su carta. Poi una foto per sketch, dal telefono.' },
+  { n: 5, icona: '🔍', breve: 'Selezione', titolo: 'I due migliori', sottotitolo: 'Per ogni domanda scegliete lo sketch che risponde meglio e scrivete cosa ci vedete.' },
+  { n: 6, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Componete il prompt per migliorare lo sketch con l\'AI image-to-image e apritelo nel modello che preferite.' },
+  { n: 7, icona: '🖼️', breve: 'Immagini', titolo: 'Le immagini generate', sottotitolo: 'Caricate le immagini migliori ottenute dal modello.' },
 ] as const;
 
 export const NUMERO_FASI = FASI.length;
@@ -130,12 +158,14 @@ export const sottoAmbitiDi = (s: Pick<Submission, 'hmw_o_tema'> | null) =>
 export function faseEffettiva(s: Submission): number {
   let fase = Math.max(1, s.fase_raggiunta || 1);
   const sketch = s.immagini || [];
-  if (sketch.length > 0) fase = Math.max(fase, 2);
-  if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 4);
-  if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 6);
-  const voci = s.moodboard || [];
-  if (voci.length > 0) fase = Math.max(fase, 7);
-  if (voci.some(v => v.driver && Object.keys(v.driver).length > 0)) fase = Math.max(fase, 8);
+  if (sottoAmbitiDi(s).length > 0) fase = Math.max(fase, 2);
+  if ((s.contesti || []).length > 0) fase = Math.max(fase, 3);
+  if (s.sketch_sbloccato && s.hmw_inviate) fase = Math.max(fase, 4);
+  if (sketch.length > 0) fase = Math.max(fase, 5);
+  if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 6);
+  if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 7);
+  // gli sketch si aprono solo quando il/la docente li sblocca
+  if (!s.sketch_sbloccato) fase = Math.min(fase, 3);
   return Math.min(NUMERO_FASI, fase);
 }
 
@@ -258,7 +288,7 @@ export function scaricaDataUrl(url: string, nomeFile: string) {
 // Il database di Crazy 8 è allineato al codice? Se mancano colonne o
 // funzioni (migrazione non eseguita, o una vecchia rieseguita) i
 // salvataggi fallirebbero con errori generici: qui si scopre prima.
-export const MIGRAZIONE_CRAZY8 = 'supabase/migrations/20261021_crazy8_riallinea.sql';
+export const MIGRAZIONE_CRAZY8 = 'supabase/migrations/20261021_crazy8_riallinea.sql e poi 20261022_crazy8_team_contesti_hmw.sql';
 
 export function useControlloDbCrazy8(): string[] {
   const [problemi, setProblemi] = useState<string[]>([]);

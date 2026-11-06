@@ -24,17 +24,17 @@
 
 ## 3. Crazy 8 + co-creazione generativa (`/crazy8`, `/teacher/crazy8`)
 
-Nove fasi (`components/crazy8/shared.tsx`, `FASI`):
-1. Sotto-ambiti: cosa cambia oggi e come potrebbe essere tra qualche anno (orizzonte).
-2. Sketch: 8 idee in 8 minuti su carta, una foto per sketch.
-3. Selezione e interpretazione degli sketch.
-4. Prompt: configuratore che compone il prompt (parole degli studenti evidenziate) da aprire nel modello preferito; prompt suggeriti dal docente.
-5. Risultati: si caricano le immagini generate migliori, legate a sketch e prompt (round).
-6. Riflessione e reiterazione.
-7. Moodboard del concept (4–5 immagini con didascalia).
-8. Valutazione delle immagini finali: nome, tag del corso, 4 driver (le immagini valutate diventano "concept" sul radar, `lib/conceptRadar.ts`).
-9. Share: presentazione del concept sotto-ambito per sotto-ambito.
-Il docente vede consegne, round, deduzioni, commenti per immagine; l'attività può richiedere log dei prompt e riflessione.
+Prima di tutto il **team dell'attività** (`team_attivita`, una composizione per ogni attività, visibile nel pannello attività): uno studente lo crea (nome, membri, password), gli altri entrano; la consegna del team usa la password del team come codice (stesso hash, `crea_submission_crazy8_team`).
+
+Sette fasi (`components/crazy8/shared.tsx`, `FASI`):
+1. Su cosa lavorate: il sotto-ambito (primo contesto del team).
+2. Bacheca dei contesti curata dal docente (`contesti_crazy8`); `attivita.config.contesti_per_team` = quanti ne sceglie ogni team (0 = nessun limite).
+3. Due HMW a spazi vuoti «Come potremmo [azione] per [utente] così che [risultato]?», ciascuna legata a un contesto; invio al docente (`hmw_inviate`), revisione per domanda (`hmw_revisione`: ok / rivedere) dal wall da proiettare (`components/crazy8/Docente.tsx`), sblocco degli sketch per team o per tutti (`sketch_sbloccato`, controllato anche lato server).
+4. Sketch: 8 per ciascuna domanda (`immagini.domanda` 0/1), foto dal telefono.
+5. Il migliore per ogni domanda (★) con interpretazione.
+6. Prompt: configuratore che include la domanda HMW e il contesto dello sketch.
+7. Immagini generate e consegna.
+Il docente vede consegne, domande, round e commenti; può eliminare una consegna o un team. Moodboard, valutazione e share non fanno più parte del percorso (componenti rimasti per le consegne vecchie).
 
 ## 4. HMW + role-prompting (`/hmw`, `/teacher/hmw`)
 
