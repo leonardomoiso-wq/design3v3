@@ -283,3 +283,34 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 
 /* Nomi lunghi nelle barre: si abbreviano con i puntini. */
 .mz-abbrevia { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* =============================================================
+   Crazy 8: indice delle fasi e testata della fase, nello stesso
+   linguaggio della vetrina (indici in apice, filetti, ambra).
+   ============================================================= */
+.c8-testata { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: end; }
+.c8-titolo { font-size: clamp(38px, 5.6vw, 84px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
+@media (max-width: 760px) { .c8-testata { grid-template-columns: 1fr; } }
+
+.c8-fasi { display: grid; grid-template-columns: repeat(9, minmax(92px, 1fr)); border-top: 1px solid var(--ink); }
+.c8-fase { all: unset; box-sizing: border-box; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 4px; padding: 12px 12px 14px; border-right: 1px solid var(--line); color: var(--ink); }
+.c8-fase:last-child { border-right: 0; }
+.c8-fase::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-tenue); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .5s var(--ease); }
+.c8-fase:hover::before { transform: scaleY(1); }
+.c8-fase::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); transition: background .4s; }
+.c8-fase.fatta::after { background: var(--ink); }
+.c8-fase[aria-current="step"]::after { background: var(--accento-vivo); height: 5px; }
+.c8-fase[aria-current="step"]::before { transform: scaleY(1); }
+.c8-fase:disabled { cursor: not-allowed; color: var(--muted); opacity: .45; }
+.c8-fase:disabled::before { display: none; }
+.c8-fase:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.c8-fase-nome { font-family: var(--f-display); font-size: 17px; letter-spacing: -.02em; line-height: 1.05; white-space: nowrap; }
+@media (max-width: 900px) {
+  .c8-fasi { display: flex; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .c8-fasi::-webkit-scrollbar { display: none; }
+  .c8-fase { flex: 0 0 auto; min-width: 116px; scroll-snap-align: start; }
+}
+
+.c8-tutorial { position: fixed; inset: 0; z-index: 60; background: var(--ink); color: var(--paper); display: grid; place-items: center; padding: 24px; animation: mz-fadein .45s var(--out); }
+.c8-tutorial::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--accento-vivo); }
+.c8-tutorial .mz-display { font-size: clamp(40px, 6.4vw, 96px); }

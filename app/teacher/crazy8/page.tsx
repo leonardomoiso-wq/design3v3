@@ -5,7 +5,7 @@ import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
-import { FASI, NUMERO_FASI, faseEffettiva, visioniDi, type Submission } from '@/components/crazy8/shared';
+import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, visioniDi, type Submission } from '@/components/crazy8/shared';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -275,6 +275,7 @@ export default function Crazy8DocentePage() {
   const { passcode, corso } = useDocente();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selezionataId, setSelezionataId] = useState<string | null>(null);
+  const problemiDb = useControlloDbCrazy8();
   const [commenti, setCommenti] = useState<Record<string, any[]>>({});
   const [nuovoCommento, setNuovoCommento] = useState<Record<string, string>>({});
   const [invioInCorso, setInvioInCorso] = useState<string | null>(null);
@@ -509,6 +510,13 @@ export default function Crazy8DocentePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-8">
+        {problemiDb.length > 0 && (
+          <div role="alert" className="max-w-4xl mx-auto mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-1">
+            <p className="font-bold">Il database di Crazy 8 non è aggiornato: gli studenti non riescono a salvare il loro percorso.</p>
+            <p>Esegui nell&apos;SQL Editor di Supabase <code className="text-xs">{MIGRAZIONE_CRAZY8}</code>, poi ricarica questa pagina.</p>
+            <p className="text-xs text-red-700">{problemiDb.join(' — ')}</p>
+          </div>
+        )}
         {!selezionata ? (
           <div className="text-center text-stone-400 text-sm mt-20">Seleziona una consegna dalla lista.</div>
         ) : (

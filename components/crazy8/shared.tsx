@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import type { ChiaveDriver } from '@/lib/driver';
 
 // Tipi e piccoli componenti condivisi dalle fasi di Crazy 8 (pagina
@@ -76,15 +77,15 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Definite i sotto-ambiti', sottotitolo: 'Per ognuno: cosa sta cambiando oggi e come potrebbe essere tra qualche anno. Tutto il lavoro partirà da qui.' },
-  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Crazy 8: scattate e caricate gli sketch', sottotitolo: '8 idee in 8 minuti sui vostri sotto-ambiti, su carta. Poi una foto per ogni sketch, dal telefono.' },
-  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Rivedete, selezionate, interpretate', sottotitolo: 'Scegliete gli sketch più promettenti per ogni sotto-ambito e scrivete cosa ci vedete.' },
-  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Configurate il prompt', sottotitolo: 'Fate vedere l\'idea nel suo contesto: componete il prompt, rendetelo vostro e apritelo nel modello che preferite.' },
-  { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Caricate le migliori immagini generate', sottotitolo: 'Solo quelle che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
-  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Riflettete e reiterate', sottotitolo: 'Cosa funziona, cosa no, e cosa chiederete al prossimo giro.' },
-  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'Componete la moodboard del concept', sottotitolo: '4-5 immagini che raccontano il concept dei vostri sotto-ambiti, con una didascalia ciascuna.' },
-  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'Valutate le immagini finali', sottotitolo: 'Per ogni immagine: un nome, i tag del corso e i 4 driver, come per i casi studio.' },
-  { n: 9, icona: '📣', breve: 'Share', titolo: 'Share: presentate il concept', sottotitolo: 'Raccontate il concept sotto-ambito per sotto-ambito e motivate le vostre scelte.' },
+  { n: 1, icona: '🧭', breve: 'Sotto-ambiti', titolo: 'Su cosa lavorate', sottotitolo: 'Per ognuno: cosa sta cambiando oggi e come potrebbe essere tra qualche anno. Tutto il lavoro partirà da qui.' },
+  { n: 2, icona: '✏️', breve: 'Sketch', titolo: 'Gli 8 sketch', sottotitolo: '8 idee in 8 minuti sui vostri sotto-ambiti, su carta. Poi una foto per ogni sketch, dal telefono.' },
+  { n: 3, icona: '🔍', breve: 'Selezione', titolo: 'Scegliete gli sketch', sottotitolo: 'Scegliete gli sketch più promettenti per ogni sotto-ambito e scrivete cosa ci vedete.' },
+  { n: 4, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Fate vedere l\'idea nel suo contesto: componete il prompt, rendetelo vostro e apritelo nel modello che preferite.' },
+  { n: 5, icona: '🖼️', breve: 'Risultati', titolo: 'Le immagini migliori', sottotitolo: 'Solo quelle che vale la pena discutere: ognuna resta legata al suo sketch e al prompt usato.' },
+  { n: 6, icona: '💭', breve: 'Riflessione', titolo: 'Cosa funziona', sottotitolo: 'Cosa funziona, cosa no, e cosa chiederete al prossimo giro.' },
+  { n: 7, icona: '🧩', breve: 'Moodboard', titolo: 'La moodboard', sottotitolo: '4-5 immagini che raccontano il concept dei vostri sotto-ambiti, con una didascalia ciascuna.' },
+  { n: 8, icona: '🎯', breve: 'Valutazione', titolo: 'La valutazione', sottotitolo: 'Per ogni immagine: un nome, i tag del corso e i 4 driver, come per i casi studio.' },
+  { n: 9, icona: '📣', breve: 'Share', titolo: 'Presentate il concept', sottotitolo: 'Raccontate il concept sotto-ambito per sotto-ambito e motivate le vostre scelte.' },
 ] as const;
 
 export const NUMERO_FASI = FASI.length;
@@ -251,4 +252,24 @@ export function scaricaDataUrl(url: string, nomeFile: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+
+// Il database di Crazy 8 è allineato al codice? Se mancano colonne o
+// funzioni (migrazione non eseguita, o una vecchia rieseguita) i
+// salvataggi fallirebbero con errori generici: qui si scopre prima.
+export const MIGRAZIONE_CRAZY8 = 'supabase/migrations/20261021_crazy8_riallinea.sql';
+
+export function useControlloDbCrazy8(): string[] {
+  const [problemi, setProblemi] = useState<string[]>([]);
+  useEffect(() => {
+    supabase.rpc('crazy8_controlla_database').then(({ data, error }) => {
+      if (error) {
+        setProblemi(/could not find the function|schema cache|PGRST20|does not exist/i.test(`${error.code} ${error.message}`) ? ['controllo non presente'] : []);
+        return;
+      }
+      setProblemi(((data || []) as any[]).map(r => (typeof r === 'string' ? r : r?.problema)).filter(Boolean));
+    });
+  }, []);
+  return problemi;
 }

@@ -7,9 +7,11 @@ import { comprimiImmagine } from '../../lib/immagine';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam, etichettaTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
-import type { Corso } from '../../lib/corsi';
+import { percorsoCorso, type Corso } from '../../lib/corsi';
+import { Solidi, Segmentato } from '../../components/moiso/Moiso';
+import { due } from '../../components/Vetrina';
 import {
-  FASI, NUMERO_FASI, ORIZZONTI, MIN_MOODBOARD, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi, visioneDi,
+  FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, ORIZZONTI, MIN_MOODBOARD, useControlloDbCrazy8, Miniatura, TestoAutosalvato, faseEffettiva, risolviVoceMoodboard, sottoAmbitiDi, visioneDi,
   type Generazione, type Scenario, type Sketch, type Submission, type VoceMoodboard,
 } from '../../components/crazy8/shared';
 import PromptConfiguratore, { MOTORI } from '../../components/crazy8/PromptConfiguratore';
@@ -77,60 +79,45 @@ function TutorialOverlay({ onChiudi }: { onChiudi: () => void }) {
   const ultimo = indice === TUTORIAL_SLIDES.length - 1;
   const slide = TUTORIAL_SLIDES[indice];
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/95 backdrop-blur-sm flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label="Tutorial Crazy 8">
-      <div key={indice} className="max-w-lg w-full text-center space-y-6 animate-fade-in-up">
-        <span className="text-6xl block" aria-hidden="true">{slide.icona}</span>
-        <h2 className="text-2xl font-serif font-bold text-white">{slide.titolo}</h2>
-        <p className="text-stone-300 text-sm leading-relaxed">{slide.testo}</p>
-        <div className="flex items-center justify-center gap-1.5 pt-2">
-          {TUTORIAL_SLIDES.map((_, i) => (
-            <span key={i} className={`h-1.5 rounded-full transition-all ${i === indice ? 'w-6 bg-white' : 'w-1.5 bg-stone-600'}`} />
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-3 pt-4">
-          <button onClick={onChiudi} className="text-xs text-stone-400 hover:text-white transition px-4 py-2">Salta</button>
-          <button onClick={() => (ultimo ? onChiudi() : setIndice(i => i + 1))} className="bg-white text-stone-900 px-6 py-2.5 rounded-full text-xs font-bold hover:bg-stone-200 transition">
-            {ultimo ? 'Inizia' : 'Avanti →'}
-          </button>
+    <div className="mz c8-tutorial" style={{ background: 'var(--ink)', color: 'var(--paper)' }} role="dialog" aria-modal="true" aria-label="Come funziona Crazy 8">
+      <div key={indice} className="mz-in" style={{ maxWidth: 760, width: '100%', display: 'grid', gap: 22 }}>
+        <span className="mz-mono" style={{ color: 'var(--accent-vivo)' }}>Crazy 8 ({due(indice + 1)} / {due(TUTORIAL_SLIDES.length)})</span>
+        <h2 className="mz-display">{slide.titolo}</h2>
+        <p style={{ margin: 0, fontSize: 'clamp(17px, 1.8vw, 22px)', lineHeight: 1.45, color: '#d6d3d1', maxWidth: 560 }}>{slide.testo}</p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', paddingTop: 8 }}>
+          <button type="button" className="mz-pill b lg" onClick={() => (ultimo ? onChiudi() : setIndice(i => i + 1))}>{ultimo ? 'Inizia' : 'Avanti →'}</button>
+          {!ultimo && <button type="button" className="mz-pill ghost" style={{ color: '#a8a29e' }} onClick={onChiudi}>Salta</button>}
         </div>
       </div>
     </div>
   );
 }
 
+// Indice delle 9 fasi: si apre una fase già raggiunta, le altre restano spente.
 function Stepper({ fase, raggiunta, onVai }: { fase: number; raggiunta: number; onVai: (n: number) => void }) {
+  const corrente = useRef<HTMLButtonElement>(null);
+  useEffect(() => { corrente.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }, [fase]);
   return (
-    <nav aria-label="Fasi dell'attività" className="overflow-x-auto">
-      <ol className="flex items-stretch gap-1.5 min-w-max">
-        {FASI.map(f => {
-          const bloccata = f.n > raggiunta;
-          const corrente = f.n === fase;
-          const fatta = f.n < raggiunta && !corrente;
-          return (
-            <li key={f.n}>
-              <button
-                type="button"
-                disabled={bloccata}
-                onClick={() => onVai(f.n)}
-                aria-current={corrente ? 'step' : undefined}
-                className={`flex items-center gap-2 rounded-full pl-1.5 pr-3.5 py-1.5 text-xs font-medium border transition ${
-                  corrente ? 'bg-stone-900 text-white border-stone-900'
-                    : fatta ? 'bg-white text-stone-700 border-stone-300 hover:border-stone-600'
-                      : bloccata ? 'bg-stone-50 text-stone-300 border-stone-100 cursor-not-allowed'
-                        : 'bg-white text-stone-700 border-amber-300 hover:border-amber-500'
-                }`}
-              >
-                <span className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                  corrente ? 'bg-white text-stone-900' : fatta ? 'bg-emerald-600 text-white' : bloccata ? 'bg-stone-100 text-stone-300' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {fatta ? '✓' : bloccata ? '🔒' : f.n}
-                </span>
-                {f.breve}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+    <nav aria-label="Fasi dell'attività" className="c8-fasi">
+      {FASI.map(f => {
+        const bloccata = f.n > raggiunta;
+        const attuale = f.n === fase;
+        return (
+          <button
+            key={f.n}
+            ref={attuale ? corrente : undefined}
+            type="button"
+            disabled={bloccata}
+            onClick={() => onVai(f.n)}
+            aria-current={attuale ? 'step' : undefined}
+            className={`c8-fase ${f.n < raggiunta && !attuale ? 'fatta' : ''}`}
+            title={bloccata ? 'Si apre quando la fase precedente è pronta' : undefined}
+          >
+            <span className="mz-mono" style={attuale ? { color: 'var(--accento)' } : undefined}>({due(f.n)}){f.n < raggiunta && !attuale ? ' ✓' : ''}</span>
+            <span className="c8-fase-nome">{f.breve}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }
@@ -140,14 +127,14 @@ function NavigazioneFase({ fase, onIndietro, onAvanti, avantiPossibile, motivoBl
 }) {
   const prossima = FASI.find(f => f.n === fase + 1);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-200">
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
       {fase > 1 ? (
-        <button onClick={onIndietro} className="text-xs text-stone-500 hover:text-stone-900 transition">← {FASI[fase - 2].breve}</button>
+        <button type="button" onClick={onIndietro} className="mz-pill ghost">← {FASI[fase - 2].breve}</button>
       ) : <span />}
       {prossima && onAvanti && (
         <div className="flex items-center gap-3 flex-wrap justify-end">
-          {!avantiPossibile && motivoBlocco && <span className="text-[11px] text-stone-400">{motivoBlocco}</span>}
-          <button onClick={onAvanti} disabled={!avantiPossibile} className="bg-stone-900 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-30 disabled:cursor-not-allowed">
+          {!avantiPossibile && motivoBlocco && <span className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12.5, fontWeight: 500 }}>{motivoBlocco}</span>}
+          <button type="button" onClick={onAvanti} disabled={!avantiPossibile} className="mz-pill b lg">
             {etichettaAvanti || `Avanti: ${prossima.breve}`} →
           </button>
         </div>
@@ -269,6 +256,7 @@ export default function Crazy8Page() {
 
 function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
+  const problemiDb = useControlloDbCrazy8();
   const [attivitaInfo, setAttivitaInfo] = useState<{ id: string; stato: string; richiediLogPrompt: boolean; richiediRiflessione: boolean } | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'percorso' | 'elenco' | 'share'>('percorso');
   const [mostraTutorial, setMostraTutorial] = useState(false);
@@ -629,16 +617,22 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       : submissions;
 
   if (attivitaInfo === undefined) {
-    return <main className="min-h-screen flex items-center justify-center text-sm text-stone-400">Caricamento...</main>;
+    return <main className="mz" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><span className="mz-mono mz-breathe">Caricamento…</span></main>;
   }
 
   if (attivitaInfo === null || attivitaInfo.stato !== 'attiva') {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center text-center px-6 space-y-3">
-        <span className="text-3xl" aria-hidden="true">🎨</span>
-        <h1 className="text-xl font-serif">Questa attività non è ancora disponibile</h1>
-        <p className="text-sm text-stone-500 max-w-sm">Il/la docente non l&apos;ha ancora attivata. Torna più tardi o chiedi in aula.</p>
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium mt-4">&larr; Torna alla Home</a>
+      <main className="mz mz-vetrina">
+        <header className="mz-rail">
+          <a href={percorsoCorso(corso)} className="mz-mono" style={{ textDecoration: 'none' }}>← {corso.nome}</a>
+        </header>
+        <section className="mz-ingresso">
+          <div className="mz-ingresso-testo mz-in">
+            <h1 className="mz-display mz-eroe-titolo">Crazy 8<span className="mz-sup">(in arrivo)</span></h1>
+            <p className="mz-ingresso-lead">Il/la docente non l&apos;ha ancora aperta. Tornate più tardi.</p>
+          </div>
+          <div className="mz-in" style={{ animationDelay: '120ms' }}><Solidi cadono /></div>
+        </section>
       </main>
     );
   }
@@ -750,7 +744,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                   </label>
                 </div>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-2 text-xs text-stone-700">
+              <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-2 text-xs text-stone-700 max-md:hidden">
                 <p className="font-bold text-stone-900">📱 Dal telefono</p>
                 <p>Aprite <b className="break-all">{urlPagina || '/crazy8'}</b> e accedete con il team: questa consegna si apre da sola alla fase sketch.</p>
                 <p className="text-stone-500">Foto dall&apos;alto, buona luce, un foglio per foto. Gli sketch compaiono qui in tempo reale.</p>
@@ -1040,156 +1034,156 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   };
 
   return (
-    <main className="min-h-screen bg-[#FBF9F5]">
+    <main className="mz" style={{ minHeight: '100vh' }}>
       {caricamentiAttivi > 0 && <SfondoCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
 
-      <div className="flex flex-wrap justify-between items-center gap-y-2 px-4 sm:px-6 py-4 border-b border-stone-200">
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {team && (
-            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-              {etichettaTeam(team)}
-            </span>
-          )}
-          <a href="/manuali?attivita=crazy8_ai" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium px-2">📚 Manuale</a>
-          <button onClick={() => setMostraTutorial(true)} className="text-xs text-stone-400 hover:text-stone-900 transition px-2">? Tutorial</button>
-          <button onClick={() => setActiveTab('percorso')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition ${activeTab === 'percorso' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
-            {attiva ? 'Percorso' : '+ Nuova consegna'}
-          </button>
-          <button onClick={() => setActiveTab('share')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition ${activeTab === 'share' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
-            📣 Concept dei team
-          </button>
-          <button onClick={() => setActiveTab('elenco')} className={`px-4 py-2.5 rounded-full text-xs font-medium transition ${activeTab === 'elenco' ? 'bg-stone-900 text-white' : 'bg-white border border-stone-200'}`}>
-            Consegne ({submissionFiltrate.length})
-          </button>
+      <header className="mz-rail">
+        <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', minWidth: 0 }}>
+          <a href={percorsoCorso(corso)} className="mz-mono mz-abbrevia" style={{ textDecoration: 'none', maxWidth: '34vw' }} title={corso.nome}>← {corso.nome}</a>
+          <span className="mz-vetrina-rail-nome max-sm:hidden">Crazy 8</span>
         </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          {team && <span className="mz-chip on mz-abbrevia max-md:hidden" style={{ cursor: 'default', maxWidth: 220 }}>{etichettaTeam(team)}</span>}
+          <a href="/manuali?attivita=crazy8_ai" className="mz-pill sm ghost max-sm:hidden">Manuale</a>
+          <button type="button" onClick={() => setMostraTutorial(true)} className="mz-pill sm ghost" aria-label="Come funziona">?</button>
+        </div>
+      </header>
+
+      <div className="px-4 sm:px-6 pt-4 flex justify-center">
+        <Segmentato
+          etichetta="Sezioni di Crazy 8"
+          valore={activeTab}
+          onCambia={setActiveTab}
+          opzioni={[
+            { id: 'percorso', label: attiva ? 'Percorso' : 'Nuova consegna' },
+            { id: 'share', label: 'Concept dei team' },
+            { id: 'elenco', label: `Consegne (${submissionFiltrate.length})` },
+          ]}
+        />
       </div>
+
+      {problemiDb.length > 0 && (
+        <p role="alert" className="max-w-6xl mx-4 sm:mx-auto mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Crazy 8 è in aggiornamento: alcune azioni potrebbero non salvarsi. Avvisate il/la docente.
+        </p>
+      )}
 
       {activeTab === 'percorso' && (
         !attiva ? (
-          <div className="min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-10">
-            <div className="max-w-md w-full space-y-4 animate-fade-in-up">
-              <div className="text-center mb-2">
-                <h1 className="text-3xl font-serif">
-                  🧭 Su cosa lavorate?
-                  <span className="apice">(01 / {String(NUMERO_FASI).padStart(2, '0')})</span>
-                  <Info>{team ? 'Su quali sotto-ambiti progettuali lavora il team? Uno o più.' : 'Il vostro sotto-ambito progettuale, e un codice per ritrovare la consegna più tardi.'}</Info>
-                </h1>
-              </div>
+          <section className="mz-ingresso md:min-h-[calc(100vh-130px)]">
+            <div className="mz-ingresso-testo mz-in">
+              <h1 className="mz-display mz-eroe-titolo">Crazy 8<span className="mz-sup">({due(1)} / {due(NUMERO_FASI)})</span></h1>
+              <p className="mz-ingresso-lead">Si parte dai sotto-ambiti: su cosa lavorate?</p>
+              <div className="max-md:hidden"><Solidi cadono /></div>
+            </div>
+            <form className="mz-ingresso-accesso mz-in" style={{ animationDelay: '120ms' }} onSubmit={e => { e.preventDefault(); iniziaConsegna(); }}>
               {!team && (
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Nome Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                  <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Numero Gruppo" className="border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
+                  <input type="text" value={gruppoNome} onChange={e => setGruppoNome(e.target.value)} placeholder="Nome gruppo" aria-label="Nome gruppo" className="mz-input" />
+                  <input type="number" value={gruppoNum} onChange={e => setGruppoNum(e.target.value)} placeholder="Numero" aria-label="Numero gruppo" className="mz-input" />
                 </div>
               )}
-              <div className="space-y-2">
-                {sottoAmbiti.map((s, i) => (
-                  <div key={i} className="flex gap-1.5">
-                    <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={sottoAmbiti.length > 1 ? `Sotto-ambito ${i + 1}` : 'Sotto-ambito progettuale scelto'} className="flex-1 border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                    {sottoAmbiti.length > 1 && (
-                      <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="text-stone-300 hover:text-red-600 px-2" aria-label="Rimuovi">✕</button>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={aggiungiCampoSottoAmbito} className="text-xs text-stone-500 hover:text-stone-900 transition">+ Aggiungi un altro sotto-ambito</button>
-              </div>
+              {sottoAmbiti.map((s, i) => (
+                <div key={i} className="flex gap-1.5 items-center">
+                  <input type="text" value={s} onChange={e => modificaSottoAmbito(i, e.target.value)} placeholder={sottoAmbiti.length > 1 ? `Sotto-ambito ${i + 1}` : 'Sotto-ambito progettuale'} aria-label={`Sotto-ambito ${i + 1}`} className="mz-input" />
+                  {sottoAmbiti.length > 1 && (
+                    <button type="button" onClick={() => rimuoviCampoSottoAmbito(i)} className="mz-pill sm ghost danger" aria-label="Rimuovi">✕</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={aggiungiCampoSottoAmbito} className="mz-pill sm ghost" style={{ justifySelf: 'start' }}>+ Un altro sotto-ambito</button>
               {!team && (
-                <>
-                  <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Codice per ritrovare la consegna (min. 4 caratteri)" className="w-full border border-stone-200 rounded-xl p-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-                </>
+                <input type="password" minLength={4} value={codiceNuovo} onChange={e => setCodiceNuovo(e.target.value)} placeholder="Codice per ritrovare la consegna (min. 4 caratteri)" aria-label="Codice della consegna" className="mz-input" />
               )}
-              {erroreCreazione && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3">{erroreCreazione}</p>}
-              <button onClick={iniziaConsegna} disabled={creazioneInCorso} className="w-full bg-stone-900 text-white py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50">
-                {creazioneInCorso ? 'Creazione...' : 'Avanti →'}
+              {erroreCreazione && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 m-0">{erroreCreazione}</p>}
+              <button type="submit" disabled={creazioneInCorso} className="mz-pill b lg" style={{ width: '100%' }}>
+                {creazioneInCorso ? 'Creazione…' : 'Inizia →'}
               </button>
-            </div>
-          </div>
+            </form>
+          </section>
         ) : (
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-            <div className="flex flex-wrap justify-between items-start gap-3">
-              <div>
-                <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {attiva.gruppo_num} — {attiva.gruppo_nome}</span>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {sottoAmbitiAttiva.map(sa => <span key={sa} className="text-[11px] bg-white border border-stone-200 text-stone-700 px-2.5 py-1 rounded-full">{sa}</span>)}
-                </div>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+            <div className="c8-testata">
+              <div key={fase} className="mz-in" style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+                <span className="mz-mono">{team && String(team.numero) === String(attiva.gruppo_num) ? etichettaTeam(team) : `Gruppo ${attiva.gruppo_num} — ${attiva.gruppo_nome}`}</span>
+                <h1 className="mz-display c8-titolo">
+                  {infoFase.titolo}
+                  <span className="mz-sup">({due(fase)} / {due(NUMERO_FASI)})</span>
+                  {infoFase.sottotitolo && <Info>{infoFase.sottotitolo}</Info>}
+                </h1>
+                {sottoAmbitiAttiva.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sottoAmbitiAttiva.map(sa => <span key={sa} className="mz-chip on" style={{ cursor: 'default' }}>{sa}</span>)}
+                  </div>
+                )}
               </div>
-              <button onClick={chiudiCanvas} className="text-xs text-stone-400 hover:text-stone-900 transition">Chiudi consegna</button>
+              <button type="button" onClick={chiudiCanvas} className="mz-pill sm ghost" style={{ justifySelf: 'end' }}>Chiudi consegna</button>
             </div>
 
             <Stepper fase={fase} raggiunta={raggiunta} onVai={vaiAFase} />
 
-            <header key={fase} className="animate-fade-in-up">
-              <h1 className="text-2xl sm:text-3xl font-serif font-bold">
-                <span aria-hidden="true">{infoFase.icona}</span> {infoFase.titolo}
-                <span className="apice">({String(fase).padStart(2, '0')} / {String(NUMERO_FASI).padStart(2, '0')})</span>
-                {infoFase.sottotitolo && <Info>{infoFase.sottotitolo}</Info>}
-              </h1>
-            </header>
-
             {erroreAzione && (
-              <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 flex justify-between gap-3">
+              <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 flex justify-between gap-3">
                 {erroreAzione}
-                <button onClick={() => setErroreAzione('')} aria-label="Chiudi">✕</button>
+                <button type="button" onClick={() => setErroreAzione('')} aria-label="Chiudi">✕</button>
               </p>
             )}
 
-            <div key={`contenuto-${fase}`} className="animate-fade-in">{renderFase()}</div>
+            <div key={`contenuto-${fase}`} className="entra-sezione">{renderFase()}</div>
           </div>
         )
       )}
 
       {activeTab === 'share' && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-          <header>
-            <h1 className="text-2xl font-serif font-bold">📣 I concept dei team<Info>Le moodboard composte da ogni team, pronte per la presentazione in aula.</Info></h1>
-          </header>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+          <h1 className="mz-display c8-titolo mz-in">
+            Concept dei team
+            <span className="mz-sup">({due(submissions.filter(s => (s.moodboard || []).length > 0).length)})</span>
+            <Info>Le moodboard composte da ogni team, pronte per la presentazione in aula.</Info>
+          </h1>
           <Share submissions={submissions} propriaId={attiva?.id || null} etichettaDriver={k => corso.configurazione.driver.find(d => d.chiave === k)?.etichetta || k} />
         </div>
       )}
 
       {activeTab === 'elenco' && (
-        <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
-            <p className="text-stone-500 text-xs">
-              {team ? 'Le consegne del tuo gruppo.' : 'Filtra per numero di gruppo per ritrovare la tua consegna.'}
-            </p>
+        <div className="pt-6 sm:pt-10">
+          <div className="pb-6 flex flex-wrap items-end justify-between gap-4" style={{ padding: '0 max(20px, env(safe-area-inset-left)) 24px' }}>
+            <h1 className="mz-display c8-titolo mz-in">Consegne<span className="mz-sup">({due(submissionFiltrate.length)})</span></h1>
             {!team && (
-              <div className="w-40">
-                <input type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="N. Gruppo..." className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900" />
-              </div>
+              <input type="number" value={filtroGruppo} onChange={e => setFiltroGruppo(e.target.value)} placeholder="Numero del gruppo" aria-label="Filtra per numero di gruppo" className="mz-input" style={{ maxWidth: 220 }} />
             )}
           </div>
-
-          <div className="space-y-3">
-            {submissionFiltrate.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-stone-200 text-center text-stone-400 text-sm">Nessuna consegna trovata.</div>
-            ) : (
-              submissionFiltrate.map(s => (
-                <div key={s.id} className="bg-white p-4 rounded-2xl border border-stone-200 flex items-center justify-between shadow-sm hover:border-stone-300 transition gap-3">
-                  <div className="flex items-center space-x-4 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {s.immagini?.[0] ? (
-                        <img src={s.immagini[0].url_file} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-[10px] text-stone-400 font-bold">IMG</span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-sm text-stone-900 truncate">{s.hmw_o_tema || 'Senza sotto-ambito'}</h3>
-                      <p className="text-xs text-stone-500">
-                        Gruppo {s.gruppo_num} — {s.gruppo_nome}<Sep />Fase {faseEffettiva(s)}/{NUMERO_FASI} {FASI[faseEffettiva(s) - 1].breve}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2 flex-shrink-0">
-                    <button onClick={() => chiediSblocco(s)} className="text-xs bg-stone-100 hover:bg-stone-900 hover:text-white px-4 py-2 rounded-xl font-medium transition">Apri</button>
-                    <button onClick={() => chiediEliminazione(s)} className="text-xs bg-stone-100 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl font-medium transition">Elimina</button>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="mz-barra">
+            <span className="mz-mono" style={{ color: 'var(--ink)' }}>{team ? 'Del vostro gruppo' : 'Tutti i gruppi'}</span>
+            <span className="mz-mono">Fase raggiunta</span>
           </div>
+          <ul className="mz-indice">
+            {submissionFiltrate.length === 0 && (
+              <li className="mz-riga spenta"><span /><span className="mz-muted">Nessuna consegna ancora.</span></li>
+            )}
+            {submissionFiltrate.map((s, i) => {
+              const f = faseEffettiva(s);
+              return (
+                <li key={s.id} className="mz-in" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
+                  <div className="mz-riga" style={{ cursor: 'default' }}>
+                    <span className="mz-mono">({due(i + 1)})</span>
+                    <span style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                      <button type="button" onClick={() => chiediSblocco(s)} className="mz-riga-titolo" style={{ all: 'unset', cursor: 'pointer', fontFamily: 'var(--f-display)', fontWeight: 500, letterSpacing: '-.035em', lineHeight: .95, fontSize: 'clamp(28px, 4.4vw, 64px)', overflowWrap: 'anywhere' }}>
+                        {s.concept_titolo || s.hmw_o_tema || 'Senza sotto-ambito'}
+                      </button>
+                      <span className="mz-riga-sotto">Gruppo {s.gruppo_num} — {s.gruppo_nome}{s.concept_titolo && s.hmw_o_tema ? `, ${s.hmw_o_tema}` : ''}</span>
+                    </span>
+                    <span className="mz-riga-meta">
+                      <span className="mz-mono" style={{ color: 'var(--ink)' }}>({due(f)} / {due(NUMERO_FASI)}) {FASI[f - 1].breve}</span>
+                      <button type="button" onClick={() => chiediSblocco(s)} className="mz-pill sm">Apri</button>
+                      <button type="button" onClick={() => chiediEliminazione(s)} className="mz-pill sm ghost danger" aria-label={`Elimina la consegna di ${s.gruppo_nome}`}>Elimina</button>
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
