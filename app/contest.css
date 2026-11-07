@@ -569,3 +569,12 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-valuta-n:hover { transform: translateY(-2px); }
 .c8-valuta-n.on { background: var(--ink); color: var(--bg); }
 .c8-valuta-n:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* --- menu a tendina compatto (CSV) --- */
+.c8-menu { position: relative; }
+.c8-menu > summary { list-style: none; cursor: pointer; }
+.c8-menu > summary::-webkit-details-marker { display: none; }
+.c8-menu-voci { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: 180px; display: grid; padding: 6px; border-radius: 16px; background: var(--surface, #fff); box-shadow: 0 12px 32px rgba(28,25,23,.14), inset 0 0 0 1px var(--line); }
+.c8-menu-voci button { all: unset; cursor: pointer; padding: 9px 12px; border-radius: 10px; font-size: 14px; }
+.c8-menu-voci button:hover, .c8-menu-voci button:focus-visible { background: var(--card, #f5f5f4); }
+.c8-menu-voci button:disabled { opacity: .4; cursor: default; }

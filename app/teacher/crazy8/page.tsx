@@ -13,6 +13,7 @@ import { miniaturaC8 } from '@/lib/storageCrazy8';
 import { PannelloRegia, TimerProiezione, TimerStudente, type ConfigAula } from '@/components/crazy8/Aula';
 import { useVotiCrazy8 } from '@/components/crazy8/Voti';
 import { StampaCrazy8, type ConsegnaStampa } from '@/components/crazy8/Stampa';
+import { scaricaCsvStudenti, scaricaCsvTeam, slugCsv } from '@/lib/csv';
 
 // Pannello docente di Crazy 8. Due viste:
 // - Consegne: elenco dei team a sinistra, a destra la consegna aperta con
@@ -354,6 +355,13 @@ export default function Crazy8DocentePage() {
             <button type="button" className="mz-pill b" disabled={!attivitaC8} onClick={() => { caricaAttivitaC8(); setMostraWall(true); }}>Wall HMW ⤢</button>
             <button type="button" className="mz-pill" disabled={diapositiveRisultati.length === 0} onClick={() => setMostraRisultati(true)}>Proietta risultati ⤢</button>
             <button type="button" className="mz-pill o" disabled={visibili.length === 0} onClick={() => setStampa(true)}>Esporta PDF</button>
+            <details className="c8-menu">
+              <summary className="mz-pill o">CSV ↓</summary>
+              <div className="c8-menu-voci">
+                <button type="button" disabled={teamsAtt.length === 0} onClick={e => { scaricaCsvTeam(`crazy8-${slugCsv(corso.nome)}`, teamsAtt); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Elenco team</button>
+                <button type="button" disabled={teamsAtt.length === 0} onClick={e => { scaricaCsvStudenti(`crazy8-${slugCsv(corso.nome)}`, teamsAtt); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Elenco studenti</button>
+              </div>
+            </details>
           </div>
         </div>
         <Segmentato etichetta="Vista" valore={vista} onCambia={setVista} opzioni={[{ id: 'consegne', label: 'Consegne' }, { id: 'galleria', label: 'Galleria' }]} />

@@ -3,28 +3,9 @@ import { useEffect, useState } from 'react';
 import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
+import { scaricaCsvStudenti, scaricaCsvTeam, slugCsv } from '@/lib/csv';
 
 type RigaTeam = { numero: number; nome: string; membri: string[]; creato_il: string; tipo?: 'gruppo' | 'individuale' };
-
-function scaricaCsv(righe: RigaTeam[]) {
-  const intestazione = ['Numero', 'Nome team', 'Tipo', 'Membri', 'Creato il'];
-  const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const righeCsv = righe.map(r => [
-    String(r.numero),
-    escapeCsv(r.nome),
-    r.tipo === 'individuale' ? 'individuale' : 'gruppo',
-    escapeCsv(r.membri.join('; ')),
-    new Date(r.creato_il).toLocaleString('it-IT'),
-  ].join(','));
-  const csv = [intestazione.join(','), ...righeCsv].join('\n');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `team-design3-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 // Mostra il messaggio reale del database invece di un generico "errore":
 // il codice 'passcode_errato' arriva dalla funzione RPC quando il
@@ -92,13 +73,20 @@ export default function TeamPannelloPage() {
               <Info>L&apos;accesso condiviso che gli studenti usano per entrare nell&apos;app, prima di scegliere un&apos;attività.</Info>
             </h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => righe && scaricaCsv(righe)}
+              onClick={() => righe && scaricaCsvTeam(`team-${slugCsv(corso.nome)}`, righe)}
               disabled={!righe || righe.length === 0}
               className="text-xs bg-white border border-stone-200 text-stone-700 px-4 py-2.5 rounded-full font-medium hover:border-stone-400 transition disabled:opacity-40"
             >
-              ⬇️ Scarica CSV
+              ⬇️ CSV team
+            </button>
+            <button
+              onClick={() => righe && scaricaCsvStudenti(`team-${slugCsv(corso.nome)}`, righe)}
+              disabled={!righe || righe.length === 0}
+              className="text-xs bg-white border border-stone-200 text-stone-700 px-4 py-2.5 rounded-full font-medium hover:border-stone-400 transition disabled:opacity-40"
+            >
+              ⬇️ CSV studenti
             </button>
             <button
               onClick={() => { setErrore(''); setMostraConferma(true); }}

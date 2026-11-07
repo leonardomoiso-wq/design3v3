@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { moduloDi, type AttivitaRow, type StatoAttivita } from '@/lib/attivita';
 import { useDocente } from '@/lib/docente-context';
 import { ascoltaCorso } from '@/lib/realtime';
+import { scaricaCsvStudenti, scaricaCsvTeam, slugCsv } from '@/lib/csv';
 
 const STATI: { valore: StatoAttivita; etichetta: string; descrizione: string }[] = [
   { valore: 'bozza', etichetta: 'Bozza', descrizione: 'Nascosta agli studenti' },
@@ -16,8 +17,8 @@ const STATI: { valore: StatoAttivita; etichetta: string; descrizione: string }[]
 // Ogni attività ha la sua composizione dei team (tabella team_attivita):
 // qui si vede chi c'è, con nomi e membri, e si può eliminare un team
 // (con la sua consegna) o svuotare tutto per ripartire.
-function TeamDellAttivita({ attivitaId, passcode }: { attivitaId: string; passcode: string }) {
-  const [teams, setTeams] = useState<{ id: string; numero: number; nome: string; membri: string[] }[] | null>(null);
+function TeamDellAttivita({ attivitaId, passcode, nomeFile }: { attivitaId: string; passcode: string; nomeFile: string }) {
+  const [teams, setTeams] = useState<{ id: string; numero: number; nome: string; membri: string[]; creato_il?: string }[] | null>(null);
   const [aperto, setAperto] = useState(false);
   const [errore, setErrore] = useState('');
 
@@ -48,6 +49,12 @@ function TeamDellAttivita({ attivitaId, passcode }: { attivitaId: string; passco
       </button>
       {aperto && (
         <div className="space-y-1.5">
+          {teams.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-1">
+              <button type="button" onClick={() => scaricaCsvTeam(nomeFile, teams)} className="text-[11px] bg-white border border-stone-200 text-stone-700 px-3 py-1.5 rounded-full font-medium hover:border-stone-400">⬇ CSV team</button>
+              <button type="button" onClick={() => scaricaCsvStudenti(nomeFile, teams)} className="text-[11px] bg-white border border-stone-200 text-stone-700 px-3 py-1.5 rounded-full font-medium hover:border-stone-400">⬇ CSV studenti</button>
+            </div>
+          )}
           {teams.length === 0 && <p className="text-xs text-stone-400">Nessun team ancora: si compongono quando gli studenti entrano nell&apos;attività.</p>}
           {teams.map(t => (
             <div key={t.id} className="flex items-start justify-between gap-3 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
@@ -371,7 +378,7 @@ export default function AttivitaPannelloPage() {
                 />
               </div>
               {a.tipo === 'crazy8_ai' && <ImpostazioniCrazy8 attivitaId={a.id} passcode={passcode} />}
-              <TeamDellAttivita attivitaId={a.id} passcode={passcode} />
+              <TeamDellAttivita attivitaId={a.id} passcode={passcode} nomeFile={`${slugCsv(a.titolo || a.tipo)}-${slugCsv(corso.nome)}`} />
             </div>
           );
         })}

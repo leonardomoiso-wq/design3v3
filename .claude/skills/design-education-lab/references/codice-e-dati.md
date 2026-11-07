@@ -18,7 +18,8 @@
 - `app/manuali`: manuali per attività.
 - `app/api/ai`, `app/api/hmw-stress-test` (Gemini), `app/api/posizione` (città dall'IP).
 - `components/`: `PannelliMobile`, `RichiedeCorso`, `Info`, `Sep`, `PillaScorrevole`, `NumeroVivo`, `MetaCaso`, `GestioneTag`, `StellaScelto`, `crazy8/*`, `moiso/*` (componenti del Contest: Moiso.tsx, Proposte, Classifica, DashboardVoto, MappaVoti, Celebrazione, Countdown, CampiProposta, FormProposta, QR).
-- `lib/`: `corsi`, `corso-context`, `team-context`, `docente-context`, `attivita`, `contest`, `driver`, `tag`, `testi-piattaforma`, `immagine` (compressione), `cacheCasi`, `conceptRadar`, `realtime`, `useMappaZoom`, `useMobile`, `useContaSu`.
+- `lib/`: `corsi`, `corso-context`, `team-context`, `docente-context`, `attivita`, `contest`, `driver`, `tag`, `testi-piattaforma`, `immagine` (compressione), `cacheCasi`, `conceptRadar`, `realtime`, `useMappaZoom`, `useMobile`, `useContaSu`, `storageCrazy8`, `csv`.
+- Regola del docente: **ogni elenco di team o studenti nell'area docente deve avere il suo CSV scaricabile** (`lib/csv.ts`: `scaricaCsvTeam` una riga per team, `scaricaCsvStudenti` una riga per studente; «;» e BOM UTF-8 per Excel in italiano). Oggi: Team formati (`/teacher/team`), team di ogni attività nel pannello attività, menu «CSV ↓» nel pannello Crazy 8, votanti del Contest. Una nuova pagina con un elenco di team va dotata degli stessi due pulsanti.
 - `app/globals.css` (token ed effetti di tutta la piattaforma), `app/contest.css` (scena del Contest).
 - `.claude/skills/design-edu-platform` (pattern generali) e questa skill.
 
