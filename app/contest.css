@@ -1,0 +1,374 @@
+/* =============================================================
+   Contest: stile della piattaforma (token in app/globals.css) con gli
+   effetti più "di scena" che servono al voto: tendina, sheet, forme
+   appese, contatori a cifre rotanti, barre che corrono. Le classi .mz-*
+   valgono solo dentro il contenitore .mz.
+   ============================================================= */
+.mz {
+  --bg: var(--paper);
+  --accento: var(--accent);            /* testo in evidenza (ambra scura) */
+  --accento-vivo: var(--accent-vivo);  /* barre, anelli, selezioni */
+  --accento-tenue: var(--accent-tenue);
+  --accento-bordo: var(--accent-bordo);
+  /* Scena: i momenti speciali (voto registrato, vincitore) */
+  --scena: var(--accent-vivo);
+  --scena-testo: #1c1917;
+  --scena-tenue: rgba(28, 25, 23, 0.72);
+  --scena-filo: rgba(28, 25, 23, 0.3);
+  --scena-su-testo: #FBF9F5;
+  --f-label: var(--f-text);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+/* Schermo da proiettare: versione scura e calda della stessa palette. */
+.mz[data-theme="dark"] {
+  --bg: #0c0a09; --surface: #1c1917; --ink: #fafaf9; --ink-2: #d6d3d1; --muted: #a8a29e; --faint: #44403c;
+  --line: #292524; --card: #1c1917; --scrim: rgba(0, 0, 0, .6);
+  --accento: #fbbf24; --accento-vivo: #f59e0b; --accento-tenue: rgba(245, 158, 11, .14);
+  color-scheme: dark;
+}
+.mz *, .mz *::before, .mz *::after { box-sizing: border-box; }
+.mz [hidden] { display: none !important; }
+.mz h1, .mz h2, .mz h3, .mz h4 { font-family: var(--f-display); letter-spacing: -.03em; margin: 0; font-weight: 500; }
+.mz :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Etichette: lo stesso maiuscoletto spaziato del resto della piattaforma. */
+.mz-mono { font-family: var(--f-label); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.mz-display { font-family: var(--f-display); font-weight: 500; letter-spacing: -.035em; line-height: .95; }
+.mz-muted { color: var(--muted); }
+.mz-blue { color: var(--accento); }
+.mz-num { font-variant-numeric: tabular-nums; }
+.mz-sup { font-family: var(--f-label); font-size: .28em; font-weight: 700; letter-spacing: .04em; vertical-align: top; color: var(--accento); margin-left: .2em; position: relative; top: .4em; }
+.mz-rule { height: 1px; background: var(--ink); border: 0; margin: 0; }
+.mz-hair { border-top: 1px solid var(--line); }
+.mz-break { overflow-wrap: anywhere; word-break: break-word; }
+
+/* --- Pulsanti: come le pillole del resto della piattaforma --- */
+.mz-pill { all: unset; box-sizing: border-box; max-width: 100%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 9999px; font: 500 14px/1 var(--f-text); background: var(--ink); color: var(--bg); transition: transform .45s var(--spring), background .3s, box-shadow .3s, opacity .3s; white-space: nowrap; }
+.mz-pill:hover { transform: translateY(-1px); }
+.mz-pill:active { transform: scale(.97); }
+.mz-pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.mz-pill[disabled] { opacity: .35; cursor: not-allowed; transform: none; }
+.mz-pill.o { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--faint); }
+.mz-pill.o:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+/* Azione di voto: ambra viva con testo scuro (8:1). */
+.mz-pill.b { background: var(--accento-vivo); color: #1c1917; box-shadow: 0 10px 24px -12px rgba(217, 119, 6, .7); }
+.mz-pill.b:hover { box-shadow: 0 14px 30px -12px rgba(217, 119, 6, .8); }
+.mz-pill.sm { padding: 7px 14px; font-size: 12.5px; }
+.mz-pill.lg { padding: 16px 28px; font-size: 16px; }
+.mz-pill.ghost { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.mz-pill.ghost:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.mz-pill.danger:hover { color: #dc2626; box-shadow: inset 0 0 0 1px #dc2626; }
+
+/* Chip selezionata: come il selettore del corso (fondo e bordo ambra). */
+.mz-chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 9999px; font-size: 13px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); transition: background .3s, color .3s, box-shadow .3s; white-space: nowrap; }
+.mz-chip:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+.mz-chip[aria-pressed="true"], .mz-chip.on { background: var(--accento-tenue); color: #78350f; box-shadow: inset 0 0 0 1px var(--accento-bordo); }
+.mz[data-theme="dark"] .mz-chip.on, .mz[data-theme="dark"] .mz-chip[aria-pressed="true"] { color: var(--accento); }
+.mz-chip .mz-mono { color: inherit; opacity: .7; }
+
+/* Switch segmentato: pillola scura che scorre, come nel menu docente. */
+.mz-seg { position: relative; display: inline-flex; padding: 4px; border-radius: 9999px; background: var(--card); }
+.mz-seg button { all: unset; cursor: pointer; position: relative; z-index: 1; padding: 7px 15px; border-radius: 9999px; font-size: 13px; font-weight: 500; color: var(--muted); transition: color .35s; white-space: nowrap; }
+.mz-seg button[aria-current="true"] { color: var(--bg); }
+.mz-seg button:focus-visible { outline: 2px solid var(--ink); }
+.mz-seg .mz-seg-pill { position: absolute; left: 0; top: 0; border-radius: 9999px; background: var(--ink); transition: transform .55s var(--spring), width .55s var(--spring); }
+
+/* Campi: come gli input del resto della piattaforma. */
+.mz-field { display: grid; gap: 6px; }
+.mz-input { all: unset; box-sizing: border-box; width: 100%; padding: 12px 14px; border-radius: 12px; background: #fafaf9; box-shadow: inset 0 0 0 1px var(--line); font: 15px/1.45 var(--f-text); color: var(--ink); transition: box-shadow .25s, background .25s; }
+.mz-input:focus { background: var(--surface); box-shadow: inset 0 0 0 2px var(--ink); }
+textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
+.mz-input::placeholder { color: var(--muted); opacity: .8; }
+
+/* --- Barra in alto: come l'intestazione dell'area docente --- */
+.mz-rail { position: sticky; top: 0; z-index: 40; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 max(20px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.mz-live-dot { position: relative; width: 8px; height: 8px; border-radius: 99px; background: var(--accento-vivo); flex: none; }
+.mz-live-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 99px; border: 1.5px solid var(--accento-vivo); animation: mz-ping 2.2s var(--out) infinite; }
+.mz-live-dot.off { background: var(--faint); }
+.mz-live-dot.off::after { display: none; }
+@keyframes mz-ping { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+
+/* --- Ingressi --- */
+.mz-in { animation: mz-rise .62s var(--out) backwards; }
+@keyframes mz-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.mz-fade { animation: mz-fadein .9s var(--out) backwards; }
+@keyframes mz-fadein { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: none; } }
+
+/* --- Immagini: cornice arrotondata come le card, zoom dentro la cornice --- */
+.mz-frame { position: relative; overflow: hidden; background: var(--card); border-radius: 16px; }
+.mz-frame img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 1s var(--out), filter .6s; }
+.mz-placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: var(--accento-tenue); }
+
+/* --- Nastro dei titoli --- */
+.mz-ticker { overflow: hidden; white-space: nowrap; border-block: 1px solid var(--line); padding: 12px 0; }
+.mz-ticker-track { display: inline-flex; gap: 28px; animation: mz-tick 48s linear infinite; font-family: var(--f-display); font-size: 21px; letter-spacing: -.02em; color: var(--ink-2); }
+.mz-ticker-track span:nth-child(3n) { color: var(--accento); }
+.mz-ticker-track i { font-style: normal; color: var(--accento-vivo); }
+@keyframes mz-tick { to { transform: translateX(-50%); } }
+
+/* --- Sheet: da destra su desktop, dal basso su telefono (come BottomSheet) --- */
+.mz-scrim { position: fixed; inset: 0; z-index: 70; background: var(--scrim); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: mz-fadein .45s var(--out); }
+.mz-sheet { position: fixed; z-index: 71; top: 10px; right: 10px; bottom: 10px; width: min(860px, 94vw); background: var(--surface); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; animation: mz-sheet-r .6s var(--ease); box-shadow: -30px 0 80px rgba(28, 25, 23, .18); }
+@keyframes mz-sheet-r { from { transform: translateX(105%); } to { transform: none; } }
+.mz-sheet-bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.mz-sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.mz-handle { display: none; }
+@media (max-width: 760px) {
+  .mz-sheet { top: auto; left: 0; right: 0; bottom: 0; width: 100%; height: 92vh; height: 92dvh; border-radius: 24px 24px 0 0; animation-name: mz-sheet-b; }
+  @keyframes mz-sheet-b { from { transform: translateY(100%); } to { transform: none; } }
+  .mz-sheet-bar { padding-top: 20px; }
+  .mz-handle { display: block; position: absolute; top: 7px; left: 50%; width: 40px; height: 6px; margin-left: -20px; border-radius: 9px; background: var(--faint); }
+}
+
+/* --- Tendina tra le schede del contest --- */
+.mz-curtain { position: fixed; inset: 0; z-index: 90; background: var(--ink); color: var(--bg); display: grid; place-items: center; pointer-events: none; transform: translateY(-101%); will-change: transform; contain: layout paint; backface-visibility: hidden; }
+.mz-curtain::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--accento-vivo); }
+.mz-curtain span { font-family: var(--f-display); font-weight: 500; font-size: clamp(40px, 7vw, 104px); letter-spacing: -.04em; text-align: center; padding: 0 20px; line-height: .95; }
+
+/* --- Forme appese: cerchio ambra, quadrato, rombo (le tre forme del laboratorio) --- */
+.mz-solids { position: relative; display: flex; justify-content: center; align-items: flex-start; gap: clamp(22px, 5vw, 56px); height: 190px; pointer-events: none; color: var(--ink); }
+.mz-solid { position: relative; transform-origin: 50% -96px; margin-top: 96px; animation: mz-sway 6s ease-in-out infinite; }
+.mz-solid::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1px; height: 96px; background: currentColor; opacity: .4; }
+.mz-solid.s1 { width: 62px; height: 62px; border-radius: 50%; background: var(--accento-vivo); animation-delay: -1s; }
+.mz-solid.s2 { width: 54px; height: 54px; border-radius: 10px; background: currentColor; animation-duration: 7.2s; animation-delay: -3s; }
+.mz-solid.s3 { width: 52px; height: 52px; animation-duration: 6.6s; animation-delay: -2s; }
+.mz-solid.s3::after { content: ""; position: absolute; inset: 8px; border: 2px solid currentColor; border-radius: 4px; transform: rotate(45deg); }
+.mz-solids.drop .mz-solid { animation: mz-drop 1.5s cubic-bezier(.3, .7, .3, 1) backwards, mz-sway 6s ease-in-out 1.5s infinite; }
+.mz-solids.drop .mz-solid.s2 { animation-delay: .22s, 1.72s; }
+.mz-solids.drop .mz-solid.s3 { animation-delay: .44s, 1.94s; }
+.mz-solids.inv .mz-solid.s1 { background: currentColor; }
+.mz-solids.inv .mz-solid.s2 { background: transparent; border: 2px solid currentColor; }
+.mz-solids.inv .mz-solid.s3::after { background: currentColor; }
+.mz-solids.sm { height: 120px; transform: scale(.62); transform-origin: 50% 0; margin-bottom: -50px; }
+@keyframes mz-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mz-drop { 0% { transform: translateY(-260px); opacity: 0; } 55% { transform: none; opacity: 1; } 72% { transform: rotate(-9deg); } 86% { transform: rotate(5deg); } 100% { transform: rotate(0); } }
+
+.mz-blocco { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: clamp(12px, 3vw, 32px); padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .mz-blocco { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* --- Cifre che ruotano (contatori) --- */
+.mz-odo { display: inline-flex; font-variant-numeric: tabular-nums; line-height: 1; overflow: hidden; }
+.mz-odo-d { position: relative; display: inline-block; height: 1em; overflow: hidden; }
+.mz-odo-col { display: flex; flex-direction: column; transition: transform 1.1s var(--out); }
+.mz-odo-col span { height: 1em; display: block; text-align: center; }
+
+/* --- Barre: una sola tinta (ambra), estremità arrotondate --- */
+.mz-bar { height: 100%; border-radius: 2px 4px 4px 2px; background: var(--accento-vivo); transform-origin: 0 50%; transition: width 1.1s var(--out); }
+.mz-bar.ink { background: var(--ink); }
+.mz-track { position: relative; height: 10px; border-radius: 4px; background: var(--card); overflow: hidden; }
+
+.mz-tip { position: absolute; z-index: 5; pointer-events: none; padding: 6px 9px; border-radius: 8px; background: var(--ink); color: var(--bg); font: 12px/1.3 var(--f-text); white-space: nowrap; transform: translate(-50%, calc(-100% - 8px)); }
+
+/* --- Segni di vita: nuovo voto, scatto, respiro --- */
+.mz-flash { animation: mz-flash 1.6s var(--out); }
+@keyframes mz-flash { 0% { background: var(--accento-tenue); transform: translateY(-14px); opacity: 0; } 25% { opacity: 1; transform: none; } 100% { background: transparent; } }
+.mz-pop { animation: mz-pop .7s var(--spring); }
+@keyframes mz-pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.mz-breathe { animation: mz-breathe 3.6s ease-in-out infinite; }
+@keyframes mz-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.mz-float { animation: mz-floaty 7s ease-in-out infinite; }
+@keyframes mz-floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.mz-plus { position: absolute; pointer-events: none; font: 700 18px var(--f-display); color: var(--accento); animation: mz-plus 1.4s var(--out) forwards; }
+@keyframes mz-plus { 0% { opacity: 0; transform: translateY(6px) scale(.6); } 20% { opacity: 1; transform: translateY(-4px) scale(1.1); } 100% { opacity: 0; transform: translateY(-46px) scale(1); } }
+
+.mz-scroll-x { overflow-x: auto; scrollbar-width: none; }
+.mz-scroll-x::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mz *, .mz *::before, .mz *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .mz-ticker-track { animation: none; }
+}
+
+/* --- Mappa del voto --- */
+.mz-mappa-pulsa { transform-box: fill-box; transform-origin: center; animation: mz-mappa-pulsa 2.4s var(--out) infinite; }
+@keyframes mz-mappa-pulsa { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.2); opacity: 0; } }
+.mz-mappa-onda { transform-box: fill-box; transform-origin: center; animation: mz-mappa-onda 1.6s var(--out) forwards; }
+@keyframes mz-mappa-onda { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.4); opacity: 0; } }
+@media (max-width: 700px) { .mz-mappa-col { grid-column: auto !important; } }
+
+/* =============================================================
+   Vetrina pubblica (home e pagine di ateneo): a tutto schermo,
+   titoli grandi, indice a righe che si riempie d'ambra dal basso.
+   ============================================================= */
+.mz-vetrina { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
+.mz-vetrina-rail-nome { font-weight: 600; font-size: 14px; color: var(--ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mz-eroe { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(20px, 4vw, 64px); align-items: end;
+  padding: clamp(28px, 6vh, 72px) max(20px, env(safe-area-inset-left)) clamp(22px, 4vh, 44px); }
+.mz-eroe-titolo { font-size: clamp(54px, 9.4vw, 164px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
+.mz-eroe-lato { display: grid; gap: 18px; justify-items: end; text-align: right; }
+.mz-eroe-cifre { display: flex; gap: clamp(18px, 3vw, 40px); }
+.mz-eroe-cifre div { display: grid; gap: 2px; justify-items: end; }
+.mz-eroe-cifre strong { font-family: var(--f-display); font-weight: 500; letter-spacing: -.04em; font-size: clamp(40px, 5vw, 76px); line-height: .9; }
+@media (max-width: 760px) {
+  .mz-eroe { grid-template-columns: 1fr; }
+  .mz-eroe-lato { justify-items: start; text-align: left; }
+  .mz-eroe-cifre div { justify-items: start; }
+}
+
+.mz-barra { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 12px max(20px, env(safe-area-inset-left)); border-top: 1px solid var(--ink); }
+.mz-indice { list-style: none; margin: 0; padding: 0; }
+.mz-indice.riempi { flex: 1; display: flex; flex-direction: column; }
+.mz-indice.riempi > li { flex: 1; display: flex; }
+.mz-riga { all: unset; box-sizing: border-box; position: relative; isolation: isolate; overflow: hidden; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: clamp(36px, 5vw, 72px) minmax(0, 1fr) auto; align-items: center; gap: clamp(12px, 3vw, 40px);
+  padding: clamp(18px, 3.4vh, 38px) max(20px, env(safe-area-inset-left)); border-bottom: 1px solid var(--line); color: var(--ink); }
+.mz-riga::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-vivo);
+  transform: scaleY(0); transform-origin: 50% 100%; transition: transform .62s var(--ease); }
+.mz-riga:hover::before, .mz-riga:focus-visible::before { transform: scaleY(1); }
+.mz-riga:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+.mz-riga-titolo { font-family: var(--f-display); font-weight: 500; letter-spacing: -.035em; line-height: .95;
+  font-size: clamp(32px, 5.8vw, 100px); overflow-wrap: break-word; hyphens: auto; text-wrap: balance; transition: transform .6s var(--spring); }
+.mz-riga:hover .mz-riga-titolo { transform: translateX(14px); }
+.mz-riga:hover .mz-mono, .mz-riga:focus-visible .mz-mono { color: var(--ink); }
+.mz-riga-meta { display: flex; gap: 14px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.mz-riga-freccia { font-family: var(--f-display); font-size: clamp(22px, 2.6vw, 40px); line-height: 1; transition: transform .55s var(--spring); }
+.mz-riga:hover .mz-riga-freccia { transform: translateX(8px); }
+.mz-riga .mz-live-dot { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .mz-riga { grid-template-columns: 30px minmax(0, 1fr); row-gap: 8px; }
+  .mz-riga-meta { grid-column: 2; justify-content: flex-start; }
+  .mz-riga-freccia { display: none; }
+}
+
+/* Contest in evidenza nella pagina dell'ateneo: la scena ambra. */
+.mz-palco { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(18px, 3vw, 44px); align-items: stretch;
+  margin: 0 max(20px, env(safe-area-inset-left)) clamp(28px, 5vh, 56px); padding: clamp(16px, 2.4vw, 28px);
+  border-radius: 22px; background: var(--scena); color: var(--scena-testo); text-decoration: none; position: relative; overflow: hidden; }
+.mz-palco.attesa { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.mz-palco .mz-frame { min-height: clamp(220px, 34vh, 420px); border-radius: 14px; }
+.mz-palco-testo { display: grid; align-content: space-between; gap: 22px; padding: clamp(4px, 1vw, 12px) 0; }
+.mz-palco .mz-mono { color: var(--scena-tenue); }
+.mz-palco.attesa .mz-mono { color: var(--muted); }
+.mz-palco-titolo { font-size: clamp(40px, 5.4vw, 92px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
+@media (max-width: 860px) { .mz-palco { grid-template-columns: 1fr; } }
+
+/* Barra di salvataggio: in fondo al riquadro, resta visibile finché ci
+   sono modifiche da salvare. */
+.barra-salva { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 4px calc(-1 * clamp(18px, 2.4vw, 28px)) calc(-1 * clamp(18px, 2.4vw, 28px)); padding: 14px clamp(18px, 2.4vw, 28px);
+  border-top: 1px solid var(--line); border-radius: 0 0 24px 24px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.barra-salva.attiva { border-top-color: var(--accento-vivo); }
+.barra-salva .mz-pill:disabled { opacity: .45; cursor: default; box-shadow: none; }
+
+/* Mosaico delle proposte (contest senza copertina). */
+.mz-mosaico { display: grid; gap: 8px; min-height: clamp(220px, 34vh, 420px); grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mz-mosaico .mz-frame { min-height: 0; border-radius: 12px; }
+.mz-mosaico.n2 { grid-template-rows: 1fr; }
+.mz-mosaico.n3 .mz-frame:first-child { grid-row: span 2; }
+
+/* Righe con una frase sotto il titolo, e righe non ancora apribili. */
+.mz-riga-sotto { font-size: 15px; line-height: 1.45; color: var(--ink-2); max-width: 640px; }
+.mz-riga.spenta { cursor: default; }
+.mz-riga.spenta::before { display: none; }
+.mz-riga.spenta .mz-riga-titolo, .mz-riga.spenta .mz-riga-sotto { color: var(--muted); }
+.mz-riga.spenta:hover .mz-riga-titolo { transform: none; }
+.mz-riga.spenta .mz-riga-freccia { opacity: .25; }
+
+/* Ingresso del corso: nome grande a sinistra, accesso a destra. */
+.mz-ingresso { flex: 1; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(28px, 5vw, 80px); align-items: center;
+  padding: clamp(28px, 6vh, 72px) max(20px, env(safe-area-inset-left)); }
+.mz-ingresso-testo { display: grid; gap: clamp(16px, 2.4vh, 28px); align-content: center; }
+.mz-ingresso-lead { margin: 0; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.45; color: var(--ink-2); max-width: 560px; white-space: pre-line; }
+.mz-ingresso-accesso { justify-self: end; width: 100%; max-width: 440px; display: grid; gap: 14px; }
+@media (max-width: 860px) {
+  .mz-ingresso { grid-template-columns: 1fr; align-items: start; }
+  .mz-ingresso-accesso { justify-self: stretch; max-width: none; }
+}
+
+/* Nomi lunghi nelle barre: si abbreviano con i puntini. */
+.mz-abbrevia { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* =============================================================
+   Crazy 8: indice delle fasi e testata della fase, nello stesso
+   linguaggio della vetrina (indici in apice, filetti, ambra).
+   ============================================================= */
+.c8-testata { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: end; }
+.c8-titolo { font-size: clamp(38px, 5.6vw, 84px); margin: 0; overflow-wrap: break-word; hyphens: auto; text-wrap: balance; }
+@media (max-width: 760px) { .c8-testata { grid-template-columns: 1fr; } }
+
+.c8-fasi { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); border-top: 1px solid var(--ink); }
+.c8-fase { all: unset; box-sizing: border-box; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 4px; padding: 12px 12px 14px; border-right: 1px solid var(--line); color: var(--ink); }
+.c8-fase:last-child { border-right: 0; }
+.c8-fase::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-tenue); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .5s var(--ease); }
+.c8-fase:hover::before { transform: scaleY(1); }
+.c8-fase::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); transition: background .4s; }
+.c8-fase.fatta::after { background: var(--ink); }
+.c8-fase[aria-current="step"]::after { background: var(--accento-vivo); height: 5px; }
+.c8-fase[aria-current="step"]::before { transform: scaleY(1); }
+.c8-fase:disabled { cursor: not-allowed; color: var(--muted); opacity: .45; }
+.c8-fase:disabled::before { display: none; }
+.c8-fase:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.c8-fase-nome { font-family: var(--f-display); font-size: 17px; letter-spacing: -.02em; line-height: 1.05; white-space: nowrap; }
+@media (max-width: 900px) {
+  .c8-fasi { display: flex; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .c8-fasi::-webkit-scrollbar { display: none; }
+  .c8-fase { flex: 0 0 auto; min-width: 116px; scroll-snap-align: start; }
+}
+
+.c8-tutorial { position: fixed; inset: 0; z-index: 60; background: var(--ink); color: var(--paper); display: grid; place-items: center; padding: 24px; animation: mz-fadein .45s var(--out); }
+.c8-tutorial::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--accento-vivo); }
+.c8-tutorial .mz-display { font-size: clamp(40px, 6.4vw, 96px); }
+
+/* --- Crazy 8: formula HMW a blocchi --- */
+.c8-formula-guida { display: grid; gap: 14px; padding: clamp(16px, 2.4vw, 26px); border-radius: 24px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-formula { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.c8-formula i { font-style: normal; font-family: var(--f-display); font-size: 22px; color: var(--accento-vivo); }
+.c8-formula-fisso { font-family: var(--f-display); font-size: clamp(20px, 2.2vw, 30px); letter-spacing: -.02em; }
+.c8-formula-blocco { display: inline-grid; max-width: 100%; justify-items: center; gap: 2px; padding: 8px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1.5px var(--ink); transition: background .35s, transform .45s var(--spring), box-shadow .35s; }
+.c8-formula-blocco b { font-weight: 600; font-size: 15px; }
+.c8-formula-blocco small { font-family: var(--f-label); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.c8-formula-blocco.acceso { background: var(--accento-vivo); box-shadow: inset 0 0 0 1.5px var(--accento-vivo); transform: translateY(-3px); }
+.c8-formula-blocco.acceso small { color: rgba(28, 25, 23, .7); }
+.c8-domanda { display: grid; gap: 14px; padding: clamp(18px, 2.6vw, 28px); border-radius: 24px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .4s; }
+.c8-domanda:focus-within { box-shadow: inset 0 0 0 2px var(--ink); }
+.c8-domanda.ok { box-shadow: inset 0 0 0 2px #34d399; }
+.c8-domanda.rivedere { box-shadow: inset 0 0 0 2px #f87171; }
+.c8-frase { margin: 0; overflow-wrap: anywhere; min-width: 0; font-family: var(--f-display); font-size: clamp(22px, 2.6vw, 34px); line-height: 1.55; letter-spacing: -.015em; }
+.c8-spazio { all: unset; box-sizing: border-box; display: inline-block; vertical-align: baseline; max-width: 100%; border-bottom: 2.5px solid var(--accento-vivo); padding: 0 4px; color: #92400e; font-weight: 500; transition: border-color .3s, background .3s; }
+.c8-spazio::placeholder { color: var(--muted); opacity: .7; font-weight: 400; }
+.c8-spazio:focus { border-color: var(--ink); background: var(--accento-tenue); border-radius: 6px 6px 0 0; }
+
+/* --- Crazy 8: finale prima → dopo e presentazione --- */
+.c8-risultato { display: grid; gap: 16px; padding: clamp(18px, 2.6vw, 30px); border-radius: 26px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-risultato-domanda { margin: 0; font-family: var(--f-display); font-size: clamp(20px, 2.2vw, 30px); line-height: 1.2; letter-spacing: -.02em; }
+.c8-prima-dopo { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr); gap: clamp(10px, 2vw, 24px); align-items: center; }
+.c8-prima-dopo figure { margin: 0; display: grid; gap: 6px; }
+.c8-freccia { font-family: var(--f-display); font-size: clamp(28px, 4vw, 56px); color: var(--accento-vivo); animation: c8-spinta 2.4s ease-in-out infinite; }
+@keyframes c8-spinta { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+.c8-carica { display: grid; place-items: center; align-content: center; gap: 8px; aspect-ratio: 1 / 1; border-radius: 16px; border: 2px dashed var(--accento-bordo); background: var(--accento-tenue); color: #78350f; font-weight: 500; text-align: center; padding: 16px; cursor: pointer; transition: background .3s, transform .45s var(--spring); }
+.c8-carica:hover { background: #fde68a; transform: translateY(-2px); }
+.c8-dettagli summary { cursor: pointer; list-style: none; }
+.c8-dettagli summary::-webkit-details-marker { display: none; }
+.c8-dettagli summary::before { content: "+ "; }
+.c8-dettagli[open] summary::before { content: "− "; }
+@media (max-width: 560px) { .c8-prima-dopo { grid-template-columns: 1fr; } .c8-freccia { transform: rotate(90deg); justify-self: center; animation: none; } }
+
+.c8-entra-sfocato { display: block; animation: c8-sfocato 1.1s var(--out) backwards; }
+@keyframes c8-sfocato { from { opacity: 0; filter: blur(8px); transform: translateY(14px); } to { opacity: 1; filter: none; transform: none; } }
+.c8-palco { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); aspect-ratio: 4 / 3; max-height: 70vh; width: 100%; }
+.c8-palco figure { margin: 0; display: grid; gap: 6px; }
+.c8-palco .mz-frame { box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .6); }
+.c8-palco-sketch { grid-column: 1 / 3; grid-row: 1 / 4; z-index: 2; transform: rotate(-2deg); animation-name: c8-galleggia; }
+.c8-palco-img { animation-name: c8-galleggia; }
+.c8-palco-img-0 { grid-column: 2 / 6; grid-row: 2 / 7; z-index: 1; }
+.c8-palco-img-1 { grid-column: 5 / 7; grid-row: 1 / 3; z-index: 3; }
+.c8-palco-img-2 { grid-column: 1 / 3; grid-row: 4 / 7; z-index: 3; }
+.c8-palco .mz-float { animation-duration: 7s; }
+@keyframes c8-galleggia { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+@media (prefers-reduced-motion: reduce) { .c8-entra-sfocato, .c8-palco figure, .c8-freccia { animation: none !important; } }
+
+/* --- Crazy 8: wall delle domande --- */
+.c8-fluttua { animation: c8-galleggia 7s ease-in-out infinite; }
+.c8-carta-wall { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; border-radius: 24px; padding: 24px; transition: background .4s, color .4s, transform .5s var(--spring); }
+.c8-carta-wall:hover { transform: translateY(-4px) rotate(-.6deg); }
+.c8-carta-wall:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .c8-fluttua { animation: none; } }
+/* riga del consiglio: altezza fissa, così uscire da un campo non sposta
+   la domanda successiva sotto il dito o il mouse */
+.c8-suggerimento { margin: 0; font-size: 14px; line-height: 1.45; min-height: 2.9em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
