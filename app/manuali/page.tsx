@@ -239,10 +239,10 @@ function ManualiContenuto() {
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">4</span>
-              <h2 className="text-lg font-serif font-bold">I due migliori</h2>
+              <h2 className="text-lg font-serif font-bold">Gli sketch scelti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni domanda scegliete con la ★ lo sketch che risponde meglio e scrivete cosa ci vedete.
+              Per ogni domanda scegliete con la ★ gli sketch che rispondono meglio (quanti, lo decide il docente): li vedete scorrere nella pila in alto. Poi scrivete cosa ci vedete.
             </p>
           </div>
           <div className="space-y-4">

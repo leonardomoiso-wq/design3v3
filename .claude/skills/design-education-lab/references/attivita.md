@@ -30,11 +30,11 @@ Sei fasi (`components/crazy8/shared.tsx`, `FASI`):
 1. Su cosa lavorate: il team sceglie direttamente dalla bacheca curata dal docente (`contesti_crazy8`); `attivita.config.contesti_per_team` = quanti ne sceglie ogni team (0 = nessun limite). I titoli scelti finiscono anche in `hmw_o_tema`.
 2. Due HMW a spazi vuoti «Come potremmo [azione] per [utente] così che [risultato]?», ciascuna legata a un contesto; invio al docente (`hmw_inviate`), revisione per domanda (`hmw_revisione`: ok / rivedere) dal wall da proiettare (`components/crazy8/Docente.tsx`), sblocco degli sketch per team o per tutti (`sketch_sbloccato`, controllato anche lato server).
 3. Sketch: 8 per ciascuna domanda (`immagini.domanda` 0/1), foto dal telefono.
-4. Il migliore per ogni domanda (★) con interpretazione.
+4. Gli sketch scelti: per ogni domanda quanti ne imposta il docente (`attivita.config.sketch_per_domanda`, 1–4, dal pannello attività), mostrati in una pila 3D animata (`components/crazy8/Galleria.tsx`, `Pila3D`).
 5. Prompt: configuratore che include la domanda HMW e il contesto dello sketch.
 6. Immagini generate e consegna.
 Esperienza (Moiso language adattato): tendina d'inchiostro col nome della fase a ogni cambio (`useTendina`), celebrazione ambra quando si inviano le domande e alla consegna (`Celebrazione`), formula HMW a blocchi che si accendono sullo spazio in scrittura con un consiglio per spazio (`ComponiHmw`), finale «prima → dopo» con caricamento immediato e presentazione a schermo intero che scorre da sola (`components/crazy8/Finale.tsx`, `PresentazioneRisultati`). In aula: wall con nastro dei contesti, carte che fluttuano, vista «Una alla volta» (10 s, pausa, team svelato a richiesta), schermo intero; «Risultati ⤢» proietta il prima → dopo di ogni team.
-Il docente vede consegne, domande, round e commenti; può eliminare una consegna o un team. Moodboard, valutazione e share non fanno più parte del percorso (componenti rimasti per le consegne vecchie).
+Pannello docente: vista Consegne (elenco leggibile con stato, dettaglio con domande, sketch, catena sketch → immagini AI, commenti) e vista Galleria (strisce per team che scorrono, `StrisceC8`); ogni immagine si apre nel lightbox con zoom dalla miniatura (`LightboxC8`). Il docente vede consegne, domande, round e commenti; può eliminare una consegna o un team. Moodboard, valutazione e share non fanno più parte del percorso (componenti rimasti per le consegne vecchie).
 
 ## 4. HMW + role-prompting (`/hmw`, `/teacher/hmw`)
 

@@ -66,6 +66,47 @@ function TeamDellAttivita({ attivitaId, passcode }: { attivitaId: string; passco
   );
 }
 
+// Impostazioni di Crazy 8 (attivita.config): quanti contesti sceglie ogni
+// team e quanti sketch per ognuna delle due domande.
+function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; passcode: string }) {
+  const [config, setConfig] = useState<{ contesti_per_team?: number; sketch_per_domanda?: number } | null>(null);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    supabase.from('attivita').select('config').eq('id', attivitaId).maybeSingle().then(({ data }) => setConfig((data?.config as any) || {}));
+  }, [attivitaId]);
+  const salva = async (patch: Record<string, number>) => {
+    setConfig(c => ({ ...(c || {}), ...patch }));
+    const { error } = await supabase.rpc('docente_imposta_config_attivita', { p_id: attivitaId, p_config: patch, p_passcode: passcode });
+    setMsg(error ? 'Non salvato: database da aggiornare o password non valida.' : 'Salvato');
+    setTimeout(() => setMsg(''), 2000);
+  };
+  if (!config) return null;
+  const contesti = Number(config.contesti_per_team ?? 2);
+  const sketch = Number(config.sketch_per_domanda ?? 1);
+  const scelta = (valore: number, attuale: number, onClick: () => void, etichetta?: string) => (
+    <button type="button" onClick={onClick} className={`text-xs px-3 py-1.5 rounded-full font-medium border transition ${valore === attuale ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
+      {etichetta || valore}
+    </button>
+  );
+  return (
+    <div className="pt-3 border-t border-stone-100 grid sm:grid-cols-2 gap-4">
+      <div className="space-y-1.5">
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Sketch da scegliere per domanda</p>
+        <div className="flex flex-wrap gap-1.5">{[1, 2, 3, 4].map(n => <span key={n}>{scelta(n, sketch, () => salva({ sketch_per_domanda: n }))}</span>)}</div>
+        <p className="text-[11px] text-stone-400">Ogni team ha 2 domande e 8 sketch per domanda.</p>
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Contesti per team</p>
+        <div className="flex flex-wrap gap-1.5">
+          {[1, 2, 3].map(n => <span key={n}>{scelta(n, contesti, () => salva({ contesti_per_team: n }))}</span>)}
+          {scelta(0, contesti, () => salva({ contesti_per_team: 0 }), 'Tutti')}
+        </div>
+        <p className="text-[11px] text-stone-400" aria-live="polite">{msg || 'I contesti si inseriscono dal pannello Crazy 8.'}</p>
+      </div>
+    </div>
+  );
+}
+
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
@@ -329,6 +370,7 @@ export default function AttivitaPannelloPage() {
                   label="Riflessione obbligatoria"
                 />
               </div>
+              {a.tipo === 'crazy8_ai' && <ImpostazioniCrazy8 attivitaId={a.id} passcode={passcode} />}
               <TeamDellAttivita attivitaId={a.id} passcode={passcode} />
             </div>
           );

@@ -372,3 +372,101 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 /* riga del consiglio: altezza fissa, così uscire da un campo non sposta
    la domanda successiva sotto il dito o il mouse */
 .c8-suggerimento { margin: 0; font-size: 14px; line-height: 1.45; min-height: 2.9em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* --- Crazy 8: lightbox (zoom dalla miniatura) --- */
+.c8-lightbox { position: fixed; inset: 0; z-index: 200; background: rgba(12, 10, 9, .94); color: #fafaf9; display: grid; grid-template-rows: auto 1fr; animation: mz-fadein .45s var(--out); }
+.c8-lightbox-barra { display: flex; justify-content: space-between; align-items: center; padding: 14px max(20px, 3vw); }
+.c8-lightbox-figura { margin: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 12px; padding: 0 max(20px, 9vw) 24px; }
+.c8-lightbox-figura img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .7); }
+.c8-lightbox-cambio { animation: c8-sfocato .6s var(--out); }
+.c8-lightbox-figura figcaption { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.c8-lightbox-titolo { font-family: var(--f-display); font-size: clamp(18px, 2vw, 26px); letter-spacing: -.02em; }
+.c8-lightbox-freccia { all: unset; cursor: pointer; position: absolute; top: 50%; transform: translateY(-50%); padding: 12px 16px; font-family: var(--f-label); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #d6d3d1; transition: color .3s, transform .45s var(--spring); }
+.c8-lightbox-freccia:hover { color: #fbbf24; }
+.c8-lightbox-freccia.sx { left: max(8px, 1.5vw); }
+.c8-lightbox-freccia.dx { right: max(8px, 1.5vw); }
+.c8-lightbox-freccia.sx:hover { transform: translate(-4px, -50%); }
+.c8-lightbox-freccia.dx:hover { transform: translate(4px, -50%); }
+@media (max-width: 640px) { .c8-lightbox-freccia { top: auto; bottom: 10px; transform: none; } .c8-lightbox-figura { padding-bottom: 56px; } }
+
+/* --- Crazy 8: strisce (una riga per consegna) --- */
+.c8-strisce { display: grid; border-top: 1px solid var(--ink); }
+.c8-striscia { display: grid; grid-template-columns: minmax(170px, 260px) minmax(0, 1fr); border-bottom: 1px solid var(--line); height: 150px; transition: height .7s var(--ease), opacity .5s; }
+.c8-striscia.aperta { height: min(36vh, 360px); }
+.c8-striscia.spenta { opacity: .45; }
+.c8-striscia-etichetta { display: grid; align-content: center; gap: 4px; padding: 14px max(20px, 2vw); background: linear-gradient(90deg, var(--bg) 70%, transparent); position: relative; z-index: 2; }
+.c8-striscia-titolo { font-family: var(--f-display); font-size: clamp(22px, 2.2vw, 34px); letter-spacing: -.03em; line-height: 1; overflow-wrap: anywhere; }
+.c8-striscia-sotto { font-size: 13px; color: var(--muted); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.c8-striscia-traccia { display: flex; gap: 10px; padding: 12px 0; overflow-x: auto; scrollbar-width: none; }
+.c8-striscia-traccia::-webkit-scrollbar { display: none; }
+.c8-striscia-img { all: unset; cursor: zoom-in; position: relative; flex: 0 0 auto; height: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--card); }
+.c8-striscia-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1s var(--out); }
+.c8-striscia-img:hover img { transform: scale(1.08); }
+.c8-striscia-img.tipo-scelto { box-shadow: inset 0 0 0 3px var(--accento-vivo); }
+.c8-striscia-img:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.c8-striscia-tag { position: absolute; left: 6px; bottom: 6px; font-family: var(--f-label); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 6px; border-radius: 6px; background: rgba(250, 250, 249, .9); color: var(--ink); }
+.c8-striscia-img.tipo-generata .c8-striscia-tag { background: var(--accento-vivo); color: #1c1917; }
+@media (max-width: 640px) { .c8-striscia { grid-template-columns: 1fr; height: auto; } .c8-striscia-traccia { height: 130px; padding: 0 20px 14px; } .c8-striscia-etichetta { background: none; } }
+
+/* --- Crazy 8: pila 3D degli sketch scelti --- */
+.c8-pila { display: grid; gap: 12px; }
+.c8-pila-scena { position: relative; height: clamp(240px, 38vw, 420px); perspective: 1100px; perspective-origin: 30% 50%; overflow: hidden; border-radius: 24px; background: radial-gradient(circle at 30% 40%, var(--surface), var(--card)); }
+.c8-pila-carta { all: unset; cursor: pointer; position: absolute; left: 8%; top: 50%; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: var(--surface); box-shadow: 0 30px 60px -28px rgba(28, 25, 23, .55); transform-style: preserve-3d; will-change: transform; transition: opacity .6s; }
+.c8-pila-carta img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c8-pila-carta:focus-visible { outline: 3px solid var(--accento-vivo); }
+.c8-pila-controlli { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.c8-pila-titolo { font-family: var(--f-display); font-size: 18px; letter-spacing: -.02em; margin-left: 6px; }
+.c8-pila-vuota { margin: 0; display: grid; place-items: center; height: 160px; border-radius: 24px; border: 2px dashed var(--line); color: var(--muted); font-size: 14px; text-align: center; padding: 16px; }
+
+/* --- Crazy 8: testo sotto il titolo della fase --- */
+.c8-sottotitolo { margin: 0; max-width: 62ch; font-size: clamp(16px, 1.5vw, 19px); line-height: 1.45; color: var(--ink-2, #44403c); }
+
+/* --- Crazy 8: scelta degli sketch, stati ben visibili --- */
+.c8-scelta { display: grid; gap: 14px; padding: clamp(14px, 2vw, 22px); border-radius: 24px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-contatore { flex-shrink: 0; font-family: var(--f-label); font-size: 12px; font-weight: 700; letter-spacing: .08em; padding: 5px 10px; border-radius: 999px; background: var(--card); color: var(--muted); }
+.c8-contatore.ok { background: var(--accento-vivo); color: #1c1917; }
+.c8-sketch-scelta { all: unset; cursor: pointer; position: relative; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); transition: transform .45s var(--spring), box-shadow .3s, opacity .3s, filter .3s; }
+.c8-sketch-scelta img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 1s var(--out); }
+.c8-sketch-scelta:hover img { transform: scale(1.07); }
+.c8-sketch-scelta.scelto { transform: translateY(-4px) rotate(-1.2deg); box-shadow: 0 0 0 4px var(--accento-vivo), 0 18px 30px -14px rgba(217, 119, 6, .6); }
+.c8-sketch-scelta.spento { opacity: .4; filter: grayscale(1); }
+.c8-sketch-scelta.fuoco:not(.scelto) { box-shadow: inset 0 0 0 2px var(--ink); }
+.c8-sketch-scelta:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.c8-sketch-numero { position: absolute; left: 6px; top: 6px; min-width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: rgba(28, 25, 23, .85); color: #fafaf9; }
+.c8-sketch-stella { position: absolute; right: 6px; top: 6px; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(250, 250, 249, .92); color: var(--muted); }
+.c8-sketch-scelta.scelto .c8-sketch-stella { background: var(--accento-vivo); color: #1c1917; }
+.c8-anteprima { all: unset; cursor: zoom-in; display: grid; place-items: center; height: 40vh; border-radius: 18px; overflow: hidden; background: var(--card); }
+.c8-anteprima img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 1s var(--out); }
+.c8-anteprima:hover img { transform: scale(1.04); }
+
+/* --- Crazy 8: pannello docente --- */
+.c8-doc-testata { position: sticky; top: 0; z-index: 20; display: grid; gap: 16px; padding: clamp(18px, 2.4vw, 32px) max(20px, 2vw) 16px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.c8-doc-corpo { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); min-height: 70vh; }
+.c8-doc-elenco { border-right: 1px solid var(--line); display: grid; align-content: start; }
+.c8-doc-voce { all: unset; box-sizing: border-box; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 6px; padding: 16px max(20px, 2vw); border-bottom: 1px solid var(--line); }
+.c8-doc-voce::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-tenue); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .55s var(--ease); }
+.c8-doc-voce:hover::before { transform: scaleY(1); }
+.c8-doc-voce[aria-current="true"]::before { transform: scaleY(1); background: var(--accento-vivo); }
+.c8-doc-voce:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.c8-doc-voce-nome { font-family: var(--f-display); font-size: 24px; letter-spacing: -.025em; line-height: 1.05; overflow-wrap: anywhere; transition: transform .55s var(--spring); }
+.c8-doc-voce:hover .c8-doc-voce-nome { transform: translateX(6px); }
+.c8-doc-voce-meta { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.c8-doc-voce[aria-current="true"] .c8-doc-voce-meta, .c8-doc-voce[aria-current="true"] .mz-mono { color: rgba(28, 25, 23, .75); }
+.c8-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--card); color: var(--ink); white-space: nowrap; }
+.c8-badge.ambra { background: #fde68a; color: #78350f; }
+.c8-badge.verde { background: #d1fae5; color: #065f46; }
+.c8-doc-dettaglio { padding: clamp(18px, 2.4vw, 36px) max(20px, 2.4vw); min-width: 0; }
+.c8-doc-domanda { display: grid; gap: 18px; padding-top: 18px; border-top: 1px solid var(--ink); }
+.c8-doc-miniature { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; max-width: 760px; }
+.c8-doc-mini { all: unset; cursor: zoom-in; position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-doc-mini img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 1s var(--out); }
+.c8-doc-mini:hover img { transform: scale(1.08); }
+.c8-doc-mini.scelto { box-shadow: 0 0 0 3px var(--accento-vivo); }
+.c8-doc-mini.scelto .c8-sketch-stella { background: var(--accento-vivo); color: #1c1917; }
+.c8-doc-mini.grande { width: clamp(120px, 14vw, 190px); flex: 0 0 auto; }
+.c8-doc-mini:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.c8-doc-evoluzione { display: grid; gap: 10px; padding: 16px; border-radius: 20px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-doc-catena { display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 4px 2px 8px; }
+.c8-striscia-tag.ai { background: var(--accento-vivo); color: #1c1917; }
+.mz-pill.danger-pieno { background: #dc2626; color: #fff; }
+@media (max-width: 900px) { .c8-doc-corpo { grid-template-columns: 1fr; } .c8-doc-elenco { border-right: 0; border-bottom: 1px solid var(--ink); max-height: 45vh; overflow-y: auto; } }

@@ -10,6 +10,7 @@ import { percorsoCorso, type Corso } from '../../lib/corsi';
 import { Solidi, useTendina } from '../../components/moiso/Moiso';
 import { Celebrazione } from '../../components/moiso/Celebrazione';
 import { RisultatoDomanda, PresentazioneRisultati } from '../../components/crazy8/Finale';
+import { Pila3D, useLightboxC8 } from '../../components/crazy8/Galleria';
 import { due } from '../../components/Vetrina';
 import {
   FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
@@ -175,7 +176,7 @@ export default function Crazy8Page() {
   return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
 }
 
-type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number } };
+type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } };
 
 function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
@@ -195,6 +196,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const [sketchInRevisione, setSketchInRevisione] = useState<string | null>(null);
   const faseImpostata = useRef(false);
   const tendina = useTendina();
+  const lightbox = useLightboxC8();
   const [festa, setFesta] = useState<{ titolo: string; sottotitolo: string; origine: { x: number; y: number } | null } | null>(null);
   const [presenta, setPresenta] = useState(false);
 
@@ -355,13 +357,16 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     await caricaConsegna(attiva.id);
   };
 
-  // un solo sketch scelto per ogni domanda
+  // per ogni domanda si scelgono al massimo N sketch (impostato dal docente);
+  // con N = 1 scegliere un altro sketch sostituisce quello già scelto
   const scegliMigliore = async (s: Sketch) => {
     if (!attiva) return;
     const d = s.domanda ?? 0;
     if (s.selezionato) { await salvaSketch(s.id, { selezionato: false }); return; }
-    for (const altro of attiva.immagini.filter(x => (x.domanda ?? 0) === d && x.selezionato && x.id !== s.id)) {
-      await salvaSketch(altro.id, { selezionato: false });
+    const giaScelti = attiva.immagini.filter(x => (x.domanda ?? 0) === d && x.selezionato && x.id !== s.id);
+    if (giaScelti.length >= sketchPerDomanda) {
+      if (sketchPerDomanda > 1) { setErroreAzione(`Per la domanda ${d + 1} potete sceglierne ${sketchPerDomanda}: togliete prima uno di quelli scelti.`); return; }
+      for (const altro of giaScelti) await salvaSketch(altro.id, { selezionato: false });
     }
     await salvaSketch(s.id, { selezionato: true });
   };
@@ -445,6 +450,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
   // === dati derivati ===
   const massimoContesti = Number(attivitaInfo.config?.contesti_per_team ?? 2);
+  const sketchPerDomanda = Math.max(1, Number(attivitaInfo.config?.sketch_per_domanda ?? 1));
   const sceltiValidi = attiva.contesti.filter(id => contesti.some(c => c.id === id));
   const contestiRichiesti = contesti.length === 0 ? 0 : massimoContesti > 0 ? Math.min(massimoContesti, contesti.length) : 1;
   const opzioniContesto = [
@@ -453,7 +459,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const sketchTutti = attiva.immagini;
   const sketchDi = (d: number) => sketchTutti.filter(s => (s.domanda ?? 0) === d);
   const sketchSelezionati = sketchTutti.filter(s => s.selezionato);
-  const migliore = (d: number) => sketchDi(d).find(s => s.selezionato) || null;
+  const sceltiDi = (d: number) => sketchDi(d).filter(s => s.selezionato);
+  const richiestiDi = (d: number) => Math.min(sketchPerDomanda, sketchDi(d).length);
+  const sceltaCompleta = [0, 1].every(d => sceltiDi(d).length >= Math.max(1, richiestiDi(d)));
   const hmwDi = (d: number): Hmw | undefined => attiva.hmw[d];
   const infoFase = FASI[fase - 1];
 
@@ -561,43 +569,76 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       case 4: {
         const inPrimoPiano = sketchTutti.find(s => s.id === sketchInRevisione) || sketchSelezionati[0] || sketchTutti[0] || null;
         return (
-          <div className="space-y-6">
-            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 items-start">
+          <div className="space-y-8">
+            {/* gli sketch scelti, in una pila 3D che scorre da sola */}
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="mz-mono" style={{ color: 'var(--ink)' }}>I vostri scelti ({due(sketchSelezionati.length)} / {due(richiestiDi(0) + richiestiDi(1))})</span>
+                <span className="text-sm text-stone-500">{sketchPerDomanda === 1 ? 'Uno per domanda.' : `${sketchPerDomanda} per domanda.`}</span>
+              </div>
+              <Pila3D
+                vuoto="Toccate ★ su uno sketch per sceglierlo: comparirà qui."
+                immagini={sketchSelezionati.map(sk => ({ src: sk.url_file, titolo: `Domanda ${(sk.domanda ?? 0) + 1}: sketch ${sketchDi(sk.domanda ?? 0).indexOf(sk) + 1}` }))}
+                onApri={(i, el) => lightbox.apri(sketchSelezionati.map(sk => ({ src: sk.url_file, titolo: `Domanda ${(sk.domanda ?? 0) + 1}`, meta: testoHmw(hmwDi(sk.domanda ?? 0)) })), i, el)}
+              />
+            </section>
+
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] gap-6 items-start">
               <div className="space-y-5">
-                {[0, 1].map(d => (
-                  <section key={d} className="bg-white rounded-3xl border border-stone-200 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm leading-snug text-stone-800" style={{ fontFamily: 'var(--f-display)' }}>
-                        <span className="mz-mono mr-1" style={{ color: 'var(--accento)' }}>({String(d + 1).padStart(2, '0')})</span>{testoHmw(hmwDi(d))}
-                      </p>
-                      {migliore(d) && <span className="text-[11px] font-medium text-emerald-700 whitespace-nowrap">✓ scelto</span>}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {sketchDi(d).map(s => (
-                        <div key={s.id} className="relative">
-                          <button type="button" onClick={() => setSketchInRevisione(s.id)} className={`zoom-cornice w-full aspect-square rounded-xl border bg-stone-50 overflow-hidden flex items-center justify-center ${inPrimoPiano?.id === s.id ? 'border-stone-900 ring-2 ring-stone-900' : 'border-stone-200 hover:border-stone-500'}`}>
-                            <img src={s.url_file} alt={`Sketch ${s.ordine + 1}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-                          </button>
-                          <button type="button" onClick={() => scegliMigliore(s)} aria-pressed={s.selezionato} aria-label={s.selezionato ? 'Togli dalla scelta' : 'Scegli come migliore'} className={`absolute top-1 right-1 h-7 w-7 rounded-full text-sm flex items-center justify-center shadow transition ${s.selezionato ? 'bg-amber-500 text-white' : 'bg-white/90 text-stone-400 hover:text-amber-500'}`}>★</button>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
+                {[0, 1].map(d => {
+                  const scelti = sceltiDi(d).length;
+                  const pieno = scelti >= richiestiDi(d) && sketchPerDomanda > 1;
+                  return (
+                    <section key={d} className="c8-scelta">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-base leading-snug text-stone-900 m-0" style={{ fontFamily: 'var(--f-display)' }}>
+                          <span className="mz-mono mr-1" style={{ color: 'var(--accento)' }}>({due(d + 1)})</span>{testoHmw(hmwDi(d))}
+                        </p>
+                        <span className={`c8-contatore ${scelti >= Math.max(1, richiestiDi(d)) ? 'ok' : ''}`}>{scelti} / {Math.max(1, richiestiDi(d))}</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {sketchDi(d).map((s, k) => {
+                          const pos = sceltiDi(d).indexOf(s);
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => { setSketchInRevisione(s.id); scegliMigliore(s); }}
+                              aria-pressed={s.selezionato}
+                              aria-label={`Sketch ${k + 1}${s.selezionato ? ', scelto' : ''}`}
+                              className={`c8-sketch-scelta ${s.selezionato ? 'scelto' : pieno ? 'spento' : ''} ${inPrimoPiano?.id === s.id ? 'fuoco' : ''}`}
+                            >
+                              <img src={s.url_file} alt="" loading="lazy" decoding="async" />
+                              <span className="c8-sketch-numero">{k + 1}</span>
+                              <span className="c8-sketch-stella" aria-hidden="true">{s.selezionato ? (sketchPerDomanda > 1 ? `★ ${pos + 1}` : '★') : '☆'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
               {inPrimoPiano && (
-                <section key={inPrimoPiano.id} className="bg-white rounded-3xl border border-stone-200 p-5 space-y-4 lg:sticky lg:top-20 animate-fade-in">
-                  <div className="rounded-2xl bg-stone-50 border border-stone-200 flex items-center justify-center h-[40vh] overflow-hidden">
-                    <img src={inPrimoPiano.url_file} alt="Sketch in primo piano" decoding="async" className="max-w-full max-h-full object-contain" />
-                  </div>
+                <section key={inPrimoPiano.id} className="c8-scelta lg:sticky lg:top-20 animate-fade-in">
+                  <button type="button" className="c8-anteprima" onClick={e => lightbox.apri([{ src: inPrimoPiano.url_file, titolo: `Domanda ${(inPrimoPiano.domanda ?? 0) + 1}` }], 0, e.currentTarget)} aria-label="Ingrandisci">
+                    <img src={inPrimoPiano.url_file} alt="Sketch in primo piano" decoding="async" />
+                  </button>
                   <button type="button" onClick={() => scegliMigliore(inPrimoPiano)} className={`mz-pill ${inPrimoPiano.selezionato ? 'b' : 'o'}`}>
-                    {inPrimoPiano.selezionato ? `★ Il migliore per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}` : `☆ Scegli per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}`}
+                    {inPrimoPiano.selezionato ? `★ Scelto per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}` : `☆ Sceglilo per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}`}
                   </button>
                   <TestoAutosalvato etichetta="Cosa ci vedete" valore={inPrimoPiano.interpretazione} righe={3} placeholder="Come risponde alla domanda?" onSalva={t => salvaSketch(inPrimoPiano.id, { interpretazione: t })} />
                 </section>
               )}
             </div>
-            <NavigazioneFase fase={4} onIndietro={() => vaiAFase(3)} onAvanti={() => avanzaA(5)} avantiPossibile={!!migliore(0) && !!migliore(1)} motivoBlocco="Scegliete uno sketch per ogni domanda (★)" etichettaAvanti="Avanti: il prompt" />
+            <NavigazioneFase
+              fase={4}
+              onIndietro={() => vaiAFase(3)}
+              onAvanti={() => avanzaA(5)}
+              avantiPossibile={sceltaCompleta}
+              motivoBlocco={sketchPerDomanda === 1 ? 'Scegliete uno sketch per ogni domanda' : `Scegliete ${sketchPerDomanda} sketch per ogni domanda`}
+              etichettaAvanti="Avanti: il prompt"
+            />
           </div>
         );
       }
@@ -635,14 +676,13 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
         const conImmagini = sketchSelezionati.some(sk => sk.generazioni_crazy8.length > 0);
         return (
           <div className="space-y-6">
-            {[0, 1].map(d => {
-              const sk = migliore(d);
-              if (!sk) return null;
+            {sketchSelezionati.map((sk, k) => {
+              const d = sk.domanda ?? 0;
               const ultimo = leggiUltimoPrompt(sk.id);
               return (
                 <RisultatoDomanda
                   key={sk.id}
-                  indice={d}
+                  indice={k}
                   domanda={testoHmw(hmwDi(d))}
                   sketch={sk}
                   promptIniziale={ultimo.prompt}
@@ -684,15 +724,16 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       {caricamentiAttivi > 0 && <SfondoCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
       {tendina.nodo}
+      {lightbox.nodo}
       {festa && <Celebrazione origine={festa.origine} titolo={festa.titolo} sottotitolo={festa.sottotitolo} numero={null} onFine={() => setFesta(null)} />}
       {presenta && (
         <PresentazioneRisultati
           titolo={teamAtt.nome}
           onChiudi={() => setPresenta(false)}
-          diapositive={[0, 1].map(d => {
-            const sk = migliore(d);
+          diapositive={sketchSelezionati.map(sk => {
+            const d = sk.domanda ?? 0;
             const h = hmwDi(d);
-            return { chiave: String(d), sopra: `Domanda ${String(d + 1).padStart(2, '0')}`, domanda: testoHmw(h), contesto: h ? nomeContesto(h.contesto, contesti) : '', sketch: sk?.url_file || null, immagini: (sk?.generazioni_crazy8 || []).map(g => g.url_immagine) };
+            return { chiave: sk.id, sopra: `Domanda ${due(d + 1)}`, domanda: testoHmw(h), contesto: h ? nomeContesto(h.contesto, contesti) : '', sketch: sk.url_file, immagini: sk.generazioni_crazy8.map(g => g.url_immagine) };
           })}
         />
       )}
@@ -705,8 +746,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <h1 className="mz-display c8-titolo">
               {infoFase.titolo}
               <span className="mz-sup">({due(fase)} / {due(NUMERO_FASI)})</span>
-              {infoFase.sottotitolo && <Info>{infoFase.sottotitolo}</Info>}
             </h1>
+            <p className="c8-sottotitolo">{infoFase.sottotitolo}</p>
             {sceltiValidi.length > 0 && fase > 1 && (
               <div className="flex flex-wrap gap-1.5">
                 {sceltiValidi.map(id => <span key={id} className="mz-chip on" style={{ cursor: 'default' }}>{nomeContesto(id, contesti)}</span>)}

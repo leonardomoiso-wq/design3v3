@@ -1,169 +1,28 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Info from '@/components/Info';
-import Sep from '@/components/Sep';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
-import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
-import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, visioniDi, nomeContesto, testoHmw, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
+import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, nomeContesto, testoHmw, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
 import { PannelloContesti, WallHmw, type TeamAttivitaElenco } from '@/components/crazy8/Docente';
 import { BottomSheet } from '@/components/PannelliMobile';
 import { PresentazioneRisultati, type Diapositiva } from '@/components/crazy8/Finale';
+import { StrisceC8, useLightboxC8, type ImmagineC8, type RigaC8 } from '@/components/crazy8/Galleria';
+import { Segmentato } from '@/components/moiso/Moiso';
 
-const STATI = ['in_corso', 'consegnato', 'revisionato'];
+// Pannello docente di Crazy 8. Due viste:
+// - Consegne: elenco dei team a sinistra, a destra la consegna aperta con
+//   domande (revisione e sblocco degli sketch), sketch e immagini
+//   migliorate per ogni domanda, commenti.
+// - Galleria: una striscia per team con sketch e immagini migliorate, che
+//   scorre lenta; un clic apre l'immagine in grande.
 
-type ImmagineLightbox = {
-  url: string;
-  label: string;
-  gruppoNum: number;
-  gruppoNome: string;
-  contatore: string;
-  prompt: string | null;
-  deduzione: string | null;
-};
-
-// Tutte le immagini di una consegna, in ordine di percorso (sketch, poi i
-// suoi round; sketch successivo, poi i suoi round...): usata per popolare
-// la lightbox navigabile a schermo intero, qualunque miniatura l'abbia aperta,
-// col pannello informativo a fianco (prompt, team, conteggio round).
-function immaginiFlat(submission: any): ImmagineLightbox[] {
-  return (submission.immagini || []).flatMap((sketch: any) => {
-    const totaleRound = (sketch.generazioni_crazy8 || []).length;
-    return [
-      {
-        url: sketch.url_file,
-        label: 'Sketch',
-        gruppoNum: submission.gruppo_num,
-        gruppoNome: submission.gruppo_nome,
-        contatore: totaleRound > 0 ? `Sketch di partenza, poi ${totaleRound} round` : 'Sketch di partenza, nessun round ancora',
-        prompt: null,
-        deduzione: null,
-      },
-      ...(sketch.generazioni_crazy8 || []).map((g: any) => ({
-        url: g.url_immagine,
-        label: `Round ${g.ordine}`,
-        gruppoNum: submission.gruppo_num,
-        gruppoNome: submission.gruppo_nome,
-        contatore: `Round ${g.ordine} di ${totaleRound}`,
-        prompt: g.prompt_usato as string,
-        deduzione: (g.deduzione as string) || null,
-      })),
-    ];
-  });
-}
-
-function Lightbox({ immagini, indice, onCambiaIndice, onChiudi }: { immagini: ImmagineLightbox[]; indice: number; onCambiaIndice: (i: number) => void; onChiudi: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onChiudi();
-      if (e.key === 'ArrowRight') onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1);
-      if (e.key === 'ArrowLeft') onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [indice, immagini.length, onCambiaIndice, onChiudi]);
-
-  const corrente = immagini[indice];
-  if (!corrente) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-stone-950/90 backdrop-blur-sm flex flex-col p-4 sm:p-8 animate-fade-in"
-      role="dialog" aria-modal="true" aria-label="Immagine a grandezza intera"
-      onClick={onChiudi}
-    >
-      <div className="flex items-center justify-between w-full mb-3 text-stone-400 text-xs uppercase tracking-widest flex-shrink-0" onClick={e => e.stopPropagation()}>
-        <span>{corrente.label}<Sep />{indice + 1} / {immagini.length}</span>
-        <button onClick={onChiudi} className="text-stone-300 hover:text-white text-2xl leading-none" aria-label="Chiudi">✕</button>
-      </div>
-      <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row gap-4" onClick={e => e.stopPropagation()}>
-        <div className="relative flex-1 min-h-0 flex items-center justify-center">
-          {immagini.length > 1 && (
-            <button
-              onClick={() => onCambiaIndice(indice === 0 ? immagini.length - 1 : indice - 1)}
-              className="absolute left-1 sm:-left-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
-              aria-label="Immagine precedente"
-            >
-              ‹
-            </button>
-          )}
-          <img key={corrente.url} src={corrente.url} alt="" decoding="async" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scale-in" />
-          {immagini.length > 1 && (
-            <button
-              onClick={() => onCambiaIndice(indice === immagini.length - 1 ? 0 : indice + 1)}
-              className="absolute right-1 sm:-right-3 z-10 h-11 w-11 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center text-xl transition"
-              aria-label="Immagine successiva"
-            >
-              ›
-            </button>
-          )}
-        </div>
-
-        <div key={`pannello-${corrente.url}`} className="w-full lg:w-72 flex-shrink-0 bg-stone-900/80 border border-stone-800 rounded-2xl p-4 space-y-4 overflow-y-auto lg:max-h-full animate-fade-in-up">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Gruppo</p>
-            <p className="text-sm text-white font-medium mt-0.5">Gruppo {corrente.gruppoNum} — {corrente.gruppoNome}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Iterazioni</p>
-            <p className="text-sm text-stone-200 mt-0.5">{corrente.contatore}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Prompt usato</p>
-            <p className="text-sm text-stone-200 mt-0.5 leading-relaxed">{corrente.prompt || '—'}</p>
-          </div>
-          {corrente.deduzione && (
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Deduzione</p>
-              <p className="text-sm text-stone-300 italic mt-0.5 leading-relaxed">&ldquo;{corrente.deduzione}&rdquo;</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Panoramica a timeline evolutiva: ogni sketch è una "traccia" orizzontale
-// (sketch di partenza -> round 1 -> round 2 -> ...), tutte visibili insieme
-// in una sola pagina. Usata sia nella vista galleria sia come riepilogo
-// finale in modalità presentazione.
-function TimelineSottoambito({ submission, onImageClick, dark }: { submission: any; onImageClick: (immagini: ImmagineLightbox[], indice: number) => void; dark?: boolean }) {
-  const cardBg = dark ? 'bg-stone-900 border-stone-800' : 'bg-white border-stone-200';
-  const labelColor = dark ? 'text-stone-500' : 'text-stone-400';
-  const flat = immaginiFlat(submission);
-  return (
-    <div className="space-y-6">
-      {(submission.immagini || []).length === 0 && (
-        <p className={`text-sm ${labelColor}`}>Nessuno sketch caricato ancora.</p>
-      )}
-      {(submission.immagini || []).map((sketch: any, idx: number) => (
-        <div key={sketch.id} className={`rounded-2xl border ${cardBg} p-4`}>
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${labelColor} mb-3`}>Traccia {idx + 1}</p>
-          <div className="flex items-stretch gap-3 overflow-x-auto pb-1">
-            <button onClick={() => onImageClick(flat, flat.findIndex(f => f.url === sketch.url_file))} className="flex-shrink-0 text-center group">
-              <div className={`w-40 h-40 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
-                <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-              </div>
-              <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Sketch</p>
-            </button>
-            {sketch.generazioni_crazy8.map((g: any) => (
-              <div key={g.id} className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-lg ${labelColor}`}>→</span>
-                <button onClick={() => onImageClick(flat, flat.findIndex(f => f.url === g.url_immagine))} className="text-center group">
-                  <div className={`w-40 h-40 rounded-xl border ${dark ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'} overflow-hidden flex items-center justify-center group-hover:opacity-80 transition`}>
-                    <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-                  </div>
-                  <p className={`text-[9px] uppercase tracking-widest ${labelColor} mt-1`}>Round {g.ordine}</p>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+const STATI: { id: string; etichetta: string }[] = [
+  { id: 'in_corso', etichetta: 'In corso' },
+  { id: 'consegnato', etichetta: 'Consegnato' },
+  { id: 'revisionato', etichetta: 'Revisionato' },
+];
+const due = (n: number) => String(n).padStart(2, '0');
 
 function GestionePromptSuggeriti({ passcode, corsoId, onChiudi }: { passcode: string; corsoId: string; onChiudi: () => void }) {
   const [lista, setLista] = useState<any[]>([]);
@@ -276,22 +135,17 @@ function FotoConCommenti({
 
 export default function Crazy8DocentePage() {
   const { passcode, corso } = useDocente();
+  const problemiDb = useControlloDbCrazy8();
+  const lightbox = useLightboxC8();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selezionataId, setSelezionataId] = useState<string | null>(null);
-  const problemiDb = useControlloDbCrazy8();
   const [commenti, setCommenti] = useState<Record<string, any[]>>({});
   const [nuovoCommento, setNuovoCommento] = useState<Record<string, string>>({});
   const [invioInCorso, setInvioInCorso] = useState<string | null>(null);
-  const [modalitaPresentazione, setModalitaPresentazione] = useState(false);
-  const [indicePresentazione, setIndicePresentazione] = useState(0);
-  const [lightbox, setLightbox] = useState<{ immagini: ImmagineLightbox[]; indice: number } | null>(null);
-  const apriLightbox = (immagini: ImmagineLightbox[], indice: number) => {
-    if (indice < 0) return;
-    setLightbox({ immagini, indice });
-  };
-  const [vistaDettaglio, setVistaDettaglio] = useState<'galleria' | 'timeline'>('galleria');
+  const [vista, setVista] = useState<'consegne' | 'galleria'>('consegne');
+  const [filtroGalleria, setFiltroGalleria] = useState<'tutto' | 'sketch' | 'migliorate'>('tutto');
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
-  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number } } | null>(null);
+  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } } | null>(null);
   const [contesti, setContesti] = useState<Contesto[]>([]);
   const [teamsAtt, setTeamsAtt] = useState<TeamAttivitaElenco[]>([]);
   const [mostraContesti, setMostraContesti] = useState(false);
@@ -311,24 +165,6 @@ export default function Crazy8DocentePage() {
     setTeamsAtt((t || []) as TeamAttivitaElenco[]);
   };
 
-  const eliminaConsegna = async (s: any) => {
-    if (!window.confirm(`Eliminare la consegna di "${s.gruppo_nome}"? Sketch, domande e immagini generate verranno cancellati. Non si può annullare.`)) return;
-    const { error } = await supabase.rpc('docente_elimina_submission_crazy8', { p_id: s.id, p_passcode: passcode });
-    if (error) { window.alert('Eliminazione non riuscita: password docente non valida o database da aggiornare.'); return; }
-    setSubmissions(prev => prev.filter(x => x.id !== s.id));
-    setSelezionataId(null);
-  };
-
-  const revisionaHmw = async (s: any, indice: number, stato: 'ok' | 'rivedere' | null) => {
-    const { error } = await supabase.rpc('docente_revisione_hmw_crazy8', { p_id: s.id, p_indice: indice, p_stato: stato, p_passcode: passcode });
-    if (!error) caricaSubmissions();
-  };
-
-  const sbloccaSketch = async (s: any, valore: boolean) => {
-    const { error } = await supabase.rpc('docente_sblocca_sketch_crazy8', { p_id: s.id, p_valore: valore, p_passcode: passcode });
-    if (!error) caricaSubmissions();
-  };
-
   const caricaSubmissions = async () => {
     const { data, error } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').eq('corso_id', corso.id).order('created_at', { ascending: false });
     if (!error && data) {
@@ -345,7 +181,6 @@ export default function Crazy8DocentePage() {
   };
 
   const caricaCommenti = async () => {
-    // Solo i commenti sulle immagini delle consegne di questo corso.
     const { data, error } = await supabase
       .from('commenti')
       .select('*, immagini!inner(submission_crazy8!inner(corso_id))')
@@ -365,24 +200,45 @@ export default function Crazy8DocentePage() {
     caricaSubmissions();
     caricaCommenti();
     caricaAttivitaC8();
-
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const presto = () => { if (timer) clearTimeout(timer); timer = setTimeout(caricaSubmissions, 600); };
     const channel = supabase
       .channel(`realtime-crazy8-docente-${corso.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, caricaSubmissions)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, caricaSubmissions)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, caricaSubmissions)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, presto)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, presto)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, presto)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commenti' }, caricaCommenti)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contesti_crazy8' }, caricaAttivitaC8)
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selezionata = submissions.find(s => s.id === selezionataId) || null;
+  const teamDi = (s: any) => teamsAtt.find(t => t.id === s.team_attivita_id);
+  const nomeDi = (s: any) => teamDi(s)?.nome || s.gruppo_nome;
 
+  // === azioni ===
+  const eliminaConsegna = async (s: any) => {
+    if (!window.confirm(`Eliminare la consegna di "${nomeDi(s)}"? Sketch, domande e immagini generate verranno cancellati. Non si può annullare.`)) return;
+    const { error } = await supabase.rpc('docente_elimina_submission_crazy8', { p_id: s.id, p_passcode: passcode });
+    if (error) { window.alert('Eliminazione non riuscita: password docente non valida o database da aggiornare.'); return; }
+    setSubmissions(prev => prev.filter(x => x.id !== s.id));
+    setSelezionataId(null);
+  };
+  const revisionaHmw = async (s: any, indice: number, stato: 'ok' | 'rivedere' | null) => {
+    const { error } = await supabase.rpc('docente_revisione_hmw_crazy8', { p_id: s.id, p_indice: indice, p_stato: stato, p_passcode: passcode });
+    if (!error) caricaSubmissions();
+  };
+  const sbloccaSketch = async (s: any, valore: boolean) => {
+    const { error } = await supabase.rpc('docente_sblocca_sketch_crazy8', { p_id: s.id, p_valore: valore, p_passcode: passcode });
+    if (!error) caricaSubmissions();
+  };
+  const impostaStato = async (s: any, stato: string) => {
+    setSubmissions(prev => prev.map(x => (x.id === s.id ? { ...x, stato } : x)));
+    const { error } = await supabase.rpc('docente_imposta_stato_submission_crazy8', { p_id: s.id, p_stato: stato, p_passcode: passcode });
+    if (error) caricaSubmissions();
+  };
   const inviaCommento = async (immagineId: string) => {
     const testo = (nuovoCommento[immagineId] || '').trim();
     if (!testo) return;
@@ -390,418 +246,238 @@ export default function Crazy8DocentePage() {
     const { data, error } = await supabase.rpc('docente_aggiungi_commento', { p_immagine_id: immagineId, p_testo: testo, p_passcode: passcode });
     setInvioInCorso(null);
     if (error) return;
-
-    setCommenti(prev => ({
-      ...prev,
-      [immagineId]: [...(prev[immagineId] || []), { id: data, immagine_id: immagineId, ruolo_autore: 'docente', testo }],
-    }));
+    setCommenti(prev => ({ ...prev, [immagineId]: [...(prev[immagineId] || []), { id: data, immagine_id: immagineId, ruolo_autore: 'docente', testo }] }));
     setNuovoCommento(prev => ({ ...prev, [immagineId]: '' }));
   };
-
   const eliminaCommento = async (commentoId: string, immagineId: string) => {
-    setCommenti(prev => ({
-      ...prev,
-      [immagineId]: (prev[immagineId] || []).filter(c => c.id !== commentoId),
-    }));
+    setCommenti(prev => ({ ...prev, [immagineId]: (prev[immagineId] || []).filter(c => c.id !== commentoId) }));
     const { error } = await supabase.rpc('docente_elimina_commento', { p_commento_id: commentoId, p_passcode: passcode });
     if (error) caricaCommenti();
   };
 
-  const impostaStato = async (s: any, stato: string) => {
-    setSubmissions(prev => prev.map(x => (x.id === s.id ? { ...x, stato } : x)));
-    const { error } = await supabase.rpc('docente_imposta_stato_submission_crazy8', { p_id: s.id, p_stato: stato, p_passcode: passcode });
-    if (error) caricaSubmissions();
+  // === immagini di una consegna ===
+  const sketchDi = (s: any, d: number) => (s.immagini || []).filter((x: any) => (x.domanda ?? 0) === d);
+  const domandeDi = (s: any) => (s.team_attivita_id ? [0, 1] : [0]);
+  const immaginiDomanda = (s: any, d: number): ImmagineC8[] => {
+    const h = (s.hmw || [])[d] as Hmw | undefined;
+    return sketchDi(s, d).flatMap((sk: any, k: number) => [
+      { src: sk.url_file, titolo: `${nomeDi(s)}: sketch ${k + 1}${sk.selezionato ? ' ★' : ''}`, meta: h ? testoHmw(h) : undefined, tipo: sk.selezionato ? 'scelto' as const : 'sketch' as const },
+      ...sk.generazioni_crazy8.map((g: any) => ({ src: g.url_immagine, titolo: `${nomeDi(s)}: dallo sketch ${k + 1}${g.motore ? `, ${g.motore}` : ''}`, meta: g.prompt_usato, tipo: 'generata' as const })),
+    ]);
   };
 
-  // Sequenza narrativa per la modalità presentazione: sketch di partenza,
-  // poi ogni round della sua catena in ordine, poi lo sketch successivo.
-  // Prima di passare al gruppo successivo, un riepilogo a timeline di tutta
-  // la sua evoluzione (tutti gli sketch e tutti i round in una schermata).
-  const diapositive = submissions.flatMap(s => {
-    const slide = (s.immagini || []).flatMap((sketch: any) => [
-      { submission: s, sketch, round: null as any, riepilogo: false },
-      ...sketch.generazioni_crazy8.map((r: any) => ({ submission: s, sketch, round: r, riepilogo: false })),
-    ]);
-    if ((s.immagini || []).length > 0) {
-      slide.push({ submission: s, sketch: null, round: null, riepilogo: true });
-    }
-    return slide;
+  const righeGalleria: RigaC8[] = submissions.map(s => {
+    const tutte = domandeDi(s).flatMap(d => immaginiDomanda(s, d));
+    const immagini = tutte.filter(im => filtroGalleria === 'tutto' || (filtroGalleria === 'sketch' ? im.tipo !== 'generata' : im.tipo === 'generata'));
+    const membri = teamDi(s)?.membri?.join(', ');
+    return { chiave: s.id, titolo: nomeDi(s), sotto: membri || s.hmw_o_tema || undefined, immagini };
   });
 
-  useEffect(() => {
-    // Con la lightbox aperta sopra la presentazione, le frecce devono
-    // scorrere le immagini della lightbox, non le diapositive sotto.
-    if (!modalitaPresentazione || lightbox) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1));
-      if (e.key === 'ArrowLeft') setIndicePresentazione(i => Math.max(0, i - 1));
-      if (e.key === 'Escape') setModalitaPresentazione(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [modalitaPresentazione, diapositive.length, lightbox]);
+  const diapositiveRisultati: Diapositiva[] = submissions.filter(sub => sub.team_attivita_id).flatMap(sub =>
+    (sub.immagini || []).filter((sk: any) => sk.selezionato && (sk.generazioni_crazy8 || []).length > 0).map((sk: any) => {
+      const h = (sub.hmw || [])[sk.domanda ?? 0] as Hmw | undefined;
+      return {
+        chiave: sk.id,
+        sopra: nomeDi(sub),
+        domanda: h ? testoHmw(h) : '',
+        contesto: h ? nomeContesto(h.contesto, contesti) : '',
+        sketch: sk.url_file,
+        immagini: sk.generazioni_crazy8.map((g: any) => g.url_immagine),
+      };
+    }));
 
-  if (modalitaPresentazione) {
-    const corrente = diapositive[indicePresentazione];
-    return (
-      <div className="flex-1 bg-stone-950 flex flex-col overflow-hidden">
-        <div className="flex justify-between items-center px-8 py-4 text-stone-400">
-          <span className="text-xs uppercase tracking-widest">Scheda {diapositive.length === 0 ? 0 : indicePresentazione + 1} di {diapositive.length}</span>
-          <button onClick={() => setModalitaPresentazione(false)} className="text-xs uppercase tracking-widest hover:text-white transition">✕ Esci (Esc)</button>
-        </div>
-
-        {!corrente ? (
-          <div className="flex-1 flex items-center justify-center text-stone-500 text-sm">Nessuno sketch da presentare ancora.</div>
-        ) : corrente.riepilogo ? (
-          <div key={`riepilogo-${corrente.submission.id}`} className="flex-1 overflow-y-auto px-12 pb-10 animate-fade-in-up">
-            <div className="text-center pt-2 pb-6 sticky top-0 bg-stone-950/95 backdrop-blur-sm">
-              <span className="text-xs uppercase tracking-widest text-stone-500 mb-2 block">Gruppo {corrente.submission.gruppo_num} — {corrente.submission.gruppo_nome}</span>
-              <h1 className="text-3xl font-serif font-bold text-white">Riepilogo dell&apos;evoluzione</h1>
-              <p className="text-stone-500 text-xs uppercase tracking-widest mt-1">Da schizzo a immagine, tutte le tracce</p>
-            </div>
-            <div className="max-w-5xl mx-auto">
-              <TimelineSottoambito submission={corrente.submission} onImageClick={apriLightbox} dark />
-            </div>
-          </div>
-        ) : (
-          <div key={`${corrente.sketch.id}-${corrente.round?.id ?? 'sketch'}`} className="flex-1 flex flex-col items-center justify-center px-12 pb-10 animate-fade-in-up">
-            <span className="text-xs uppercase tracking-widest text-stone-500 mb-2">Gruppo {corrente.submission.gruppo_num} — {corrente.submission.gruppo_nome}</span>
-            <h1 className="text-3xl font-serif font-bold text-white text-center max-w-3xl mb-2">{corrente.submission.hmw_o_tema || 'Contesti non ancora scelti'}</h1>
-            <p className="text-stone-500 text-xs uppercase tracking-widest mb-8">{corrente.round ? `Round ${corrente.round.ordine}` : 'Sketch di partenza'}</p>
-
-            {!corrente.round ? (
-              <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.sketch.url_file)); }} className="h-80 w-80 bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
-              </button>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-8 w-full max-w-5xl">
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Sketch di partenza</p>
-                    <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.sketch.url_file)); }} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                      <img src={corrente.sketch.url_file} alt="Sketch" decoding="async" className="max-w-full max-h-full object-contain" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-stone-500 text-center">Generata (round {corrente.round.ordine})</p>
-                    <button onClick={() => { const flat = immaginiFlat(corrente.submission); apriLightbox(flat, flat.findIndex(f => f.url === corrente.round.url_immagine)); }} className="h-64 w-full bg-stone-900 rounded-2xl border border-stone-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition">
-                      <img src={corrente.round.url_immagine} alt="" decoding="async" className="max-w-full max-h-full object-contain" />
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-8 w-full max-w-5xl mt-6 text-stone-400 text-xs">
-                  <p><b className="text-stone-300">Prompt:</b> {corrente.round.prompt_usato}</p>
-                  {corrente.round.deduzione && <p><b className="text-stone-300">Deduzione:</b> {corrente.round.deduzione}</p>}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-center gap-4 pb-8">
-          <button onClick={() => setIndicePresentazione(i => Math.max(0, i - 1))} disabled={indicePresentazione === 0} className="bg-stone-800 text-white px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-700 transition">← Precedente</button>
-          <button onClick={() => setIndicePresentazione(i => Math.min(diapositive.length - 1, i + 1))} disabled={indicePresentazione >= diapositive.length - 1} className="bg-white text-stone-900 px-5 py-2.5 rounded-full text-xs font-medium disabled:opacity-30 hover:bg-stone-200 transition">Successiva →</button>
-        </div>
-        {lightbox && (
-          <Lightbox
-            immagini={lightbox.immagini}
-            indice={lightbox.indice}
-            onCambiaIndice={i => setLightbox(l => (l ? { ...l, indice: i } : l))}
-            onChiudi={() => setLightbox(null)}
-          />
-        )}
-      </div>
-    );
-  }
+  const sketchPerDomanda = Number(attivitaC8?.config.sketch_per_domanda ?? 1);
+  const contestiPerTeam = Number(attivitaC8?.config.contesti_per_team ?? 2);
 
   return (
-    <div className="flex-1 flex overflow-hidden">
-      <div className="w-72 border-r border-stone-200 bg-[#FBF9F5] overflow-y-auto p-4 space-y-2 flex-shrink-0">
-        <div className="flex items-center justify-between px-1 pb-1">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Consegne ({submissions.length})</h2>
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => setMostraContesti(true)}
-              disabled={!attivitaC8}
-              title="Bacheca dei contesti"
-              className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition disabled:opacity-30"
-            >
-              📌
-            </button>
-            <button
-              onClick={() => { caricaAttivitaC8(); setMostraWall(true); }}
-              disabled={!attivitaC8}
-              title="Wall delle domande HMW"
-              className="text-[10px] bg-amber-400 text-stone-900 px-2.5 py-1 rounded-full font-bold hover:bg-amber-300 transition disabled:opacity-30"
-            >
-              Wall HMW
-            </button>
-            <button
-              onClick={() => setMostraRisultati(true)}
-              title="Proietta i risultati dei team"
-              className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition"
-            >
-              Risultati ⤢
-            </button>
-            <button
-              onClick={() => setMostraPromptSuggeriti(true)}
-              title="Prompt suggeriti"
-              className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition"
-            >
-              💡
-            </button>
-            <button
-              onClick={() => { setIndicePresentazione(0); setModalitaPresentazione(true); }}
-              disabled={diapositive.length === 0}
-              title="Modalità Presentazione"
-              className="text-[10px] bg-stone-900 text-white px-2.5 py-1 rounded-full font-medium hover:bg-stone-800 transition disabled:opacity-30"
-            >
-              🎬
-            </button>
+    <div className="mz flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
+      {lightbox.nodo}
+
+      {/* testata con le funzioni del pannello, tutte con il loro nome */}
+      <div className="c8-doc-testata">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 5vw, 72px)', margin: 0 }}>Crazy 8<span className="mz-sup">({due(submissions.length)})</span></h1>
+            <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>
+              {contestiPerTeam === 0 ? 'Contesti liberi' : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {sketchPerDomanda} sketch da scegliere per domanda.{' '}
+              <a href="/teacher/attivita" className="underline underline-offset-2">Cambia nel pannello attività</a>
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="mz-pill o" disabled={!attivitaC8} onClick={() => setMostraContesti(true)}>Bacheca contesti</button>
+            <button type="button" className="mz-pill o" onClick={() => setMostraPromptSuggeriti(true)}>Prompt suggeriti</button>
+            <button type="button" className="mz-pill b" disabled={!attivitaC8} onClick={() => { caricaAttivitaC8(); setMostraWall(true); }}>Wall HMW ⤢</button>
+            <button type="button" className="mz-pill" disabled={diapositiveRisultati.length === 0} onClick={() => setMostraRisultati(true)}>Proietta risultati ⤢</button>
           </div>
         </div>
-        {submissions.length === 0 && <p className="text-xs text-stone-400 px-1">Nessuna consegna ancora.</p>}
-        {submissions.map(s => (
-          <button
-            key={s.id}
-            onClick={() => setSelezionataId(s.id)}
-            className={`w-full text-left p-3 rounded-xl border transition ${selezionataId === s.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 hover:border-stone-400'}`}
-          >
-            <div className="text-xs font-bold truncate">{s.hmw_o_tema || 'Contesti non ancora scelti'}</div>
-            <div className={`text-[10px] ${selezionataId === s.id ? 'text-stone-300' : 'text-stone-500'}`}>G.{s.gruppo_num} — {s.gruppo_nome}</div>
-            <div className="text-[9px] uppercase tracking-widest mt-1 text-stone-400 capitalize">{s.stato.replace('_', ' ')}<Sep />{s.immagini.length} sketch</div>
-            {s.team_attivita_id && (
-              <div className="flex gap-1 mt-1.5 flex-wrap">
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${s.hmw_inviate ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-500'}`}>{s.hmw_inviate ? 'HMW inviate' : 'HMW in corso'}</span>
-                {s.sketch_sbloccato && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Sketch aperti</span>}
-              </div>
-            )}
-          </button>
-        ))}
+        <Segmentato etichetta="Vista" valore={vista} onCambia={setVista} opzioni={[{ id: 'consegne', label: 'Consegne' }, { id: 'galleria', label: 'Galleria' }]} />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8">
-        {problemiDb.length > 0 && (
-          <div role="alert" className="max-w-4xl mx-auto mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-1">
-            <p className="font-bold">Il database di Crazy 8 non è aggiornato: gli studenti non riescono a salvare il loro percorso.</p>
-            <p>Esegui nell&apos;SQL Editor di Supabase <code className="text-xs">{MIGRAZIONE_CRAZY8}</code>, poi ricarica questa pagina.</p>
-            <p className="text-xs text-red-700">{problemiDb.join(' — ')}</p>
-          </div>
-        )}
-        {!selezionata ? (
-          <div className="text-center text-stone-400 text-sm mt-20">Seleziona una consegna dalla lista.</div>
-        ) : (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex justify-between items-start flex-wrap gap-4">
-              <div>
-                <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Gruppo {selezionata.gruppo_num} — {selezionata.gruppo_nome}</span>
-                <h1 className="text-2xl font-serif font-bold mt-1">{selezionata.hmw_o_tema || 'Contesti non ancora scelti'}</h1>
-                {selezionata.motore_usato && <p className="text-xs text-stone-500 mt-1">Motore usato: <b>{selezionata.motore_usato}</b></p>}
-                <p className="text-xs text-stone-500 mt-1">Fase raggiunta: <b>{faseEffettiva(selezionata as Submission)}/{NUMERO_FASI} — {FASI[faseEffettiva(selezionata as Submission) - 1].breve}</b></p>
-              </div>
-              <div className="flex gap-1.5">
-                <button type="button" onClick={() => eliminaConsegna(selezionata)} className="text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 text-stone-500 hover:border-red-500 hover:text-red-600 transition">Elimina consegna</button>
-                {STATI.map(st => (
-                  <button
-                    key={st}
-                    onClick={() => impostaStato(selezionata, st)}
-                    className={`text-xs px-3 py-1.5 rounded-full font-medium border capitalize transition ${selezionata.stato === st ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}
-                  >
-                    {st.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setVistaDettaglio('galleria')}
-                className={`text-[11px] px-3 py-1.5 rounded-full font-medium border transition ${vistaDettaglio === 'galleria' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}
-              >
-                Galleria dettagliata
-              </button>
-              <button
-                onClick={() => setVistaDettaglio('timeline')}
-                className={`text-[11px] px-3 py-1.5 rounded-full font-medium border transition ${vistaDettaglio === 'timeline' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}
-              >
-                🗺️ Panoramica evolutiva
-              </button>
-            </div>
-
-            {(selezionata.note_prompt || selezionata.riflessione) && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                {selezionata.note_prompt && (
-                  <div className="bg-white p-4 rounded-2xl border border-stone-200">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Log Prompt (riassuntivo)</h3>
-                    <p className="text-xs text-stone-700 leading-relaxed">{selezionata.note_prompt}</p>
-                  </div>
-                )}
-                {selezionata.riflessione && (
-                  <div className="bg-white p-4 rounded-2xl border border-stone-200">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Riflessione Finale</h3>
-                    <p className="text-xs text-stone-700 leading-relaxed">{selezionata.riflessione}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selezionata.team_attivita_id && (
-              <div className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Team dell&apos;attività</h3>
-                    <p className="text-sm text-stone-800 mt-1">{(teamsAtt.find(t => t.id === selezionata.team_attivita_id)?.membri || []).join(', ') || selezionata.gruppo_nome}</p>
-                    {Array.isArray(selezionata.contesti) && selezionata.contesti.length > 0 && (
-                      <p className="text-xs text-stone-500 mt-1">Contesti: {selezionata.contesti.map((id: string) => nomeContesto(id, contesti) || '—').join(', ')}</p>
-                    )}
-                  </div>
-                  {selezionata.sketch_sbloccato ? (
-                    <button type="button" onClick={() => sbloccaSketch(selezionata, false)} className="text-xs px-3 py-1.5 rounded-full border border-stone-200 text-stone-600 hover:border-stone-400">Sketch aperti — richiudi</button>
-                  ) : (
-                    <button type="button" onClick={() => sbloccaSketch(selezionata, true)} className="text-xs px-3 py-1.5 rounded-full bg-amber-400 text-stone-900 font-bold hover:bg-amber-300">Sblocca gli sketch</button>
-                  )}
-                </div>
-                {Array.isArray(selezionata.hmw) && selezionata.hmw.length > 0 ? (
-                  <div className="space-y-2">
-                    {(selezionata.hmw as Hmw[]).map((h, i) => {
-                      const rev = (selezionata.hmw_revisione || [])[i] || null;
-                      return (
-                        <div key={i} className={`rounded-xl border p-3 ${rev === 'ok' ? 'border-emerald-300 bg-emerald-50/50' : rev === 'rivedere' ? 'border-red-300 bg-red-50/50' : 'border-stone-200'}`}>
-                          <p className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Domanda {i + 1} — {nomeContesto(h.contesto, contesti) || 'contesto'}</p>
-                          <p className="text-sm text-stone-900 mt-1">{testoHmw(h)}</p>
-                          <div className="flex gap-1.5 mt-2">
-                            <button type="button" onClick={() => revisionaHmw(selezionata, i, rev === 'ok' ? null : 'ok')} className={`text-[11px] px-2.5 py-1 rounded-full border ${rev === 'ok' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-stone-200 text-stone-600'}`}>✓ Pertinente</button>
-                            <button type="button" onClick={() => revisionaHmw(selezionata, i, rev === 'rivedere' ? null : 'rivedere')} className={`text-[11px] px-2.5 py-1 rounded-full border ${rev === 'rivedere' ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 text-stone-600'}`}>Da rivedere</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {!selezionata.hmw_inviate && <p className="text-xs text-stone-400">Il team non ha ancora inviato le domande.</p>}
-                  </div>
-                ) : (
-                  <p className="text-xs text-stone-400">Nessuna domanda ancora.</p>
-                )}
-              </div>
-            )}
-
-            {visioniDi(selezionata as Submission).length > 0 && (
-              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2 text-xs text-stone-700">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
-                  Sotto-ambiti{selezionata.scenario?.orizzonte ? ` (verso il ${selezionata.scenario.orizzonte})` : ''}
-                </h3>
-                {visioniDi(selezionata as Submission).map(v => (
-                  <p key={v.sottoAmbito || 'unico'}>
-                    {v.sottoAmbito && <b className="text-stone-900">{v.sottoAmbito}: </b>}
-                    {v.segnale && <>oggi {v.segnale} </>}{v.visione && <>→ {v.visione}</>}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {(selezionata.moodboard || []).length > 0 && (
-              <div className="bg-white p-5 rounded-2xl border border-stone-200 space-y-4">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Moodboard del concept</h3>
-                <MoodboardGriglia submission={selezionata as Submission} />
-                <div className="grid sm:grid-cols-3 gap-4 text-xs text-stone-700 leading-relaxed">
-                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Concept</p>{selezionata.concept_titolo || '—'}</div>
-                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Caratteristiche</p>{selezionata.concept_descrizione || '—'}</div>
-                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Perché queste scelte</p>{selezionata.concept_motivazioni || '—'}</div>
-                </div>
-              </div>
-            )}
-
-            {vistaDettaglio === 'timeline' ? (
-              <TimelineSottoambito submission={selezionata} onImageClick={apriLightbox} />
-            ) : (
-              <div className="space-y-4">
-                {selezionata.immagini.length === 0 && (
-                  <div className="bg-white p-8 rounded-2xl border border-stone-200 text-center text-stone-400 text-sm">Nessuno sketch caricato ancora.</div>
-                )}
-                {selezionata.immagini.map((sketch: any) => (
-                  <div key={sketch.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-                    <div className="flex items-center gap-4 p-4 bg-stone-50 border-b border-stone-100">
-                      <button onClick={() => { const flat = immaginiFlat(selezionata); apriLightbox(flat, flat.findIndex(f => f.url === sketch.url_file)); }} className="w-16 h-16 rounded-xl bg-white border border-stone-200 overflow-hidden flex items-center justify-center flex-shrink-0 hover:opacity-80 transition">
-                        <img src={sketch.url_file} alt="Sketch" loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-                      </button>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-stone-600">
-                          {sketch.selezionato && <span className="text-amber-500 mr-1" title="Selezionato dal team">★</span>}
-                          Sketch{sketch.sotto_ambito ? `: ${sketch.sotto_ambito}` : ''} — {sketch.generazioni_crazy8.length} round di generazione
-                        </p>
-                        {sketch.interpretazione && <p className="text-xs text-stone-500 mt-0.5 italic">Interpretazione: &ldquo;{sketch.interpretazione}&rdquo;</p>}
-                      </div>
-                    </div>
-
-                    {sketch.generazioni_crazy8.length > 0 && (
-                      <div className="p-4 space-y-3">
-                        {sketch.generazioni_crazy8.map((g: any) => (
-                          <div key={g.id} className="grid sm:grid-cols-[80px_1fr] gap-3 text-xs">
-                            <button onClick={() => { const flat = immaginiFlat(selezionata); apriLightbox(flat, flat.findIndex(f => f.url === g.url_immagine)); }} className="w-20 h-20 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex items-center justify-center hover:opacity-80 transition">
-                              <img src={g.url_immagine} alt={`Round ${g.ordine}`} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
-                            </button>
-                            <div>
-                              <p className="font-bold text-stone-700">Round {g.ordine}{g.motore ? ` (${g.motore})` : ''}</p>
-                              <p className="text-stone-600"><b>Prompt:</b> {g.prompt_usato}</p>
-                              {g.positivo && <p className="text-emerald-700">👍 {g.positivo}</p>}
-                              {g.negativo && <p className="text-rose-700">👎 {g.negativo}</p>}
-                              {g.deduzione && <p className="text-stone-500 italic">Prossimo giro: &ldquo;{g.deduzione}&rdquo;</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <FotoConCommenti
-                      img={sketch}
-                      commenti={commenti[sketch.id] || []}
-                      bozza={nuovoCommento[sketch.id] || ''}
-                      setBozza={v => setNuovoCommento(prev => ({ ...prev, [sketch.id]: v }))}
-                      onInvia={() => inviaCommento(sketch.id)}
-                      onElimina={eliminaCommento}
-                      invioInCorso={invioInCorso === sketch.id}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      {lightbox && (
-        <Lightbox
-          immagini={lightbox.immagini}
-          indice={lightbox.indice}
-          onCambiaIndice={i => setLightbox(l => (l ? { ...l, indice: i } : l))}
-          onChiudi={() => setLightbox(null)}
-        />
+      {problemiDb.length > 0 && (
+        <div role="alert" className="mx-[max(20px,2vw)] mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-1">
+          <p className="font-bold m-0">Il database di Crazy 8 non è aggiornato: gli studenti non riescono a salvare.</p>
+          <p className="m-0">Esegui nell&apos;SQL Editor di Supabase <code className="text-xs">{MIGRAZIONE_CRAZY8}</code>, poi ricarica.</p>
+          <p className="text-xs m-0">{problemiDb.join(' — ')}</p>
+        </div>
       )}
+
+      {vista === 'galleria' ? (
+        <div className="py-6 space-y-4">
+          <div className="px-[max(20px,2vw)] flex flex-wrap items-center gap-2">
+            {(['tutto', 'sketch', 'migliorate'] as const).map(f => (
+              <button key={f} type="button" className={`mz-chip ${filtroGalleria === f ? 'on' : ''}`} onClick={() => setFiltroGalleria(f)}>
+                {f === 'tutto' ? 'Sketch e migliorate' : f === 'sketch' ? 'Solo sketch' : 'Solo migliorate con l’AI'}
+              </button>
+            ))}
+          </div>
+          {righeGalleria.length === 0
+            ? <p className="px-[max(20px,2vw)] text-sm" style={{ color: 'var(--muted)' }}>Nessuna consegna ancora.</p>
+            : <StrisceC8 righe={righeGalleria} onApri={(r, i, el) => lightbox.apri(r.immagini, i, el)} />}
+        </div>
+      ) : (
+        <div className="c8-doc-corpo">
+          {/* elenco delle consegne */}
+          <nav className="c8-doc-elenco" aria-label="Consegne">
+            {submissions.length === 0 && <p className="text-sm p-4" style={{ color: 'var(--muted)' }}>Nessuna consegna ancora.</p>}
+            {submissions.map((s, i) => {
+              const f = faseEffettiva(s as Submission);
+              const n = (s.immagini || []).length;
+              const ai = (s.immagini || []).reduce((t: number, x: any) => t + (x.generazioni_crazy8 || []).length, 0);
+              return (
+                <button key={s.id} type="button" onClick={() => setSelezionataId(s.id)} aria-current={selezionataId === s.id ? 'true' : undefined} className="c8-doc-voce">
+                  <span className="mz-mono">({due(i + 1)})</span>
+                  <span className="c8-doc-voce-nome">{nomeDi(s)}</span>
+                  <span className="c8-doc-voce-meta">{(teamDi(s)?.membri || []).join(', ') || s.hmw_o_tema || ''}</span>
+                  <span className="flex flex-wrap gap-1">
+                    <span className="c8-badge" title={FASI[f - 1]?.breve}>Fase {due(f)}/{due(NUMERO_FASI)}</span>
+                    {s.team_attivita_id && <span className={`c8-badge ${s.hmw_inviate ? 'ambra' : ''}`}>{s.hmw_inviate ? 'HMW inviate' : 'HMW in corso'}</span>}
+                    {s.sketch_sbloccato && s.team_attivita_id && <span className="c8-badge verde">Sketch aperti</span>}
+                    {n > 0 && <span className="c8-badge">{n} sketch</span>}
+                    {ai > 0 && <span className="c8-badge ambra">{ai} AI</span>}
+                    {s.stato !== 'in_corso' && <span className="c8-badge verde">{s.stato === 'revisionato' ? 'Revisionato' : 'Consegnato'}</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* consegna aperta */}
+          <section className="c8-doc-dettaglio">
+            {!selezionata ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Scegli una consegna dall&apos;elenco.</p>
+            ) : (
+              <div key={selezionata.id} className="space-y-8 entra-sezione">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div className="space-y-2 min-w-0">
+                    <h2 className="mz-display" style={{ fontSize: 'clamp(32px, 3.6vw, 56px)', margin: 0 }}>{nomeDi(selezionata)}</h2>
+                    {teamDi(selezionata) && <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>{teamDi(selezionata)!.membri.join(', ')}</p>}
+                    {Array.isArray(selezionata.contesti) && selezionata.contesti.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selezionata.contesti.map((id: string) => <span key={id} className="mz-chip on" style={{ cursor: 'default' }}>{nomeContesto(id, contesti) || 'Contesto rimosso'}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid gap-2 justify-items-end">
+                    <div className="flex flex-wrap gap-1.5 justify-end">
+                      {STATI.map(st => (
+                        <button key={st.id} type="button" className={`mz-chip ${selezionata.stato === st.id ? 'on' : ''}`} onClick={() => impostaStato(selezionata, st.id)}>{st.etichetta}</button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 justify-end">
+                      {selezionata.team_attivita_id && (selezionata.sketch_sbloccato
+                        ? <button type="button" className="mz-pill sm ghost" onClick={() => sbloccaSketch(selezionata, false)}>Richiudi gli sketch</button>
+                        : <button type="button" className="mz-pill sm b" onClick={() => sbloccaSketch(selezionata, true)}>Sblocca gli sketch</button>)}
+                      <button type="button" className="mz-pill sm ghost danger" onClick={() => eliminaConsegna(selezionata)}>Elimina consegna</button>
+                    </div>
+                  </div>
+                </div>
+
+                {domandeDi(selezionata).map(d => {
+                  const h = (selezionata.hmw || [])[d] as Hmw | undefined;
+                  const rev = (selezionata.hmw_revisione || [])[d] || null;
+                  const sketch = sketchDi(selezionata, d);
+                  const scelti = sketch.filter((x: any) => x.selezionato);
+                  const tutte = immaginiDomanda(selezionata, d);
+                  const apri = (src: string, el: Element) => lightbox.apri(tutte, Math.max(0, tutte.findIndex(t => t.src === src)), el);
+                  return (
+                    <section key={d} className="c8-doc-domanda">
+                      {selezionata.team_attivita_id && (
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="mz-mono" style={{ color: 'var(--accento)' }}>Domanda ({due(d + 1)}){h ? ` — ${nomeContesto(h.contesto, contesti)}` : ''}</span>
+                            <p className="mz-display" style={{ fontSize: 'clamp(22px, 2.2vw, 32px)', margin: '6px 0 0', lineHeight: 1.1 }}>{h ? testoHmw(h) : 'Non ancora scritta'}</p>
+                          </div>
+                          {h && (
+                            <div className="flex gap-1.5">
+                              <button type="button" className={`mz-pill sm ${rev === 'ok' ? 'b' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'ok' ? null : 'ok')}>✓ Pertinente</button>
+                              <button type="button" className={`mz-pill sm ${rev === 'rivedere' ? 'danger-pieno' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'rivedere' ? null : 'rivedere')}>Da rivedere</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <span className="mz-mono">Sketch ({sketch.length}) — scelti {scelti.length}</span>
+                        {sketch.length === 0 ? <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>Nessuno sketch ancora.</p> : (
+                          <div className="c8-doc-miniature">
+                            {sketch.map((sk: any, k: number) => (
+                              <button key={sk.id} type="button" className={`c8-doc-mini ${sk.selezionato ? 'scelto' : ''}`} onClick={e => apri(sk.url_file, e.currentTarget)} aria-label={`Sketch ${k + 1}${sk.selezionato ? ', scelto' : ''}`}>
+                                <img src={sk.url_file} alt="" loading="lazy" />
+                                <span className="c8-sketch-numero">{k + 1}</span>
+                                {sk.selezionato && <span className="c8-sketch-stella">★</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {scelti.map((sk: any) => (
+                        <div key={sk.id} className="c8-doc-evoluzione">
+                          <span className="mz-mono">Migliorate con l&apos;AI ({sk.generazioni_crazy8.length})</span>
+                          <div className="c8-doc-catena">
+                            <button type="button" className="c8-doc-mini grande scelto" onClick={e => apri(sk.url_file, e.currentTarget)} aria-label="Sketch scelto">
+                              <img src={sk.url_file} alt="" loading="lazy" />
+                              <span className="c8-striscia-tag">Sketch</span>
+                            </button>
+                            <span className="c8-freccia" aria-hidden="true">→</span>
+                            {sk.generazioni_crazy8.length === 0 && <span className="text-sm" style={{ color: 'var(--muted)' }}>Ancora nessuna immagine generata.</span>}
+                            {sk.generazioni_crazy8.map((g: any) => (
+                              <button key={g.id} type="button" className="c8-doc-mini grande" onClick={e => apri(g.url_immagine, e.currentTarget)} aria-label="Immagine generata">
+                                <img src={g.url_immagine} alt="" loading="lazy" />
+                                <span className="c8-striscia-tag ai">{g.motore || 'AI'}</span>
+                              </button>
+                            ))}
+                          </div>
+                          {sk.interpretazione && <p className="text-sm m-0" style={{ color: 'var(--ink-2)' }}>«{sk.interpretazione}»</p>}
+                          <FotoConCommenti
+                            img={sk}
+                            commenti={commenti[sk.id] || []}
+                            bozza={nuovoCommento[sk.id] || ''}
+                            setBozza={v => setNuovoCommento(prev => ({ ...prev, [sk.id]: v }))}
+                            onInvia={() => inviaCommento(sk.id)}
+                            onElimina={eliminaCommento}
+                            invioInCorso={invioInCorso === sk.id}
+                          />
+                        </div>
+                      ))}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       {attivitaC8 && (
         <BottomSheet aperto={mostraContesti} onChiudi={() => setMostraContesti(false)} etichetta="Bacheca dei contesti" titolo="Bacheca dei contesti" larghezzaDesktop="md:max-w-xl">
-          <PannelloContesti attivitaId={attivitaC8.id} passcode={passcode} contesti={contesti} contestiPerTeam={Number(attivitaC8.config.contesti_per_team ?? 2)} onCambiato={caricaAttivitaC8} />
+          <PannelloContesti attivitaId={attivitaC8.id} passcode={passcode} contesti={contesti} contestiPerTeam={contestiPerTeam} onCambiato={caricaAttivitaC8} />
         </BottomSheet>
       )}
       {mostraWall && attivitaC8 && (
         <WallHmw attivitaId={attivitaC8.id} submissions={submissions} contesti={contesti} teams={teamsAtt} passcode={passcode} onChiudi={() => setMostraWall(false)} onCambiato={caricaSubmissions} />
       )}
-      {mostraRisultati && (
-        <PresentazioneRisultati
-          titolo="Risultati dei team"
-          onChiudi={() => setMostraRisultati(false)}
-          diapositive={submissions.filter(sub => sub.team_attivita_id).flatMap(sub => [0, 1].flatMap((d): Diapositiva[] => {
-            const sk = (sub.immagini || []).find((x: any) => (x.domanda ?? 0) === d && x.selezionato);
-            const h = (sub.hmw || [])[d] as Hmw | undefined;
-            if (!sk || !h || !(sk.generazioni_crazy8 || []).length) return [];
-            return [{
-              chiave: `${sub.id}:${d}`,
-              sopra: teamsAtt.find(t => t.id === sub.team_attivita_id)?.nome || sub.gruppo_nome,
-              domanda: testoHmw(h),
-              contesto: nomeContesto(h.contesto, contesti),
-              sketch: sk.url_file,
-              immagini: sk.generazioni_crazy8.map((g: any) => g.url_immagine),
-            }];
-          }))}
-        />
-      )}
+      {mostraRisultati && <PresentazioneRisultati titolo="Risultati dei team" onChiudi={() => setMostraRisultati(false)} diapositive={diapositiveRisultati} />}
       {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} corsoId={corso.id} onChiudi={() => setMostraPromptSuggeriti(false)} />}
     </div>
   );
