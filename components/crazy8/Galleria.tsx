@@ -261,3 +261,35 @@ export function Pila3D({ immagini, onApri, vuoto }: { immagini: ImmagineC8[]; on
     </div>
   );
 }
+
+// ---------------------------------------------------------------- Riquadro
+// Immagine intera (contain) dentro una cornice ferma: al passaggio si
+// ingrandisce e si sposta opposta al puntatore; un clic la apre in grande.
+export function RiquadroC8({ src, alt, onApri, etichetta, accento, className = '', rapporto = '1 / 1' }: {
+  src: string; alt: string; onApri?: (el: Element) => void; etichetta?: string; accento?: boolean; className?: string; rapporto?: string;
+}) {
+  const img = useRef<HTMLImageElement>(null);
+  const muovi = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'mouse' || riduci() || !img.current) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width - 0.5) * -5;
+    const y = ((e.clientY - r.top) / r.height - 0.5) * -5;
+    img.current.style.transform = `scale(1.08) translate(${x}%, ${y}%)`;
+  };
+  const esci = () => { if (img.current) img.current.style.transform = ''; };
+  return (
+    <button
+      type="button"
+      className={`c8-riquadro ${accento ? 'accento' : ''} ${className}`}
+      style={{ aspectRatio: rapporto }}
+      onPointerMove={muovi}
+      onPointerLeave={esci}
+      onClick={e => onApri?.(e.currentTarget)}
+      aria-label={`Ingrandisci: ${alt}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={img} src={src} alt={alt} loading="lazy" decoding="async" draggable={false} />
+      {etichetta && <span className={`c8-riquadro-tag ${accento ? 'ai' : ''}`}>{etichetta}</span>}
+    </button>
+  );
+}

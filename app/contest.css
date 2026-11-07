@@ -337,7 +337,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 /* --- Crazy 8: finale prima → dopo e presentazione --- */
 .c8-risultato { display: grid; gap: 16px; padding: clamp(18px, 2.6vw, 30px); border-radius: 26px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .c8-risultato-domanda { margin: 0; font-family: var(--f-display); font-size: clamp(20px, 2.2vw, 30px); line-height: 1.2; letter-spacing: -.02em; }
-.c8-prima-dopo { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr); gap: clamp(10px, 2vw, 24px); align-items: center; }
+.c8-prima-dopo { display: grid; grid-template-columns: minmax(0, 0.8fr) auto minmax(0, 1.4fr); gap: clamp(10px, 2vw, 24px); align-items: center; }
 .c8-prima-dopo figure { margin: 0; display: grid; gap: 6px; }
 .c8-freccia { font-family: var(--f-display); font-size: clamp(28px, 4vw, 56px); color: var(--accento-vivo); animation: c8-spinta 2.4s ease-in-out infinite; }
 @keyframes c8-spinta { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
@@ -347,7 +347,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-dettagli summary::-webkit-details-marker { display: none; }
 .c8-dettagli summary::before { content: "+ "; }
 .c8-dettagli[open] summary::before { content: "− "; }
-@media (max-width: 560px) { .c8-prima-dopo { grid-template-columns: 1fr; } .c8-freccia { transform: rotate(90deg); justify-self: center; animation: none; } }
+@media (max-width: 560px) { .c8-prima-dopo { gap: 6px; } .c8-freccia { font-size: 22px; } }
 
 .c8-entra-sfocato { display: block; animation: c8-sfocato 1.1s var(--out) backwards; }
 @keyframes c8-sfocato { from { opacity: 0; filter: blur(8px); transform: translateY(14px); } to { opacity: 1; filter: none; transform: none; } }
@@ -470,3 +470,44 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-striscia-tag.ai { background: var(--accento-vivo); color: #1c1917; }
 .mz-pill.danger-pieno { background: #dc2626; color: #fff; }
 @media (max-width: 900px) { .c8-doc-corpo { grid-template-columns: 1fr; } .c8-doc-elenco { border-right: 0; border-bottom: 1px solid var(--ink); max-height: 45vh; overflow-y: auto; } }
+
+/* --- Crazy 8: riquadro immagine (intera, zoom col puntatore) --- */
+.c8-riquadro { all: unset; box-sizing: border-box; cursor: zoom-in; position: relative; display: grid; place-items: center; width: 100%; overflow: hidden; border-radius: 18px; background: radial-gradient(circle at 50% 40%, var(--surface), var(--card)); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .3s, transform .5s var(--spring); }
+.c8-riquadro img { max-width: 92%; max-height: 92%; object-fit: contain; border-radius: 8px; box-shadow: 0 18px 40px -24px rgba(28, 25, 23, .55); transition: transform 1s var(--out); }
+.c8-riquadro.accento { box-shadow: inset 0 0 0 2px var(--accento-vivo); }
+.c8-riquadro:hover { transform: translateY(-2px); }
+.c8-riquadro:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.c8-riquadro-tag { position: absolute; left: 10px; bottom: 10px; font-family: var(--f-label); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 4px 8px; border-radius: 8px; background: rgba(250, 250, 249, .92); color: #1c1917; }
+.c8-riquadro-tag.ai { background: var(--accento-vivo); color: #1c1917; }
+
+/* nuovo sketch che arriva (anche dal telefono, in tempo reale) */
+.c8-arrivo { animation: c8-arrivo .7s var(--spring) backwards; }
+@keyframes c8-arrivo { from { opacity: 0; transform: translateY(16px) scale(.92) rotate(-2deg); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .c8-arrivo { animation: none; } }
+
+/* --- Crazy 8: banco del prompt (sketch in grande + domanda) --- */
+.c8-banco { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(14px, 2vw, 26px); align-items: center; padding: clamp(14px, 2vw, 22px); border-radius: 26px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-banco-info { display: grid; gap: 14px; align-content: center; min-width: 0; }
+.c8-banco-domanda { margin: 0; font-family: var(--f-display); font-size: clamp(20px, 2vw, 28px); line-height: 1.15; letter-spacing: -.02em; }
+.c8-banco-schede { display: flex; flex-wrap: wrap; gap: 8px; }
+.c8-banco-scheda { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 999px; background: var(--card); font-size: 13px; transition: background .3s, box-shadow .3s, transform .45s var(--spring); }
+.c8-banco-scheda img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.c8-banco-scheda:hover { transform: translateY(-2px); }
+.c8-banco-scheda[aria-selected="true"] { background: var(--accento-tenue); box-shadow: inset 0 0 0 2px var(--accento-vivo); color: #78350f; font-weight: 600; }
+.c8-banco-scheda:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (max-width: 760px) { .c8-banco { grid-template-columns: 1fr; } }
+
+/* provini delle immagini generate */
+.c8-provini { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 6px; scrollbar-width: none; }
+.c8-provini::-webkit-scrollbar { display: none; }
+.c8-provino { position: relative; flex: 0 0 auto; }
+.c8-provino > button:first-child { all: unset; cursor: pointer; display: block; width: 72px; height: 72px; border-radius: 14px; overflow: hidden; background: var(--card); opacity: .65; transition: opacity .3s, transform .45s var(--spring), box-shadow .3s; }
+.c8-provino > button:first-child img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c8-provino > button:first-child:hover { opacity: 1; transform: translateY(-2px); }
+.c8-provino > button[aria-selected="true"] { opacity: 1; box-shadow: 0 0 0 3px var(--accento-vivo); }
+.c8-provino-elimina { all: unset; cursor: pointer; position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; font-size: 10px; background: var(--ink); color: var(--bg); }
+.c8-provino-aggiungi { flex: 0 0 auto; width: 72px; height: 72px; border-radius: 14px; border: 2px dashed var(--accento-bordo); display: grid; place-items: center; cursor: pointer; font-size: 22px; color: #92400e; background: var(--accento-tenue); }
+
+/* riquadri sul palco scuro della presentazione */
+.mz[data-theme="dark"] .c8-riquadro { background: radial-gradient(circle at 50% 40%, #292524, #1c1917); box-shadow: inset 0 0 0 1px #292524, 0 30px 60px -30px rgba(0, 0, 0, .7); }
+.mz[data-theme="dark"] .c8-riquadro.accento { box-shadow: inset 0 0 0 2px var(--accento-vivo), 0 30px 60px -30px rgba(0, 0, 0, .7); }

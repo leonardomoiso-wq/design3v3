@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Miniatura, scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
+import { RiquadroC8 } from './Galleria';
+import { scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
 
 type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string; domanda?: string | null; nomeContesto?: string | null };
 
@@ -231,9 +232,10 @@ function Chip({ attivo, onClick, children }: { attivo: boolean; onClick: () => v
 }
 
 export default function PromptConfiguratore({
-  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, visioneDi, orizzonte = '', domandaDi,
+  sketchSelezionati, sketchIniziale, spuntoIniziale, suggerimentiDocente, onPromptInviato, visioneDi, orizzonte = '', domandaDi, onApriImmagine,
 }: {
   domandaDi?: (sketch: Sketch) => { domanda: string; contesto: string } | null;
+  onApriImmagine?: (immagini: { src: string; titolo: string }[], indice: number, el: Element) => void;
   visioneDi: (sottoAmbito: string | null) => VisioneSottoAmbito | null;
   orizzonte?: string;
   sketchSelezionati: Sketch[];
@@ -280,6 +282,11 @@ export default function PromptConfiguratore({
   };
 
   const sketch = sketchSelezionati.find(s => s.id === sketchId) || null;
+  const etichettaSketch = (x: Sketch) => {
+    const d = x.domanda ?? 0;
+    const stessa = sketchSelezionati.filter(y => (y.domanda ?? 0) === d);
+    return stessa.length > 1 ? `Domanda ${d + 1}, sketch ${stessa.indexOf(x) + 1}` : `Domanda ${d + 1}`;
+  };
   const segmenti = useMemo(
     () => {
       const d = sketch && domandaDi ? domandaDi(sketch) : null;
@@ -322,21 +329,33 @@ export default function PromptConfiguratore({
     <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
       <div className="space-y-5 min-w-0">
         {/* Sketch su cui si lavora */}
-        <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Sketch da migliorare</h3>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {sketchSelezionati.map(s => (
-              <div key={s.id} className="flex-shrink-0 text-center">
-                <Miniatura url={s.url_file} onClick={() => setSketchId(s.id)} attiva={s.id === sketchId} className="w-24 h-24" />
-                <p className="text-[10px] text-stone-500 mt-1 max-w-[6rem] truncate">{s.sotto_ambito || `Sketch ${s.ordine + 1}`}</p>
+        <section className="c8-banco">
+          <RiquadroC8
+            src={sketch?.url_file || ''}
+            alt="Sketch da migliorare"
+            rapporto="4 / 3"
+            etichetta="Sketch da migliorare"
+            onApri={el => sketch && onApriImmagine?.(sketchSelezionati.map(x => ({ src: x.url_file, titolo: etichettaSketch(x) })), sketchSelezionati.indexOf(sketch), el)}
+          />
+          <div className="c8-banco-info">
+            {sketch && domandaDi?.(sketch) && (
+              <div className="space-y-1">
+                <span className="mz-mono" style={{ color: 'var(--accento)' }}>{domandaDi(sketch)!.contesto}</span>
+                <p className="c8-banco-domanda">{domandaDi(sketch)!.domanda}</p>
               </div>
-            ))}
+            )}
+            {sketch?.interpretazione && <p className="text-sm text-stone-500 m-0">«{sketch.interpretazione}»</p>}
+            {sketchSelezionati.length > 1 && (
+              <div className="c8-banco-schede" role="tablist" aria-label="Sketch scelti">
+                {sketchSelezionati.map(x => (
+                  <button key={x.id} type="button" role="tab" aria-selected={x.id === sketchId} onClick={() => setSketchId(x.id)} className="c8-banco-scheda">
+                    <img src={x.url_file} alt="" loading="lazy" />
+                    <span>{etichettaSketch(x)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {sketch?.interpretazione && (
-            <p className="text-xs text-stone-500 bg-stone-50 rounded-xl p-3 border border-stone-100">
-              <b className="text-stone-700">La vostra interpretazione:</b> {sketch.interpretazione}
-            </p>
-          )}
         </section>
 
         {/* 1. Obiettivo */}

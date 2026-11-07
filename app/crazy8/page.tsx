@@ -10,7 +10,7 @@ import { percorsoCorso, type Corso } from '../../lib/corsi';
 import { Solidi, useTendina } from '../../components/moiso/Moiso';
 import { Celebrazione } from '../../components/moiso/Celebrazione';
 import { RisultatoDomanda, PresentazioneRisultati } from '../../components/crazy8/Finale';
-import { Pila3D, useLightboxC8 } from '../../components/crazy8/Galleria';
+import { Pila3D, RiquadroC8, useLightboxC8 } from '../../components/crazy8/Galleria';
 import { due } from '../../components/Vetrina';
 import {
   FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
@@ -541,9 +541,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       {lista.map((s, i) => (
-                        <div key={s.id} className="relative animate-scale-in">
-                          <Miniatura url={s.url_file} className="w-full aspect-square" />
-                          <span className="absolute top-1 left-1 h-5 w-5 rounded-full bg-stone-900 text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                        <div key={s.id} className="relative c8-arrivo" style={{ animationDelay: `${i * 40}ms` }}>
+                          <RiquadroC8 src={s.url_file} alt={`Sketch ${i + 1}`} onApri={el => lightbox.apri(lista.map((x, k) => ({ src: x.url_file, titolo: `Domanda ${d + 1}: sketch ${k + 1}`, meta: testoHmw(hmwDi(d)) })), i, el)} />
+                          <span className="c8-sketch-numero">{i + 1}</span>
                           <button type="button" onClick={() => rimuoviSketch(s.id)} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-white/90 text-stone-400 hover:text-red-600 text-[10px]" aria-label="Elimina sketch">✕</button>
                         </div>
                       ))}
@@ -655,6 +655,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 return h ? { domanda: testoHmw(h), contesto: nomeContesto(h.contesto, contesti) } : null;
               }}
               suggerimentiDocente={suggerimentiPrompt}
+              onApriImmagine={(imm, i, el) => lightbox.apri(imm, i, el)}
               onPromptInviato={(sketchId, prompt, motore) => {
                 try { localStorage.setItem(chiaveUltimoPrompt(sketchId), JSON.stringify({ prompt, motore })); } catch { /* non bloccante */ }
                 setPromptInviato(true);
@@ -691,6 +692,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                   onAggiungi={aggiungiGenerazione}
                   onRimuovi={rimuoviGenerazione}
                   onCaricamento={segnalaCaricamento}
+                  onApri={(imm, i, el) => lightbox.apri(imm, i, el)}
                 />
               );
             })}

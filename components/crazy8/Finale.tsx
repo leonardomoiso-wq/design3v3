@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Cornice, Solidi } from '@/components/moiso/Moiso';
+import { Solidi } from '@/components/moiso/Moiso';
+import { RiquadroC8 } from './Galleria';
 import { comprimiImmagine } from '@/lib/immagine';
 import { ImpulsoCaricamento } from '@/lib/caricamento';
 import type { Generazione, Sketch } from './shared';
@@ -102,13 +103,12 @@ export function PresentazioneRisultati({ diapositive, titolo, onChiudi }: { diap
           <div className="c8-palco">
             {d.sketch && (
               <figure className="c8-palco-sketch mz-float" style={{ animationDelay: '-2s' }}>
-                <Cornice src={d.sketch} alt="Sketch" style={{ aspectRatio: '1 / 1' }} />
-                <figcaption className="mz-mono">Sketch</figcaption>
+                <RiquadroC8 src={d.sketch} alt="Sketch" etichetta="Sketch" />
               </figure>
             )}
             {d.immagini.slice(0, 3).map((src, k) => (
               <figure key={src.slice(-40) + k} className={`c8-palco-img c8-palco-img-${k} mz-float`} style={{ animationDelay: `${-k * 2.3}s` }}>
-                <Cornice src={src} alt={`Immagine generata ${k + 1}`} style={{ aspectRatio: '1 / 1' }} />
+                <RiquadroC8 src={src} alt={`Immagine generata ${k + 1}`} accento={k === 0} />
               </figure>
             ))}
             {d.immagini.length === 0 && <p className="mz-mono" style={{ alignSelf: 'center' }}>Nessuna immagine generata</p>}
@@ -121,7 +121,7 @@ export function PresentazioneRisultati({ diapositive, titolo, onChiudi }: { diap
 
 // Caricamento delle immagini generate per uno sketch: si scelgono i file
 // e partono subito, con il prompt e il modello inviati dal configuratore.
-export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, motoreIniziale, motori, onAggiungi, onRimuovi, onCaricamento }: {
+export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, motoreIniziale, motori, onAggiungi, onRimuovi, onCaricamento, onApri }: {
   indice: number;
   domanda: string;
   sketch: Sketch;
@@ -131,6 +131,7 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
   onAggiungi: (sketchId: string, prompt: string, url: string, motore: string) => Promise<boolean>;
   onRimuovi: (genId: string) => void;
   onCaricamento: (attivo: boolean) => void;
+  onApri?: (immagini: { src: string; titolo: string; meta?: string }[], indice: number, el: Element) => void;
 }) {
   const [prompt, setPrompt] = useState(promptIniziale);
   const [motore, setMotore] = useState(motoreIniziale);
@@ -141,6 +142,10 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
 
   const generate: Generazione[] = sketch.generazioni_crazy8;
   const copertina = generate[Math.min(inPrimoPiano, generate.length - 1)] || null;
+  const tutte = [
+    { src: sketch.url_file, titolo: 'Prima: lo sketch', meta: domanda },
+    ...generate.map((g, k) => ({ src: g.url_immagine, titolo: `Dopo: immagine ${k + 1}${g.motore ? ` (${g.motore})` : ''}`, meta: g.prompt_usato })),
+  ];
 
   const carica = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const lista = Array.from(e.target.files || []);
@@ -168,34 +173,32 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
 
       <div className="c8-prima-dopo">
         <figure>
-          <Cornice src={sketch.url_file} alt="Sketch scelto" style={{ aspectRatio: '1 / 1' }} />
-          <figcaption className="mz-mono">Prima</figcaption>
+          <RiquadroC8 src={sketch.url_file} alt="Sketch scelto" etichetta="Prima" onApri={el => onApri?.(tutte, 0, el)} />
         </figure>
         <span className="c8-freccia" aria-hidden="true">→</span>
         <figure>
           {copertina ? (
-            <Cornice src={copertina.url_immagine} alt="Immagine generata" style={{ aspectRatio: '1 / 1' }} />
+            <RiquadroC8 key={copertina.id} src={copertina.url_immagine} alt="Immagine generata" etichetta={copertina.motore || 'Dopo'} accento className="c8-arrivo" onApri={el => onApri?.(tutte, 1 + generate.indexOf(copertina), el)} />
           ) : (
             <label className="c8-carica" aria-busy={inCorso}>
               {inCorso ? <ImpulsoCaricamento etichetta="Carico…" /> : <><span className="text-3xl" aria-hidden="true">＋</span><span>Aggiungete le immagini generate</span></>}
               <input type="file" accept="image/*" multiple className="sr-only" onChange={carica} disabled={inCorso} />
             </label>
           )}
-          <figcaption className="mz-mono">Dopo{copertina?.motore ? ` — ${copertina.motore}` : ''}</figcaption>
         </figure>
       </div>
 
       {generate.length > 0 && (
-        <div className="flex gap-2 items-center flex-wrap">
+        <div className="c8-provini" role="tablist" aria-label="Immagini generate">
           {generate.map((g, k) => (
-            <div key={g.id} className="relative">
-              <button type="button" onClick={() => setInPrimoPiano(k)} className={`block w-16 h-16 rounded-xl overflow-hidden ${k === inPrimoPiano ? 'ring-2 ring-stone-900' : 'opacity-70 hover:opacity-100'}`} aria-label={`Mostra l'immagine ${k + 1}`}>
-                <img src={g.url_immagine} alt="" className="w-full h-full object-cover" loading="lazy" />
+            <div key={g.id} className="c8-provino c8-arrivo" style={{ animationDelay: `${k * 50}ms` }}>
+              <button type="button" role="tab" aria-selected={k === Math.min(inPrimoPiano, generate.length - 1)} onClick={() => setInPrimoPiano(k)} aria-label={`Mostra l'immagine ${k + 1}`}>
+                <img src={g.url_immagine} alt="" loading="lazy" />
               </button>
-              <button type="button" onClick={() => onRimuovi(g.id)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-stone-900 text-white text-[10px]" aria-label="Elimina immagine">✕</button>
+              <button type="button" className="c8-provino-elimina" onClick={() => onRimuovi(g.id)} aria-label="Elimina immagine">✕</button>
             </div>
           ))}
-          <label className="w-16 h-16 rounded-xl border-2 border-dashed border-stone-300 hover:border-stone-700 grid place-items-center cursor-pointer text-xl text-stone-400" aria-label="Aggiungi altre immagini">
+          <label className="c8-provino-aggiungi" aria-label="Aggiungi altre immagini">
             {inCorso ? '…' : '＋'}
             <input type="file" accept="image/*" multiple className="sr-only" onChange={carica} disabled={inCorso} />
           </label>
