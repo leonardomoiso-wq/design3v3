@@ -14,7 +14,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 const riduci = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const due = (n: number) => String(n).padStart(2, '0');
 
-export type ImmagineC8 = { src: string; titolo: string; meta?: string; tipo?: 'sketch' | 'scelto' | 'generata' };
+export type ImmagineC8 = { src: string; titolo: string; meta?: string; tipo?: 'sketch' | 'scelto' | 'generata'; mini?: string };
 
 // ---------------------------------------------------------------- Lightbox
 export function LightboxC8({ immagini, indice, origine, onCambia, onChiudi }: {
@@ -162,7 +162,7 @@ export function StrisceC8({ righe, onApri }: { righe: RigaC8[]; onApri: (riga: R
             {r.immagini.map((im, k) => (
               <button key={k} type="button" className={`c8-striscia-img tipo-${im.tipo || 'generata'}`} onClick={e => onApri(r, k, e.currentTarget)} aria-label={`${r.titolo}: ${im.titolo}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={im.src} alt="" loading="lazy" draggable={false} />
+                <img src={im.mini || im.src} alt="" loading="lazy" draggable={false} />
                 <span className="c8-striscia-tag">{im.tipo === 'generata' ? 'AI' : im.tipo === 'scelto' ? '★ Sketch' : 'Sketch'}</span>
               </button>
             ))}

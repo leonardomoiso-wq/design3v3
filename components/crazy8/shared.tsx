@@ -16,6 +16,7 @@ export type Generazione = {
   motore: string | null;
   positivo: string | null;
   negativo: string | null;
+  driver?: Record<string, { valore: number; nota: string }> | null;
 };
 
 export type Sketch = {

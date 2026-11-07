@@ -108,7 +108,8 @@ const riduci = () => typeof window !== 'undefined' && window.matchMedia('(prefer
 //   il team a lato con revisione e sblocco degli sketch.
 // - Una alla volta: la domanda in grande, scorre da sola (10 s) come una
 //   presentazione; il team si svela solo quando lo chiedete.
-export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, onChiudi, onCambiato }: {
+export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, onChiudi, onCambiato, stelle }: {
+  stelle?: (submissionId: string, indice: number) => number;
   attivitaId: string;
   submissions: any[];
   contesti: Contesto[];
@@ -119,7 +120,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
 }) {
   const [vista, setVista] = useState<'wall' | 'una'>('wall');
   const [aperta, setAperta] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<'tutte' | 'ok' | 'da_vedere'>('tutte');
+  const [filtro, setFiltro] = useState<'tutte' | 'ok' | 'da_vedere' | 'votate'>('tutte');
   const [pausa, setPausa] = useState(false);
   const [indice, setIndice] = useState(0);
   const [svelato, setSvelato] = useState(false);
@@ -136,7 +137,8 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
       revisione: (Array.isArray(s.hmw_revisione) ? s.hmw_revisione[i] : null) || null,
     })))
     .filter(d => hmwCompleta(d.hmw))
-    .filter(d => filtro === 'tutte' || (filtro === 'ok' ? d.revisione === 'ok' : d.revisione !== 'ok'));
+    .filter(d => filtro === 'tutte' || filtro === 'votate' || (filtro === 'ok' ? d.revisione === 'ok' : d.revisione !== 'ok'))
+    .sort((a, b) => (filtro === 'votate' ? (stelle?.(b.submission.id, b.indice) || 0) - (stelle?.(a.submission.id, a.indice) || 0) : 0));
 
   const corrente = domande.find(d => d.chiave === aperta) || null;
   const attuale = domande[Math.min(indice, Math.max(0, domande.length - 1))] || null;
@@ -231,9 +233,9 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
         <span className="mz-mono" style={{ color: 'var(--ink)' }}>Come potremmo… ({String(domande.length).padStart(2, '0')})</span>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Segmentato etichetta="Vista" valore={vista} onCambia={v => { setVista(v); setAperta(null); vai(0); }} opzioni={[{ id: 'wall', label: 'Wall' }, { id: 'una', label: 'Una alla volta' }]} />
-          {(['tutte', 'da_vedere', 'ok'] as const).map(f => (
+          {(['tutte', 'da_vedere', 'ok', 'votate'] as const).map(f => (
             <button key={f} type="button" className={`mz-chip max-md:hidden ${filtro === f ? 'on' : ''}`} onClick={() => { setFiltro(f); vai(0); }}>
-              {f === 'tutte' ? 'Tutte' : f === 'ok' ? 'Pertinenti' : 'Da vedere'}
+              {f === 'tutte' ? 'Tutte' : f === 'ok' ? 'Pertinenti' : f === 'votate' ? '★ Più votate' : 'Da vedere'}
             </button>
           ))}
           <button type="button" className="mz-pill sm b" disabled={daSbloccare === 0} onClick={sbloccaTutti}>Sblocca gli sketch a tutti ({daSbloccare})</button>
@@ -255,7 +257,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
           </div>
           <div key={attuale.chiave} className="flex-1 min-h-0 overflow-y-auto grid content-center gap-8 px-[max(20px,6vw)] py-10">
             <span className="mz-mono c8-entra-sfocato" style={{ color: 'var(--accento)' }}>
-              ({String(indice + 1).padStart(2, '0')} / {String(domande.length).padStart(2, '0')}) {nomeContesto(attuale.hmw.contesto, contesti)}
+              ({String(indice + 1).padStart(2, '0')} / {String(domande.length).padStart(2, '0')}) {nomeContesto(attuale.hmw.contesto, contesti)}{(stelle?.(attuale.submission.id, attuale.indice) || 0) > 0 ? `  ★ ${stelle!(attuale.submission.id, attuale.indice)}` : ''}
             </span>
             <p className="mz-display c8-entra-sfocato" style={{ fontSize: 'clamp(40px, 6.2vw, 112px)', margin: 0, maxWidth: '18ch', animationDelay: '120ms' }}>{testoHmw(attuale.hmw)}</p>
             <div className="flex flex-wrap items-end gap-6 justify-between">
@@ -301,7 +303,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
                       }}
                     >
                       <span className="mz-mono" style={{ color: aperta === d.chiave ? 'rgba(28,25,23,.7)' : 'var(--accento)' }}>
-                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da rivedere' : ''}
+                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da rivedere' : ''}{(stelle?.(d.submission.id, d.indice) || 0) > 0 ? `  ★ ${stelle!(d.submission.id, d.indice)}` : ''}
                       </span>
                       <span className="block mt-3" style={{ fontFamily: 'var(--f-display)', fontSize: 'clamp(22px, 2.2vw, 34px)', lineHeight: 1.1, letterSpacing: '-.02em' }}>
                         {testoHmw(d.hmw)}

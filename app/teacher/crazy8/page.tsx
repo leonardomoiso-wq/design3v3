@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
@@ -9,6 +9,10 @@ import { BottomSheet } from '@/components/PannelliMobile';
 import { PresentazioneRisultati, type Diapositiva } from '@/components/crazy8/Finale';
 import { StrisceC8, useLightboxC8, type ImmagineC8, type RigaC8 } from '@/components/crazy8/Galleria';
 import { Segmentato } from '@/components/moiso/Moiso';
+import { miniaturaC8 } from '@/lib/storageCrazy8';
+import { PannelloRegia, TimerProiezione, TimerStudente, type ConfigAula } from '@/components/crazy8/Aula';
+import { useVotiCrazy8 } from '@/components/crazy8/Voti';
+import { StampaCrazy8, type ConsegnaStampa } from '@/components/crazy8/Stampa';
 
 // Pannello docente di Crazy 8. Due viste:
 // - Consegne: elenco dei team a sinistra, a destra la consegna aperta con
@@ -145,7 +149,11 @@ export default function Crazy8DocentePage() {
   const [vista, setVista] = useState<'consegne' | 'galleria'>('consegne');
   const [filtroGalleria, setFiltroGalleria] = useState<'tutto' | 'sketch' | 'migliorate'>('tutto');
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
-  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } } | null>(null);
+  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } & ConfigAula } | null>(null);
+  const [mostraRegia, setMostraRegia] = useState(false);
+  const [mostraTimer, setMostraTimer] = useState(false);
+  const [stampa, setStampa] = useState(false);
+  const [mostraPrecedenti, setMostraPrecedenti] = useState(false);
   const [contesti, setContesti] = useState<Contesto[]>([]);
   const [teamsAtt, setTeamsAtt] = useState<TeamAttivitaElenco[]>([]);
   const [mostraContesti, setMostraContesti] = useState(false);
@@ -180,6 +188,21 @@ export default function Crazy8DocentePage() {
     }
   };
 
+  const submissionsRef = useRef<any[]>([]);
+  submissionsRef.current = submissions;
+  const ordina = (s: any) => ({
+    ...s,
+    immagini: (s.immagini || []).slice().sort((a: any, b: any) => a.ordine - b.ordine)
+      .map((img: any) => ({ ...img, generazioni_crazy8: (img.generazioni_crazy8 || []).slice().sort((a: any, b: any) => a.ordine - b.ordine) })),
+  });
+  // una sola consegna, al posto dell'elenco intero con tutte le immagini
+  const caricaUna = async (id: string) => {
+    const { data } = await supabase.from('submission_crazy8').select('*, immagini(*, generazioni_crazy8(*))').eq('id', id).maybeSingle();
+    if (!data) { setSubmissions(prev => prev.filter(x => x.id !== id)); return; }
+    const una = ordina(data);
+    setSubmissions(prev => (prev.some(x => x.id === id) ? prev.map(x => (x.id === id ? una : x)) : [una, ...prev]));
+  };
+
   const caricaCommenti = async () => {
     const { data, error } = await supabase
       .from('commenti')
@@ -201,20 +224,39 @@ export default function Crazy8DocentePage() {
     caricaCommenti();
     caricaAttivitaC8();
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const presto = () => { if (timer) clearTimeout(timer); timer = setTimeout(caricaSubmissions, 600); };
+    // Si ricarica solo la consegna toccata dall'evento; se non si sa quale
+    // (es. una cancellazione) si ricarica l'elenco, raggruppando gli eventi.
+    const daRicaricare = new Set<string>();
+    let tutto = false;
+    const presto = (id?: string | null) => {
+      if (id) daRicaricare.add(id); else tutto = true;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (tutto) caricaSubmissions();
+        else daRicaricare.forEach(x => caricaUna(x));
+        daRicaricare.clear();
+        tutto = false;
+      }, 500);
+    };
+    const consegnaDiSketch = (sketchId?: string) => submissionsRef.current.find(s => (s.immagini || []).some((i: any) => i.id === sketchId))?.id || null;
     const channel = supabase
       .channel(`realtime-crazy8-docente-${corso.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, presto)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, presto)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, presto)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, (p: any) => presto(p.eventType === 'DELETE' ? null : p.new?.id))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, (p: any) => presto(p.new?.submission_id || p.old?.submission_id || null))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, (p: any) => presto(consegnaDiSketch(p.new?.sketch_immagine_id || p.old?.sketch_immagine_id)))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commenti' }, caricaCommenti)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contesti_crazy8' }, caricaAttivitaC8)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attivita' }, caricaAttivitaC8)
       .subscribe();
     return () => { supabase.removeChannel(channel); if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selezionata = submissions.find(s => s.id === selezionataId) || null;
+  const { conta: stelle } = useVotiCrazy8(attivitaC8?.id || null);
+  // le consegne create prima dei team per attività restano nascoste, a richiesta
+  const precedenti = submissions.filter(s => !s.team_attivita_id);
+  const visibili = mostraPrecedenti ? submissions : submissions.filter(s => s.team_attivita_id);
+  const selezionata = visibili.find(s => s.id === selezionataId) || visibili[0] || null;
   const teamDi = (s: any) => teamsAtt.find(t => t.id === s.team_attivita_id);
   const nomeDi = (s: any) => teamDi(s)?.nome || s.gruppo_nome;
 
@@ -261,12 +303,12 @@ export default function Crazy8DocentePage() {
   const immaginiDomanda = (s: any, d: number): ImmagineC8[] => {
     const h = (s.hmw || [])[d] as Hmw | undefined;
     return sketchDi(s, d).flatMap((sk: any, k: number) => [
-      { src: sk.url_file, titolo: `${nomeDi(s)}: sketch ${k + 1}${sk.selezionato ? ' ★' : ''}`, meta: h ? testoHmw(h) : undefined, tipo: sk.selezionato ? 'scelto' as const : 'sketch' as const },
-      ...sk.generazioni_crazy8.map((g: any) => ({ src: g.url_immagine, titolo: `${nomeDi(s)}: dallo sketch ${k + 1}${g.motore ? `, ${g.motore}` : ''}`, meta: g.prompt_usato, tipo: 'generata' as const })),
+      { src: sk.url_file, mini: miniaturaC8(sk.url_file), titolo: `${nomeDi(s)}: sketch ${k + 1}${sk.selezionato ? ' ★' : ''}`, meta: h ? testoHmw(h) : undefined, tipo: sk.selezionato ? 'scelto' as const : 'sketch' as const },
+      ...sk.generazioni_crazy8.map((g: any) => ({ src: g.url_immagine, mini: miniaturaC8(g.url_immagine), titolo: `${nomeDi(s)}: dallo sketch ${k + 1}${g.motore ? `, ${g.motore}` : ''}`, meta: g.prompt_usato, tipo: 'generata' as const })),
     ]);
   };
 
-  const righeGalleria: RigaC8[] = submissions.map(s => {
+  const righeGalleria: RigaC8[] = visibili.map(s => {
     const tutte = domandeDi(s).flatMap(d => immaginiDomanda(s, d));
     const immagini = tutte.filter(im => filtroGalleria === 'tutto' || (filtroGalleria === 'sketch' ? im.tipo !== 'generata' : im.tipo === 'generata'));
     const membri = teamDi(s)?.membri?.join(', ');
@@ -299,15 +341,19 @@ export default function Crazy8DocentePage() {
           <div className="space-y-2">
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 5vw, 72px)', margin: 0 }}>Crazy 8<span className="mz-sup">({due(submissions.length)})</span></h1>
             <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>
+              <TimerStudente timer={attivitaC8?.config.timer} />{' '}
               {contestiPerTeam === 0 ? 'Contesti liberi' : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {sketchPerDomanda} sketch da scegliere per domanda.{' '}
               <a href="/teacher/attivita" className="underline underline-offset-2">Cambia nel pannello attività</a>
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button type="button" className="mz-pill o" disabled={!attivitaC8} onClick={() => setMostraRegia(true)}>Regia dell&apos;aula</button>
+            <button type="button" className="mz-pill o" disabled={!attivitaC8} onClick={() => setMostraTimer(true)}>Timer ⤢</button>
             <button type="button" className="mz-pill o" disabled={!attivitaC8} onClick={() => setMostraContesti(true)}>Bacheca contesti</button>
             <button type="button" className="mz-pill o" onClick={() => setMostraPromptSuggeriti(true)}>Prompt suggeriti</button>
             <button type="button" className="mz-pill b" disabled={!attivitaC8} onClick={() => { caricaAttivitaC8(); setMostraWall(true); }}>Wall HMW ⤢</button>
             <button type="button" className="mz-pill" disabled={diapositiveRisultati.length === 0} onClick={() => setMostraRisultati(true)}>Proietta risultati ⤢</button>
+            <button type="button" className="mz-pill o" disabled={visibili.length === 0} onClick={() => setStampa(true)}>Esporta PDF</button>
           </div>
         </div>
         <Segmentato etichetta="Vista" valore={vista} onCambia={setVista} opzioni={[{ id: 'consegne', label: 'Consegne' }, { id: 'galleria', label: 'Galleria' }]} />
@@ -338,13 +384,13 @@ export default function Crazy8DocentePage() {
         <div className="c8-doc-corpo">
           {/* elenco delle consegne */}
           <nav className="c8-doc-elenco" aria-label="Consegne">
-            {submissions.length === 0 && <p className="text-sm p-4" style={{ color: 'var(--muted)' }}>Nessuna consegna ancora.</p>}
-            {submissions.map((s, i) => {
+            {visibili.length === 0 && <p className="text-sm p-4" style={{ color: 'var(--muted)' }}>Nessuna consegna ancora.</p>}
+            {visibili.map((s, i) => {
               const f = faseEffettiva(s as Submission);
               const n = (s.immagini || []).length;
               const ai = (s.immagini || []).reduce((t: number, x: any) => t + (x.generazioni_crazy8 || []).length, 0);
               return (
-                <button key={s.id} type="button" onClick={() => setSelezionataId(s.id)} aria-current={selezionataId === s.id ? 'true' : undefined} className="c8-doc-voce">
+                <button key={s.id} type="button" onClick={() => setSelezionataId(s.id)} aria-current={selezionata?.id === s.id ? "true" : undefined} className="c8-doc-voce">
                   <span className="mz-mono">({due(i + 1)})</span>
                   <span className="c8-doc-voce-nome">{nomeDi(s)}</span>
                   <span className="c8-doc-voce-meta">{(teamDi(s)?.membri || []).join(', ') || s.hmw_o_tema || ''}</span>
@@ -359,6 +405,11 @@ export default function Crazy8DocentePage() {
                 </button>
               );
             })}
+            {precedenti.length > 0 && (
+              <button type="button" className="mz-pill sm ghost" style={{ margin: '12px max(20px, 2vw)' }} onClick={() => setMostraPrecedenti(v => !v)}>
+                {mostraPrecedenti ? 'Nascondi le consegne precedenti' : `Mostra le consegne precedenti (${precedenti.length})`}
+              </button>
+            )}
           </nav>
 
           {/* consegna aperta */}
@@ -422,7 +473,7 @@ export default function Crazy8DocentePage() {
                           <div className="c8-doc-miniature">
                             {sketch.map((sk: any, k: number) => (
                               <button key={sk.id} type="button" className={`c8-doc-mini ${sk.selezionato ? 'scelto' : ''}`} onClick={e => apri(sk.url_file, e.currentTarget)} aria-label={`Sketch ${k + 1}${sk.selezionato ? ', scelto' : ''}`}>
-                                <img src={sk.url_file} alt="" loading="lazy" />
+                                <img src={miniaturaC8(sk.url_file)} alt="" loading="lazy" />
                                 <span className="c8-sketch-numero">{k + 1}</span>
                                 {sk.selezionato && <span className="c8-sketch-stella">★</span>}
                               </button>
@@ -436,14 +487,14 @@ export default function Crazy8DocentePage() {
                           <span className="mz-mono">Migliorate con l&apos;AI ({sk.generazioni_crazy8.length})</span>
                           <div className="c8-doc-catena">
                             <button type="button" className="c8-doc-mini grande scelto" onClick={e => apri(sk.url_file, e.currentTarget)} aria-label="Sketch scelto">
-                              <img src={sk.url_file} alt="" loading="lazy" />
+                              <img src={miniaturaC8(sk.url_file)} alt="" loading="lazy" />
                               <span className="c8-striscia-tag">Sketch</span>
                             </button>
                             <span className="c8-freccia" aria-hidden="true">→</span>
                             {sk.generazioni_crazy8.length === 0 && <span className="text-sm" style={{ color: 'var(--muted)' }}>Ancora nessuna immagine generata.</span>}
                             {sk.generazioni_crazy8.map((g: any) => (
                               <button key={g.id} type="button" className="c8-doc-mini grande" onClick={e => apri(g.url_immagine, e.currentTarget)} aria-label="Immagine generata">
-                                <img src={g.url_immagine} alt="" loading="lazy" />
+                                <img src={miniaturaC8(g.url_immagine)} alt="" loading="lazy" />
                                 <span className="c8-striscia-tag ai">{g.motore || 'AI'}</span>
                               </button>
                             ))}
@@ -475,7 +526,34 @@ export default function Crazy8DocentePage() {
         </BottomSheet>
       )}
       {mostraWall && attivitaC8 && (
-        <WallHmw attivitaId={attivitaC8.id} submissions={submissions} contesti={contesti} teams={teamsAtt} passcode={passcode} onChiudi={() => setMostraWall(false)} onCambiato={caricaSubmissions} />
+        <WallHmw stelle={stelle} attivitaId={attivitaC8.id} submissions={visibili} contesti={contesti} teams={teamsAtt} passcode={passcode} onChiudi={() => setMostraWall(false)} onCambiato={caricaSubmissions} />
+      )}
+      {attivitaC8 && (
+        <BottomSheet aperto={mostraRegia} onChiudi={() => setMostraRegia(false)} etichetta="Regia dell'aula" titolo="Regia dell'aula" larghezzaDesktop="md:max-w-xl">
+          <PannelloRegia attivitaId={attivitaC8.id} passcode={passcode} config={attivitaC8.config} onCambiato={caricaAttivitaC8} onProietta={() => { setMostraRegia(false); setMostraTimer(true); }} />
+        </BottomSheet>
+      )}
+      {mostraTimer && attivitaC8 && (
+        <TimerProiezione
+          timer={attivitaC8.config.timer}
+          onChiudi={() => setMostraTimer(false)}
+          comandi={<button type="button" className="mz-pill sm ghost" style={{ color: 'inherit' }} onClick={() => { setMostraTimer(false); setMostraRegia(true); }}>Comandi</button>}
+        />
+      )}
+      {stampa && (
+        <StampaCrazy8
+          titolo={`Crazy 8 — ${corso.nome}`}
+          onFine={() => setStampa(false)}
+          consegne={visibili.map((s): ConsegnaStampa => ({
+            team: nomeDi(s),
+            membri: teamDi(s)?.membri || [],
+            contesti: (s.contesti || []).map((id: string) => nomeContesto(id, contesti)).filter(Boolean),
+            domande: domandeDi(s).map(d => ({
+              testo: (s.hmw || [])[d] ? testoHmw((s.hmw || [])[d]) : '',
+              scelti: sketchDi(s, d).filter((x: any) => x.selezionato).map((x: any) => ({ sketch: x.url_file, generate: (x.generazioni_crazy8 || []).map((g: any) => g.url_immagine), nota: x.interpretazione })),
+            })),
+          }))}
+        />
       )}
       {mostraRisultati && <PresentazioneRisultati titolo="Risultati dei team" onChiudi={() => setMostraRisultati(false)} diapositive={diapositiveRisultati} />}
       {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} corsoId={corso.id} onChiudi={() => setMostraPromptSuggeriti(false)} />}

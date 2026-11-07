@@ -100,9 +100,11 @@ const VINCOLI: Opzione[] = [
   { id: 'singolo', etichetta: 'Un solo oggetto', testo: 'Un solo oggetto, al centro della scena' },
 ];
 
+// Gemini è il modello consigliato: gli studenti usano il loro account
+// Gemini Pro da studenti. Gli altri restano come alternativa.
 export const MOTORI = [
+  { id: 'Gemini', nome: 'Gemini', nota: 'con il vostro account Pro da studenti', url: () => 'https://gemini.google.com/app', classe: 'bg-sky-700 hover:bg-sky-800' },
   { id: 'ChatGPT', nome: 'ChatGPT', nota: 'il prompt si apre già scritto', url: (p: string) => `https://chatgpt.com/?q=${encodeURIComponent(p)}`, classe: 'bg-emerald-700 hover:bg-emerald-800' },
-  { id: 'Gemini', nome: 'Gemini', nota: 'incollate il prompt copiato', url: () => 'https://gemini.google.com/app', classe: 'bg-sky-700 hover:bg-sky-800' },
   { id: 'Copilot', nome: 'Copilot', nota: 'incollate il prompt copiato', url: () => 'https://copilot.microsoft.com/', classe: 'bg-indigo-700 hover:bg-indigo-800' },
   { id: 'Firefly', nome: 'Adobe Firefly', nota: 'incollate il prompt copiato', url: () => 'https://firefly.adobe.com/', classe: 'bg-rose-700 hover:bg-rose-800' },
 ];
@@ -505,19 +507,23 @@ export default function PromptConfiguratore({
               ⬇ Scarica lo sketch da allegare
             </button>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            {MOTORI.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                disabled={!sbloccato}
-                onClick={() => apriMotore(m)}
-                className={`rounded-2xl px-3 py-3 text-left text-white transition disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed ${m.classe}`}
-              >
-                <span className="block text-sm font-bold">{m.nome} ↗</span>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            disabled={!sbloccato}
+            onClick={() => apriMotore(MOTORI[0])}
+            className="c8-gemini"
+          >
+            <span className="c8-gemini-nome">Apri Gemini ↗</span>
+            <span className="c8-gemini-nota">Accedete con il vostro account Gemini Pro da studenti, allegate lo sketch e incollate il prompt.</span>
+          </button>
+          <details className="c8-dettagli">
+            <summary className="mz-mono">Altri modelli</summary>
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              {MOTORI.slice(1).map(m => (
+                <button key={m.id} type="button" disabled={!sbloccato} onClick={() => apriMotore(m)} className="mz-pill sm o" style={{ width: '100%' }}>{m.nome} ↗</button>
+              ))}
+            </div>
+          </details>
           <button type="button" disabled={!sbloccato} onClick={() => apriMotore(null)} className="w-full text-xs bg-stone-100 rounded-xl py-2 hover:bg-stone-200 transition disabled:opacity-50 disabled:cursor-not-allowed">
             📋 Solo copia il prompt (altro strumento)
           </button>

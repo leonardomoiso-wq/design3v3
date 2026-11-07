@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Info from '@/components/Info';
 import { supabase } from '../../lib/supabase';
-import { comprimiImmagine } from '../../lib/immagine';
+import { caricaImmagineC8, miniaturaC8 } from '../../lib/storageCrazy8';
 import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
@@ -11,6 +11,9 @@ import { Solidi, useTendina } from '../../components/moiso/Moiso';
 import { Celebrazione } from '../../components/moiso/Celebrazione';
 import { RisultatoDomanda, PresentazioneRisultati } from '../../components/crazy8/Finale';
 import { Pila3D, RiquadroC8, useLightboxC8 } from '../../components/crazy8/Galleria';
+import { TimerStudente, type ConfigAula } from '../../components/crazy8/Aula';
+import AltreDomande from '../../components/crazy8/Voti';
+import { StampaCrazy8 } from '../../components/crazy8/Stampa';
 import { due } from '../../components/Vetrina';
 import {
   FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
@@ -151,10 +154,14 @@ function Stepper({ fase, raggiunta, onVai }: { fase: number; raggiunta: number; 
   );
 }
 
-function NavigazioneFase({ fase, onIndietro, onAvanti, avantiPossibile, motivoBlocco, etichettaAvanti }: {
-  fase: number; onIndietro: () => void; onAvanti?: () => void; avantiPossibile: boolean; motivoBlocco?: string; etichettaAvanti?: string;
+// faseAperta: fin dove il docente ha aperto le fasi (regia dell'aula)
+function NavigazioneFase({ fase, onIndietro, onAvanti, avantiPossibile: possibile, motivoBlocco: motivo, etichettaAvanti, faseAperta = 6 }: {
+  fase: number; onIndietro: () => void; onAvanti?: () => void; avantiPossibile: boolean; motivoBlocco?: string; etichettaAvanti?: string; faseAperta?: number;
 }) {
   const prossima = FASI.find(f => f.n === fase + 1);
+  const chiusa = fase + 1 > faseAperta;
+  const avantiPossibile = possibile && !chiusa;
+  const motivoBlocco = chiusa && possibile ? 'Il docente apre la prossima fase in aula' : motivo;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
       {fase > 1 ? (
@@ -176,7 +183,7 @@ export default function Crazy8Page() {
   return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
 }
 
-type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } };
+type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } & ConfigAula };
 
 function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
@@ -184,6 +191,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const [attivitaInfo, setAttivitaInfo] = useState<InfoAttivita | null | undefined>(undefined);
   const [teamAtt, setTeamAtt] = useState<TeamAttivita | null | undefined>(undefined);
   const [attiva, setAttiva] = useState<Submission | null>(null);
+  const attivaRef = useRef<Submission | null>(null);
+  attivaRef.current = attiva;
   const [contesti, setContesti] = useState<Contesto[]>([]);
   const [mostraTutorial, setMostraTutorial] = useState(false);
   const [suggerimentiPrompt, setSuggerimentiPrompt] = useState<any[]>([]);
@@ -199,6 +208,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const lightbox = useLightboxC8();
   const [festa, setFesta] = useState<{ titolo: string; sottotitolo: string; origine: { x: number; y: number } | null } | null>(null);
   const [presenta, setPresenta] = useState(false);
+  const [stampa, setStampa] = useState(false);
 
   const codice = teamAtt?.password || '';
 
@@ -236,6 +246,17 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     const ricaricaConsegna = () => setAttiva(a => { if (a) caricaConsegna(a.id); return a; });
     let timer: ReturnType<typeof setTimeout> | null = null;
     const presto = () => { if (timer) clearTimeout(timer); timer = setTimeout(ricaricaConsegna, 600); };
+    // si ricarica solo se l'evento riguarda la consegna del team (o non si
+    // può sapere, come per le cancellazioni senza i dati della riga)
+    const mia = (payload: any, chiave: 'consegna' | 'sketch' | 'generazione') => {
+      const a = attivaRef.current;
+      if (!a) return false;
+      const n = payload.new || {};
+      if (payload.eventType === 'DELETE' && !payload.old?.submission_id && !payload.old?.sketch_immagine_id) return chiave !== 'consegna' || payload.old?.id === a.id;
+      if (chiave === 'consegna') return (n.id || payload.old?.id) === a.id;
+      if (chiave === 'sketch') return (n.submission_id || payload.old?.submission_id) === a.id;
+      return a.immagini.some(i => i.id === (n.sketch_immagine_id || payload.old?.sketch_immagine_id));
+    };
 
     (async () => {
       id = await caricaAttivita();
@@ -249,9 +270,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
     const channel = supabase
       .channel(`realtime-crazy8-studenti-${corso.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, presto)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, presto)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, presto)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submission_crazy8' }, (p: any) => { if (mia(p, 'consegna')) presto(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'immagini' }, (p: any) => { if (mia(p, 'sketch')) presto(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'generazioni_crazy8' }, (p: any) => { if (mia(p, 'generazione')) presto(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contesti_crazy8' }, () => { if (id) caricaContesti(id); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'attivita' }, () => { caricaAttivita(); })
       .subscribe();
@@ -266,7 +287,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamAtt?.id]);
 
-  const raggiunta = attiva ? faseEffettiva(attiva) : 1;
+  const faseAperta = Math.max(1, Math.min(NUMERO_FASI, Number(attivitaInfo?.config?.fase_aperta || NUMERO_FASI)));
+  const raggiunta = Math.min(attiva ? faseEffettiva(attiva) : 1, faseAperta);
 
   // alla prima apertura si riparte dal punto raggiunto
   useEffect(() => {
@@ -340,7 +362,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     setErroreAzione('');
     try {
       for (const file of files) {
-        const urlFile = await comprimiImmagine(file);
+        const urlFile = await caricaImmagineC8(corso.id, file);
         const { error } = await supabase.rpc('aggiungi_sketch_crazy8', { p_submission_id: attiva.id, p_codice: codice, p_url_file: urlFile, p_domanda: domanda });
         if (error) { setErroreAzione(messaggioErrore(error.message)); break; }
       }
@@ -404,7 +426,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <span className="mz-mono">{String(teamAtt.numero).padStart(2, "0")}</span> {teamAtt.nome}
           </button>
         )}
-        <a href="/manuali?attivita=crazy8_ai" className="mz-pill sm ghost max-sm:hidden">Manuale</a>
+        <TimerStudente timer={attivitaInfo?.config?.timer} />
+        <a href="/manuali?attivita=crazy8_ai" className="mz-pill sm ghost c8-rail-manuale">Manuale</a>
         <button type="button" onClick={() => setMostraTutorial(true)} className="mz-pill sm ghost" aria-label="Come funziona">?</button>
       </div>
     </header>
@@ -480,7 +503,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 salvaCampi({ contesti: ids, sotto_ambito: titoli });
               }}
             />
-            <NavigazioneFase
+            <NavigazioneFase faseAperta={faseAperta}
               fase={1}
               onIndietro={() => {}}
               onAvanti={() => avanzaA(2)}
@@ -506,7 +529,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 if (await salvaCampi({ hmw_inviate: true })) setFesta({ titolo: 'Domande inviate', sottotitolo: 'Il docente le legge in aula', origine });
               }}
             />
-            <NavigazioneFase
+            <NavigazioneFase faseAperta={faseAperta}
               fase={2}
               onIndietro={() => vaiAFase(1)}
               onAvanti={() => avanzaA(3)}
@@ -514,6 +537,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               motivoBlocco={attiva.hmw_inviate ? 'In attesa che il/la docente sblocchi gli sketch' : 'Inviate le due domande al docente'}
               etichettaAvanti="Avanti: gli sketch"
             />
+            {attiva.hmw_inviate && teamAtt && (
+              <AltreDomande attivitaId={attivitaInfo.id} mioTeam={teamAtt.id} password={teamAtt.password} mioId={attiva.id} contesti={contesti} />
+            )}
           </div>
         );
 
@@ -542,7 +568,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                     <div className="grid grid-cols-4 gap-2">
                       {lista.map((s, i) => (
                         <div key={s.id} className="relative c8-arrivo" style={{ animationDelay: `${i * 40}ms` }}>
-                          <RiquadroC8 src={s.url_file} alt={`Sketch ${i + 1}`} onApri={el => lightbox.apri(lista.map((x, k) => ({ src: x.url_file, titolo: `Domanda ${d + 1}: sketch ${k + 1}`, meta: testoHmw(hmwDi(d)) })), i, el)} />
+                          <RiquadroC8 src={miniaturaC8(s.url_file)} alt={`Sketch ${i + 1}`} onApri={el => lightbox.apri(lista.map((x, k) => ({ src: x.url_file, titolo: `Domanda ${d + 1}: sketch ${k + 1}`, meta: testoHmw(hmwDi(d)) })), i, el)} />
                           <span className="c8-sketch-numero">{i + 1}</span>
                           <button type="button" onClick={() => rimuoviSketch(s.id)} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-white/90 text-stone-400 hover:text-red-600 text-[10px]" aria-label="Elimina sketch">✕</button>
                         </div>
@@ -555,7 +581,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 );
               })}
             </div>
-            <NavigazioneFase
+            <NavigazioneFase faseAperta={faseAperta}
               fase={3}
               onIndietro={() => vaiAFase(2)}
               onAvanti={() => avanzaA(4)}
@@ -608,7 +634,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                               aria-label={`Sketch ${k + 1}${s.selezionato ? ', scelto' : ''}`}
                               className={`c8-sketch-scelta ${s.selezionato ? 'scelto' : pieno ? 'spento' : ''} ${inPrimoPiano?.id === s.id ? 'fuoco' : ''}`}
                             >
-                              <img src={s.url_file} alt="" loading="lazy" decoding="async" />
+                              <img src={miniaturaC8(s.url_file)} alt="" loading="lazy" decoding="async" />
                               <span className="c8-sketch-numero">{k + 1}</span>
                               <span className="c8-sketch-stella" aria-hidden="true">{s.selezionato ? (sketchPerDomanda > 1 ? `★ ${pos + 1}` : '★') : '☆'}</span>
                             </button>
@@ -631,7 +657,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 </section>
               )}
             </div>
-            <NavigazioneFase
+            <NavigazioneFase faseAperta={faseAperta}
               fase={4}
               onIndietro={() => vaiAFase(3)}
               onAvanti={() => avanzaA(5)}
@@ -668,7 +694,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                 <button type="button" onClick={() => avanzaA(6)} className="mz-pill sm">Carica le immagini →</button>
               </div>
             )}
-            <NavigazioneFase fase={5} onIndietro={() => vaiAFase(4)} onAvanti={() => avanzaA(6)} avantiPossibile={sketchSelezionati.length > 0} etichettaAvanti="Ho generato: carico le immagini" />
+            <NavigazioneFase faseAperta={faseAperta} fase={5} onIndietro={() => vaiAFase(4)} onAvanti={() => avanzaA(6)} avantiPossibile={sketchSelezionati.length > 0} etichettaAvanti="Ho generato: carico le immagini" />
           </div>
         );
 
@@ -687,18 +713,27 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                   domanda={testoHmw(hmwDi(d))}
                   sketch={sk}
                   promptIniziale={ultimo.prompt}
-                  motoreIniziale={ultimo.motore}
+                  motoreIniziale={ultimo.motore || 'Gemini'}
                   motori={MOTORI}
                   onAggiungi={aggiungiGenerazione}
                   onRimuovi={rimuoviGenerazione}
                   onCaricamento={segnalaCaricamento}
                   onApri={(imm, i, el) => lightbox.apri(imm, i, el)}
+                  corsoId={corso.id}
+                  driverCorso={corso.configurazione.driver}
+                  onValuta={async (genId, driver) => {
+                    setAttiva(a => (a ? { ...a, immagini: a.immagini.map(i => ({ ...i, generazioni_crazy8: i.generazioni_crazy8.map(g => (g.id === genId ? { ...g, driver } : g)) })) } : a));
+                    const { error } = await supabase.rpc('aggiorna_generazione_crazy8', { p_id: genId, p_codice: codice, p_campi: { driver } });
+                    if (error) setErroreAzione(messaggioErrore(error.message));
+                    return !error;
+                  }}
                 />
               );
             })}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
               <button type="button" onClick={() => vaiAFase(5)} className="mz-pill ghost">← Prompt</button>
               <div className="flex flex-wrap items-center gap-2">
+                {conImmagini && <button type="button" className="mz-pill o" onClick={() => setStampa(true)}>Scarica PDF</button>}
                 {conImmagini && <button type="button" className="mz-pill o" onClick={() => setPresenta(true)}>Presenta ⤢</button>}
                 {consegnato ? (
                   <span className="mz-chip on" style={{ cursor: 'default' }}>✓ Consegnato</span>
@@ -728,6 +763,21 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       {tendina.nodo}
       {lightbox.nodo}
       {festa && <Celebrazione origine={festa.origine} titolo={festa.titolo} sottotitolo={festa.sottotitolo} numero={null} onFine={() => setFesta(null)} />}
+      {stampa && (
+        <StampaCrazy8
+          titolo="Crazy 8"
+          onFine={() => setStampa(false)}
+          consegne={[{
+            team: teamAtt.nome,
+            membri: teamAtt.membri,
+            contesti: sceltiValidi.map(id => nomeContesto(id, contesti)),
+            domande: [0, 1].map(d => ({
+              testo: testoHmw(hmwDi(d)),
+              scelti: sketchSelezionati.filter(sk => (sk.domanda ?? 0) === d).map(sk => ({ sketch: sk.url_file, generate: sk.generazioni_crazy8.map(g => g.url_immagine), nota: sk.interpretazione })),
+            })),
+          }]}
+        />
+      )}
       {presenta && (
         <PresentazioneRisultati
           titolo={teamAtt.nome}

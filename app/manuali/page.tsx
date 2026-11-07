@@ -224,7 +224,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">
@@ -233,7 +233,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Gli sketch</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>).
+              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>). Il timer del docente compare in alto: 8 idee in 8 minuti.
             </p>
           </div>
           <div className="space-y-4">
@@ -251,7 +251,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il prompt</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Il configuratore compone il prompt partendo dallo sketch e dalla sua domanda; aggiungete qualcosa di vostro per sbloccare ChatGPT, Gemini, Copilot o Firefly, allegate lo sketch e generate.
+              Il configuratore compone il prompt partendo dallo sketch e dalla sua domanda; aggiungete qualcosa di vostro, poi aprite <b>Gemini</b> con il vostro account Gemini Pro da studenti, allegate lo sketch e incollate il prompt. ChatGPT, Copilot e Firefly restano come alternative.
             </p>
           </div>
           <div className="space-y-4">
@@ -260,7 +260,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Le immagini generate</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Caricate le immagini migliori ottenute dal modello e, quando avete finito, consegnate.
+              Caricate le immagini migliori ottenute dal modello e valutatele sui 4 driver: così compaiono nel radar dei concept. Potete scaricare il PDF del lavoro, presentarlo a schermo intero e, alla fine, consegnare.
             </p>
           </div>
         </div>

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Solidi } from '@/components/moiso/Moiso';
 import { RiquadroC8 } from './Galleria';
-import { comprimiImmagine } from '@/lib/immagine';
+import { caricaImmagineC8, miniaturaC8 } from '@/lib/storageCrazy8';
 import { ImpulsoCaricamento } from '@/lib/caricamento';
 import type { Generazione, Sketch } from './shared';
 
@@ -121,7 +121,7 @@ export function PresentazioneRisultati({ diapositive, titolo, onChiudi }: { diap
 
 // Caricamento delle immagini generate per uno sketch: si scelgono i file
 // e partono subito, con il prompt e il modello inviati dal configuratore.
-export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, motoreIniziale, motori, onAggiungi, onRimuovi, onCaricamento, onApri }: {
+export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, motoreIniziale, motori, onAggiungi, onRimuovi, onCaricamento, onApri, corsoId, driverCorso = [], onValuta }: {
   indice: number;
   domanda: string;
   sketch: Sketch;
@@ -132,6 +132,9 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
   onRimuovi: (genId: string) => void;
   onCaricamento: (attivo: boolean) => void;
   onApri?: (immagini: { src: string; titolo: string; meta?: string }[], indice: number, el: Element) => void;
+  corsoId: string;
+  driverCorso?: { chiave: string; etichetta: string; domanda?: string }[];
+  onValuta?: (genId: string, driver: Record<string, { valore: number; nota: string }>) => Promise<boolean>;
 }) {
   const [prompt, setPrompt] = useState(promptIniziale);
   const [motore, setMotore] = useState(motoreIniziale);
@@ -157,7 +160,7 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
     onCaricamento(true);
     try {
       for (const f of lista) {
-        const url = await comprimiImmagine(f);
+        const url = await caricaImmagineC8(corsoId, f);
         if (!(await onAggiungi(sketch.id, prompt, url, motore))) { setErrore('Un\'immagine non è stata salvata. Riprovate.'); break; }
       }
       setInPrimoPiano(generate.length);
@@ -193,7 +196,7 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
           {generate.map((g, k) => (
             <div key={g.id} className="c8-provino c8-arrivo" style={{ animationDelay: `${k * 50}ms` }}>
               <button type="button" role="tab" aria-selected={k === Math.min(inPrimoPiano, generate.length - 1)} onClick={() => setInPrimoPiano(k)} aria-label={`Mostra l'immagine ${k + 1}`}>
-                <img src={g.url_immagine} alt="" loading="lazy" />
+                <img src={miniaturaC8(g.url_immagine)} alt="" loading="lazy" />
               </button>
               <button type="button" className="c8-provino-elimina" onClick={() => onRimuovi(g.id)} aria-label="Elimina immagine">✕</button>
             </div>
@@ -203,6 +206,29 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
             <input type="file" accept="image/*" multiple className="sr-only" onChange={carica} disabled={inCorso} />
           </label>
         </div>
+      )}
+
+      {copertina && driverCorso.length > 0 && onValuta && (
+        <details className="c8-dettagli">
+          <summary className="mz-mono">Valutate questa immagine{copertina.driver && Object.keys(copertina.driver).length === driverCorso.length ? ' ✓' : ''}</summary>
+          <div className="c8-valuta">
+            {driverCorso.map(d => {
+              const attuale = (copertina.driver as any)?.[d.chiave]?.valore;
+              return (
+                <div key={d.chiave} className="c8-valuta-riga">
+                  <span title={d.domanda}>{d.etichetta}</span>
+                  <div className="flex gap-1" role="radiogroup" aria-label={d.etichetta}>
+                    {[0, 1, 2, 3, 4, 5].map(n => (
+                      <button key={n} type="button" role="radio" aria-checked={attuale === n} className={`c8-valuta-n ${attuale === n ? 'on' : ''}`}
+                        onClick={() => onValuta(copertina.id, { ...((copertina.driver as any) || {}), [d.chiave]: { valore: n, nota: '' } })}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-xs text-stone-500 m-0">Con i 4 driver valutati, l&apos;immagine compare sul radar del docente accanto ai casi studio.</p>
+          </div>
+        </details>
       )}
 
       <details className="c8-dettagli" open={!promptIniziale}>

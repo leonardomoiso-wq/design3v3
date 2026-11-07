@@ -69,11 +69,44 @@ export function elementiDaSubmission(riga: any): ElementoConcept[] {
   });
 }
 
+// Immagini generate valutate dai team sui 4 driver (percorso attuale):
+// titolo = team e domanda, descrizione = la domanda HMW, tag = contesto.
+function elementiDaGenerazioni(riga: any, contesti: Map<string, string>): ElementoConcept[] {
+  const hmw: any[] = Array.isArray(riga.hmw) ? riga.hmw : [];
+  return (riga.immagini || []).flatMap((sk: any) => (sk.generazioni_crazy8 || []).flatMap((g: any, k: number) => {
+    const driver = g.driver || {};
+    if (!CHIAVI_DRIVER_C8.every(c => typeof driver?.[c]?.valore === 'number')) return [];
+    const d = sk.domanda ?? 0;
+    const h = hmw[d];
+    const testo = h ? `Come potremmo ${h.azione} per ${h.utente} così che ${h.risultato}?` : '';
+    const contesto = h?.contesto ? (h.contesto.startsWith('proprio:') ? h.contesto.slice(8) : contesti.get(h.contesto) || '') : '';
+    const chiave = `${riga.id}:gen:${g.id}`;
+    return [{
+      id: idDaChiave(chiave),
+      chiave,
+      gruppoNome: riga.gruppo_nome,
+      gruppoNum: riga.gruppo_num,
+      titolo: `${riga.gruppo_nome}, domanda ${d + 1}${k > 0 ? ` (${k + 1})` : ''}`,
+      descrizione: [testo, sk.interpretazione && `«${sk.interpretazione}»`, g.motore && `Modello: ${g.motore}`].filter(Boolean).join('\n\n'),
+      immagine: g.url_immagine,
+      tags: contesto ? [contesto] : [],
+      driver: normalizzaDriver(driver),
+      driverNote: estraiNote(driver),
+      anno: null,
+      conceptTitolo: riga.gruppo_nome,
+    }];
+  }));
+}
+
 export async function caricaElementiConcept(corsoId: string): Promise<{ elementi: ElementoConcept[]; errore: string }> {
-  const { data, error } = await supabase
-    .from('submission_crazy8')
-    .select('id, gruppo_nome, gruppo_num, concept_titolo, concept_descrizione, scenario, moodboard, immagini(id, ordine, url_file, sotto_ambito, generazioni_crazy8(id, ordine, url_immagine))')
-    .eq('corso_id', corsoId);
+  const [{ data, error }, { data: ctx }] = await Promise.all([
+    supabase
+      .from('submission_crazy8')
+      .select('id, gruppo_nome, gruppo_num, concept_titolo, concept_descrizione, scenario, moodboard, hmw, immagini(id, ordine, domanda, interpretazione, url_file, sotto_ambito, generazioni_crazy8(id, ordine, url_immagine, motore, driver))')
+      .eq('corso_id', corsoId),
+    supabase.from('contesti_crazy8').select('id, titolo').eq('corso_id', corsoId),
+  ]);
   if (error) return { elementi: [], errore: error.message };
-  return { elementi: (data || []).flatMap(elementiDaSubmission), errore: '' };
+  const contesti = new Map(((ctx || []) as any[]).map(c => [c.id, c.titolo] as [string, string]));
+  return { elementi: (data || []).flatMap((r: any) => [...elementiDaSubmission(r), ...elementiDaGenerazioni(r, contesti)]), errore: '' };
 }
