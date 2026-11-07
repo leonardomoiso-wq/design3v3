@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Sep from '@/components/Sep';
 import { Miniatura, scaricaDataUrl, type Sketch, type VisioneSottoAmbito } from './shared';
 
 type Contesto = { visione: VisioneSottoAmbito | null; orizzonte: string; domanda?: string | null; nomeContesto?: string | null };
@@ -354,7 +353,6 @@ export default function PromptConfiguratore({
               >
                 <span className="text-xl" aria-hidden="true">{o.icona}</span>
                 <p className="text-xs font-bold mt-1">{o.etichetta}</p>
-                <p className={`text-[11px] leading-snug mt-0.5 ${config.obiettivo === o.id ? 'text-stone-300' : 'text-stone-500'}`}>{o.descrizione}</p>
               </button>
             ))}
           </div>
@@ -365,7 +363,6 @@ export default function PromptConfiguratore({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-stone-900"><span className="text-amber-600 mr-1">2</span> Rendetelo vostro</h3>
-              <p className="text-xs text-stone-600 mt-0.5">Le parole che scrivete qui sono ciò che distingue il vostro risultato da quello degli altri team.</p>
             </div>
             <span className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${infoLivello.testoColore}`}>{parole} parole vostre</span>
           </div>
@@ -379,7 +376,6 @@ export default function PromptConfiguratore({
           </label>
           <label className="block">
             <span className="text-xs font-medium text-stone-800">Un dettaglio imperfetto <span className="text-stone-400 font-normal">(facoltativo)</span></span>
-            <span className="block text-[11px] text-stone-500">Un segno d&apos;uso, un limite, qualcosa che non torna: rende l&apos;immagine più credibile.</span>
             <textarea rows={2} value={config.frizione} onChange={e => aggiorna({ frizione: e.target.value, manuale: null })} placeholder="es. il vaso un po' sporco di terra, un'etichetta scolorita" className="mt-1 w-full border border-amber-200 rounded-xl p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </label>
           <label className="block">
@@ -395,7 +391,7 @@ export default function PromptConfiguratore({
         {/* 3. Dettagli */}
         <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-4">
           <button type="button" onClick={() => setMostraDettagli(v => !v)} className="w-full flex items-center justify-between text-left" aria-expanded={mostraDettagli}>
-            <h3 className="text-sm font-bold text-stone-900"><span className="text-stone-400 mr-1">3</span> Regolate i dettagli <span className="text-xs font-normal text-stone-400">stile, materiali, luce, inquadratura…</span></h3>
+            <h3 className="text-sm font-bold text-stone-900"><span className="text-stone-400 mr-1">3</span> Regolate i dettagli </h3>
             <span className="text-stone-400 text-sm">{mostraDettagli ? '−' : '+'}</span>
           </button>
           {mostraDettagli && (
@@ -464,9 +460,7 @@ export default function PromptConfiguratore({
           ) : (
             <textarea rows={8} value={config.manuale} onChange={e => aggiorna({ manuale: e.target.value })} className="w-full rounded-xl bg-stone-800 border border-stone-700 p-3 text-sm text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
           )}
-          <p className="text-[10px] text-stone-500">
-            <span className="bg-amber-400/25 text-amber-200 rounded px-1">evidenziato</span> = parole vostre<Sep /><span className="text-white">bianco</span> = scelte del configuratore
-          </p>
+
 
           {/* indicatore di personalizzazione */}
           <div className="space-y-1.5">
@@ -476,7 +470,6 @@ export default function PromptConfiguratore({
               ))}
             </div>
             <p className="text-xs font-bold text-white">{infoLivello.etichetta}</p>
-            <p className="text-[11px] text-stone-400 leading-snug">{infoLivello.testo}</p>
             {!sbloccato && (
               <button type="button" onClick={() => campoCosa.current?.focus()} className="text-[11px] text-amber-300 hover:text-amber-200 underline underline-offset-2">
                 Scrivete almeno una frase vostra per sbloccare l&apos;invio →
@@ -487,11 +480,7 @@ export default function PromptConfiguratore({
 
         <section className="bg-white rounded-3xl border border-stone-200 p-5 space-y-3">
           <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Generate con…</h3>
-          <ol className="text-[11px] text-stone-500 space-y-0.5 list-decimal list-inside">
-            <li>Il prompt viene copiato e si apre il modello scelto</li>
-            <li>Allegate lo sketch (📎) e incollate il prompt</li>
-            <li>Salvate le immagini migliori e passate alla fase 5</li>
-          </ol>
+
           {sketch && (
             <button type="button" onClick={() => scaricaDataUrl(sketch.url_file, `sketch-${sketch.ordine + 1}.jpg`)} className="w-full text-xs border border-stone-200 rounded-xl py-2 hover:border-stone-500 transition">
               ⬇ Scarica lo sketch da allegare
@@ -507,7 +496,6 @@ export default function PromptConfiguratore({
                 className={`rounded-2xl px-3 py-3 text-left text-white transition disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed ${m.classe}`}
               >
                 <span className="block text-sm font-bold">{m.nome} ↗</span>
-                <span className="block text-[10px] opacity-80 leading-tight mt-0.5">{m.nota}</span>
               </button>
             ))}
           </div>
@@ -516,7 +504,7 @@ export default function PromptConfiguratore({
           </button>
           {copiato && (
             <p role="status" className={`text-xs rounded-xl p-2.5 ${copiato === 'errore' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-              {copiato === 'errore' ? 'Non sono riuscito a copiare: usate "Modifica a mano" e copiate il testo.' : 'Prompt copiato negli appunti ✓ — lo ritroverete già compilato nella fase 5.'}
+              {copiato === 'errore' ? 'Copia non riuscita: usate "Modifica a mano" e copiate il testo.' : 'Prompt copiato ✓ Allegate lo sketch e incollatelo.'}
             </p>
           )}
         </section>

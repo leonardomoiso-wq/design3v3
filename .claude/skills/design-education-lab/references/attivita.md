@@ -33,6 +33,7 @@ Sei fasi (`components/crazy8/shared.tsx`, `FASI`):
 4. Il migliore per ogni domanda (★) con interpretazione.
 5. Prompt: configuratore che include la domanda HMW e il contesto dello sketch.
 6. Immagini generate e consegna.
+Esperienza (Moiso language adattato): tendina d'inchiostro col nome della fase a ogni cambio (`useTendina`), celebrazione ambra quando si inviano le domande e alla consegna (`Celebrazione`), formula HMW a blocchi che si accendono sullo spazio in scrittura con un consiglio per spazio (`ComponiHmw`), finale «prima → dopo» con caricamento immediato e presentazione a schermo intero che scorre da sola (`components/crazy8/Finale.tsx`, `PresentazioneRisultati`). In aula: wall con nastro dei contesti, carte che fluttuano, vista «Una alla volta» (10 s, pausa, team svelato a richiesta), schermo intero; «Risultati ⤢» proietta il prima → dopo di ogni team.
 Il docente vede consegne, domande, round e commenti; può eliminare una consegna o un team. Moodboard, valutazione e share non fanno più parte del percorso (componenti rimasti per le consegne vecchie).
 
 ## 4. HMW + role-prompting (`/hmw`, `/teacher/hmw`)

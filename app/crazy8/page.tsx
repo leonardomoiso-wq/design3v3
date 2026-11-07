@@ -7,7 +7,9 @@ import { SfondoCaricamento, ImpulsoCaricamento } from '../../lib/caricamento';
 import { useTeam } from '../../lib/team-context';
 import RichiedeCorso from '../../components/RichiedeCorso';
 import { percorsoCorso, type Corso } from '../../lib/corsi';
-import { Solidi } from '../../components/moiso/Moiso';
+import { Solidi, useTendina } from '../../components/moiso/Moiso';
+import { Celebrazione } from '../../components/moiso/Celebrazione';
+import { RisultatoDomanda, PresentazioneRisultati } from '../../components/crazy8/Finale';
 import { due } from '../../components/Vetrina';
 import {
   FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
@@ -169,98 +171,6 @@ function NavigazioneFase({ fase, onIndietro, onAvanti, avantiPossibile, motivoBl
   );
 }
 
-function BloccoCaricaGenerate({ sketch, onAggiungi, onCaricamentoChange }: {
-  sketch: Sketch;
-  onAggiungi: (sketchId: string, prompt: string, urlFile: string, motore: string) => Promise<boolean>;
-  onCaricamentoChange: (attivo: boolean) => void;
-}) {
-  const [prompt, setPrompt] = useState('');
-  const [motore, setMotore] = useState('');
-  const [files, setFiles] = useState<string[]>([]);
-  const [comprimendo, setComprimendo] = useState(false);
-  const [inCorso, setInCorso] = useState(false);
-  const [errore, setErrore] = useState('');
-  const [fatto, setFatto] = useState(false);
-
-  // il prompt inviato dal configuratore (fase 4) è già qui
-  useEffect(() => {
-    const ultimo = leggiUltimoPrompt(sketch.id);
-    setPrompt(p => p || ultimo.prompt);
-    setMotore(m => m || ultimo.motore);
-  }, [sketch.id]);
-
-  const carica = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const lista = Array.from(e.target.files || []);
-    e.target.value = '';
-    if (lista.length === 0) return;
-    setComprimendo(true);
-    onCaricamentoChange(true);
-    try {
-      const urls: string[] = [];
-      for (const f of lista) urls.push(await comprimiImmagine(f));
-      setFiles(prev => [...prev, ...urls]);
-    } finally {
-      setComprimendo(false);
-      onCaricamentoChange(false);
-    }
-  };
-
-  const invia = async () => {
-    setErrore('');
-    setFatto(false);
-    if (!prompt.trim() || files.length === 0) {
-      setErrore('Servono almeno un\'immagine e il prompt usato.');
-      return;
-    }
-    setInCorso(true);
-    let tutteOk = true;
-    for (const url of files) {
-      const ok = await onAggiungi(sketch.id, prompt, url, motore);
-      if (!ok) tutteOk = false;
-    }
-    setInCorso(false);
-    if (tutteOk) {
-      setFiles([]);
-      setFatto(true);
-    } else {
-      setErrore('Alcune immagini non sono state salvate. Riprova.');
-    }
-  };
-
-  return (
-    <div className="bg-stone-50 rounded-2xl border border-dashed border-stone-300 p-4 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs bg-white border border-stone-200 rounded-xl px-4 py-2.5 cursor-pointer hover:border-stone-500 transition font-medium">
-          {comprimendo ? <ImpulsoCaricamento etichetta="Comprimo..." /> : '＋ Scegli immagini generate'}
-          <input type="file" accept="image/*" multiple className="sr-only" onChange={carica} disabled={comprimendo} />
-        </label>
-        {files.map((url, i) => (
-          <div key={i} className="relative animate-scale-in">
-            <img src={url} alt="" className="w-14 h-14 object-contain rounded-lg border border-stone-200 bg-white" />
-            <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-stone-900 text-white text-[10px]" aria-label="Togli">✕</button>
-          </div>
-        ))}
-      </div>
-      <div className="grid sm:grid-cols-[1fr_180px] gap-2">
-        <textarea rows={3} value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Prompt usato (arriva già compilato se l'avete inviato dal configuratore)" className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900" />
-        <div className="space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Modello usato</span>
-          <select value={motore} onChange={e => setMotore(e.target.value)} className="w-full border border-stone-200 rounded-xl p-2.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900">
-            <option value="">—</option>
-            {MOTORI.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
-            <option value="Altro">Altro</option>
-          </select>
-        </div>
-      </div>
-      {errore && <p className="text-[11px] text-red-600 font-medium">{errore}</p>}
-      {fatto && <p className="text-[11px] text-emerald-700 font-medium">✓ Immagini aggiunte al percorso di questo sketch.</p>}
-      <button onClick={invia} disabled={inCorso || files.length === 0} className="text-xs bg-stone-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-stone-800 transition disabled:opacity-40">
-        {inCorso ? 'Salvataggio...' : `Carica ${files.length > 1 ? `${files.length} immagini` : 'immagine'}`}
-      </button>
-    </div>
-  );
-}
-
 export default function Crazy8Page() {
   return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
 }
@@ -284,6 +194,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const [promptInviato, setPromptInviato] = useState(false);
   const [sketchInRevisione, setSketchInRevisione] = useState<string | null>(null);
   const faseImpostata = useRef(false);
+  const tendina = useTendina();
+  const [festa, setFesta] = useState<{ titolo: string; sottotitolo: string; origine: { x: number; y: number } | null } | null>(null);
+  const [presenta, setPresenta] = useState(false);
 
   const codice = teamAtt?.password || '';
 
@@ -398,10 +311,11 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     return true;
   };
 
+  // Cambio di fase con la tendina d'inchiostro che porta il nome della fase
   const vaiAFase = (n: number) => {
-    setFase(n);
     setErroreAzione('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (n === fase) return;
+    tendina.mostra(FASI[n - 1]?.breve || '', () => setFase(n));
   };
 
   const avanzaA = async (n: number, extra: Record<string, unknown> = {}) => {
@@ -579,7 +493,10 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               inviate={attiva.hmw_inviate}
               sketchSbloccati={attiva.sketch_sbloccato}
               onSalva={async h => { patch({ hmw: h }); return salvaCampi({ hmw: h }); }}
-              onInvia={async () => { patch({ hmw_inviate: true }); await salvaCampi({ hmw_inviate: true }); }}
+              onInvia={async origine => {
+                patch({ hmw_inviate: true });
+                if (await salvaCampi({ hmw_inviate: true })) setFesta({ titolo: 'Domande inviate', sottotitolo: 'Il docente le legge in aula', origine });
+              }}
             />
             <NavigazioneFase
               fase={2}
@@ -676,7 +593,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                   <button type="button" onClick={() => scegliMigliore(inPrimoPiano)} className={`mz-pill ${inPrimoPiano.selezionato ? 'b' : 'o'}`}>
                     {inPrimoPiano.selezionato ? `★ Il migliore per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}` : `☆ Scegli per la domanda ${(inPrimoPiano.domanda ?? 0) + 1}`}
                   </button>
-                  <TestoAutosalvato etichetta="Cosa ci vedete" valore={inPrimoPiano.interpretazione} righe={3} placeholder="Come risponde alla domanda? Per chi è, cosa la rende promettente?" onSalva={t => salvaSketch(inPrimoPiano.id, { interpretazione: t })} />
+                  <TestoAutosalvato etichetta="Cosa ci vedete" valore={inPrimoPiano.interpretazione} righe={3} placeholder="Come risponde alla domanda?" onSalva={t => salvaSketch(inPrimoPiano.id, { interpretazione: t })} />
                 </section>
               )}
             </div>
@@ -705,7 +622,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             />
             {promptInviato && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
-                <p className="text-sm text-emerald-800 m-0">Quando il modello vi ha restituito qualcosa di interessante, salvate le immagini migliori e caricatele.</p>
+                <p className="text-sm text-emerald-800 m-0">Avete le immagini? Caricatele.</p>
                 <button type="button" onClick={() => avanzaA(6)} className="mz-pill sm">Carica le immagini →</button>
               </div>
             )}
@@ -713,45 +630,51 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           </div>
         );
 
-      case 6:
+      case 6: {
+        const consegnato = attiva.stato === 'consegnato' || attiva.stato === 'revisionato';
+        const conImmagini = sketchSelezionati.some(sk => sk.generazioni_crazy8.length > 0);
         return (
           <div className="space-y-6">
-            {sketchSelezionati.map(s => (
-              <section key={s.id} className="bg-white rounded-3xl border border-stone-200 p-5 space-y-4">
-                <div className="flex items-start gap-4">
-                  <Miniatura url={s.url_file} className="w-20 h-20 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="mz-mono" style={{ color: 'var(--accento)' }}>Domanda ({String((s.domanda ?? 0) + 1).padStart(2, '0')})</span>
-                    <p className="text-sm text-stone-800 mt-1">{testoHmw(hmwDi(s.domanda ?? 0))}</p>
-                  </div>
-                </div>
-                {s.generazioni_crazy8.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {s.generazioni_crazy8.map((g: Generazione) => (
-                      <div key={g.id} className="relative flex-shrink-0">
-                        <Miniatura url={g.url_immagine} className="w-28 h-28" />
-                        <span className="absolute bottom-1 left-1 text-[9px] bg-white/90 px-1 rounded text-stone-600">#{g.ordine}{g.motore ? ` ${g.motore}` : ''}</span>
-                        <button type="button" onClick={() => rimuoviGenerazione(g.id)} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-white/90 text-stone-400 hover:text-red-600 text-[10px]" aria-label="Elimina immagine">✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <BloccoCaricaGenerate sketch={s} onAggiungi={aggiungiGenerazione} onCaricamentoChange={segnalaCaricamento} />
-              </section>
-            ))}
+            {[0, 1].map(d => {
+              const sk = migliore(d);
+              if (!sk) return null;
+              const ultimo = leggiUltimoPrompt(sk.id);
+              return (
+                <RisultatoDomanda
+                  key={sk.id}
+                  indice={d}
+                  domanda={testoHmw(hmwDi(d))}
+                  sketch={sk}
+                  promptIniziale={ultimo.prompt}
+                  motoreIniziale={ultimo.motore}
+                  motori={MOTORI}
+                  onAggiungi={aggiungiGenerazione}
+                  onRimuovi={rimuoviGenerazione}
+                  onCaricamento={segnalaCaricamento}
+                />
+              );
+            })}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
               <button type="button" onClick={() => vaiAFase(5)} className="mz-pill ghost">← Prompt</button>
-              {attiva.stato === 'consegnato' || attiva.stato === 'revisionato' ? (
-                <span className="text-sm font-medium text-emerald-700">✓ Consegnato. Potete ancora aggiungere immagini.</span>
-              ) : (
-                <button type="button" className="mz-pill b lg" disabled={!sketchSelezionati.some(s => s.generazioni_crazy8.length > 0)}
-                  onClick={async () => { patch({ stato: 'consegnato' }); await salvaCampi({ stato: 'consegnato' }); }}>
-                  Abbiamo finito: consegniamo ✓
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {conImmagini && <button type="button" className="mz-pill o" onClick={() => setPresenta(true)}>Presenta ⤢</button>}
+                {consegnato ? (
+                  <span className="mz-chip on" style={{ cursor: 'default' }}>✓ Consegnato</span>
+                ) : (
+                  <button type="button" className="mz-pill b lg" disabled={!conImmagini}
+                    onClick={async e => {
+                      const origine = { x: e.clientX, y: e.clientY };
+                      patch({ stato: 'consegnato' });
+                      if (await salvaCampi({ stato: 'consegnato' })) setFesta({ titolo: 'Consegnato', sottotitolo: teamAtt.nome, origine });
+                    }}>
+                    Consegniamo ✓
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         );
+      }
     }
     return null;
   };
@@ -760,13 +683,25 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     <main className="mz" style={{ minHeight: '100vh' }}>
       {caricamentiAttivi > 0 && <SfondoCaricamento />}
       {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
+      {tendina.nodo}
+      {festa && <Celebrazione origine={festa.origine} titolo={festa.titolo} sottotitolo={festa.sottotitolo} numero={null} onFine={() => setFesta(null)} />}
+      {presenta && (
+        <PresentazioneRisultati
+          titolo={teamAtt.nome}
+          onChiudi={() => setPresenta(false)}
+          diapositive={[0, 1].map(d => {
+            const sk = migliore(d);
+            const h = hmwDi(d);
+            return { chiave: String(d), sopra: `Domanda ${String(d + 1).padStart(2, '0')}`, domanda: testoHmw(h), contesto: h ? nomeContesto(h.contesto, contesti) : '', sketch: sk?.url_file || null, immagini: (sk?.generazioni_crazy8 || []).map(g => g.url_immagine) };
+          })}
+        />
+      )}
       {rail}
       {avvisoDb}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <div className="c8-testata">
           <div key={fase} className="mz-in" style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-            <span className="mz-mono">{teamAtt.nome}{teamAtt.membri.length ? ` — ${teamAtt.membri.join(', ')}` : ''}</span>
             <h1 className="mz-display c8-titolo">
               {infoFase.titolo}
               <span className="mz-sup">({due(fase)} / {due(NUMERO_FASI)})</span>

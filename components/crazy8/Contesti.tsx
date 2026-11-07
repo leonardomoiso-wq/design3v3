@@ -22,7 +22,6 @@ export default function BachecaContesti({ contesti, scelti, massimo, onCambia }:
         <span className="mz-mono" style={{ color: 'var(--ink)' }}>
           {massimo > 0 ? `Scelti ${scelti.length} / ${massimo}` : `Scelti ${scelti.length}`}
         </span>
-        {pieno && <span className="text-xs text-stone-500">Per cambiarne uno, togliete prima un contesto scelto.</span>}
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 entra-cascata">
         {contesti.map((c, i) => {

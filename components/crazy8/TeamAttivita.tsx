@@ -76,7 +76,7 @@ export default function TeamAttivitaGate({ attivitaId, titoloAttivita, membriSug
     <section className="mz-ingresso md:min-h-[calc(100vh-70px)]">
       <div className="mz-ingresso-testo mz-in">
         <h1 className="mz-display mz-eroe-titolo">Il team<span className="mz-sup">({titoloAttivita})</span></h1>
-        <p className="mz-ingresso-lead">Ogni attività ha i suoi team. Uno di voi crea il team per questa attività, gli altri entrano con nome e password.</p>
+        <p className="mz-ingresso-lead">Uno di voi crea il team, gli altri entrano con nome e password.</p>
         <div className="max-md:hidden"><Solidi cadono /></div>
       </div>
       <form className="mz-ingresso-accesso mz-in" style={{ animationDelay: '120ms' }} onSubmit={e => { e.preventDefault(); invia(); }}>

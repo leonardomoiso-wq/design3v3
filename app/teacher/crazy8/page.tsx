@@ -8,6 +8,7 @@ import { MoodboardGriglia } from '@/components/crazy8/Moodboard';
 import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, visioniDi, nomeContesto, testoHmw, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
 import { PannelloContesti, WallHmw, type TeamAttivitaElenco } from '@/components/crazy8/Docente';
 import { BottomSheet } from '@/components/PannelliMobile';
+import { PresentazioneRisultati, type Diapositiva } from '@/components/crazy8/Finale';
 
 const STATI = ['in_corso', 'consegnato', 'revisionato'];
 
@@ -295,6 +296,7 @@ export default function Crazy8DocentePage() {
   const [teamsAtt, setTeamsAtt] = useState<TeamAttivitaElenco[]>([]);
   const [mostraContesti, setMostraContesti] = useState(false);
   const [mostraWall, setMostraWall] = useState(false);
+  const [mostraRisultati, setMostraRisultati] = useState(false);
 
   // attività Crazy 8 del corso, con la sua bacheca e i suoi team
   const caricaAttivitaC8 = async () => {
@@ -535,6 +537,13 @@ export default function Crazy8DocentePage() {
               Wall HMW
             </button>
             <button
+              onClick={() => setMostraRisultati(true)}
+              title="Proietta i risultati dei team"
+              className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition"
+            >
+              Risultati ⤢
+            </button>
+            <button
               onClick={() => setMostraPromptSuggeriti(true)}
               title="Prompt suggeriti"
               className="text-[10px] bg-white border border-stone-200 text-stone-600 px-2.5 py-1 rounded-full font-medium hover:border-stone-400 transition"
@@ -773,6 +782,25 @@ export default function Crazy8DocentePage() {
       )}
       {mostraWall && attivitaC8 && (
         <WallHmw attivitaId={attivitaC8.id} submissions={submissions} contesti={contesti} teams={teamsAtt} passcode={passcode} onChiudi={() => setMostraWall(false)} onCambiato={caricaSubmissions} />
+      )}
+      {mostraRisultati && (
+        <PresentazioneRisultati
+          titolo="Risultati dei team"
+          onChiudi={() => setMostraRisultati(false)}
+          diapositive={submissions.filter(sub => sub.team_attivita_id).flatMap(sub => [0, 1].flatMap((d): Diapositiva[] => {
+            const sk = (sub.immagini || []).find((x: any) => (x.domanda ?? 0) === d && x.selezionato);
+            const h = (sub.hmw || [])[d] as Hmw | undefined;
+            if (!sk || !h || !(sk.generazioni_crazy8 || []).length) return [];
+            return [{
+              chiave: `${sub.id}:${d}`,
+              sopra: teamsAtt.find(t => t.id === sub.team_attivita_id)?.nome || sub.gruppo_nome,
+              domanda: testoHmw(h),
+              contesto: nomeContesto(h.contesto, contesti),
+              sketch: sk.url_file,
+              immagini: sk.generazioni_crazy8.map((g: any) => g.url_immagine),
+            }];
+          }))}
+        />
       )}
       {mostraPromptSuggeriti && <GestionePromptSuggeriti passcode={passcode} corsoId={corso.id} onChiudi={() => setMostraPromptSuggeriti(false)} />}
     </div>
