@@ -108,8 +108,8 @@ export type Submission = {
 };
 
 export const FASI = [
-  { n: 1, icona: '📌', breve: 'Contesti', titolo: 'Su cosa lavorate', sottotitolo: 'Scegliete dalla bacheca i contesti in cui portare il vostro lavoro: quanti, lo decide il docente.' },
-  { n: 2, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Trasformate i contesti in due domande «Come potremmo…». Il docente le legge in aula e, quando sono chiare, apre gli sketch.' },
+  { n: 1, icona: '📌', breve: 'Contesti', titolo: 'Su cosa lavorate', sottotitolo: 'Scegliete dalla bacheca i contesti in cui portare il vostro lavoro.' },
+  { n: 2, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Trasformate i contesti in due domande «Come potremmo…». Le leggiamo insieme in aula e, quando sono chiare, passiamo agli sketch.' },
   { n: 3, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ognuna delle due domande disegnate 8 idee di prodotto in 8 minuti, su carta. Poi fotografatele dal telefono.' },
   { n: 4, icona: '🔍', breve: 'Selezione', titolo: 'Gli sketch scelti', sottotitolo: 'Per ogni domanda scegliete gli sketch che rispondono meglio: sono quelli che migliorerete con l\'AI.' },
   { n: 5, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Componete il prompt per far evolvere ogni sketch scelto, poi apritelo nel modello che preferite.' },

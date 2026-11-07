@@ -35,8 +35,8 @@ const TUTORIAL_VISTO_KEY = 'crazy8_fasi_tutorial_visto';
 
 const TUTORIAL_SLIDES = [
   { icona: '👥', titolo: 'Prima il team', testo: 'Ogni attività ha i suoi team: uno di voi lo crea, gli altri entrano con nome e password.' },
-  { icona: '📌', titolo: 'Scegliete i contesti', testo: 'Dalla bacheca preparata dal docente scegliete i contesti su cui lavorare.' },
-  { icona: '❓', titolo: 'Due domande "Come potremmo…"', testo: 'Riempite gli spazi della formula. Il docente le rivede in aula e sblocca gli sketch.' },
+  { icona: '📌', titolo: 'Scegliete i contesti', testo: 'Dalla bacheca scegliete i contesti su cui lavorare.' },
+  { icona: '❓', titolo: 'Due domande "Come potremmo…"', testo: 'Riempite gli spazi della formula. Le leggiamo insieme in aula, poi passiamo agli sketch.' },
   { icona: '✏️', titolo: '8 sketch per domanda', testo: 'Su carta, poi una foto dal telefono. Scegliete il migliore per ogni domanda e miglioratelo con l\'AI.' },
 ];
 
@@ -48,7 +48,7 @@ const messaggioErrore = (codice: string) => {
     case 'sketch_non_trovato': return 'Questo sketch non esiste più.';
     case 'prompt_mancante': return 'Scrivi il prompt usato.';
     case 'troppi_contesti': return 'Avete scelto più contesti di quelli permessi.';
-    case 'sketch_bloccati': return 'Gli sketch si aprono quando il/la docente approva le domande.';
+    case 'sketch_bloccati': return 'Appena le domande sono pronte, passiamo agli sketch.';
     default: return 'Errore durante il salvataggio. Riprova.';
   }
 };
@@ -161,7 +161,7 @@ function NavigazioneFase({ fase, onIndietro, onAvanti, avantiPossibile: possibil
   const prossima = FASI.find(f => f.n === fase + 1);
   const chiusa = fase + 1 > faseAperta;
   const avantiPossibile = possibile && !chiusa;
-  const motivoBlocco = chiusa && possibile ? 'Il docente apre la prossima fase in aula' : motivo;
+  const motivoBlocco = chiusa && possibile ? 'Alla prossima fase arriviamo insieme in aula' : motivo;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-5" style={{ borderTop: '1px solid var(--ink)' }}>
       {fase > 1 ? (
@@ -442,7 +442,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
         <section className="mz-ingresso">
           <div className="mz-ingresso-testo mz-in">
             <h1 className="mz-display mz-eroe-titolo">Crazy 8<span className="mz-sup">(in arrivo)</span></h1>
-            <p className="mz-ingresso-lead">Il/la docente non l&apos;ha ancora aperta. Tornate più tardi.</p>
+            <p className="mz-ingresso-lead">Non ci siamo ancora: la apriamo insieme in aula.</p>
           </div>
           <div className="mz-in" style={{ animationDelay: '120ms' }}><Solidi cadono /></div>
         </section>
@@ -452,7 +452,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
   const avvisoDb = problemiDb.length > 0 && (
     <p role="alert" className="max-w-6xl mx-4 sm:mx-auto mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      Crazy 8 è in aggiornamento: alcune azioni potrebbero non salvarsi. Avvisate il/la docente.
+      Crazy 8 è in aggiornamento: alcune azioni potrebbero non salvarsi. Ditecelo subito, così lo sistemiamo.
     </p>
   );
 
@@ -526,7 +526,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onSalva={async h => { patch({ hmw: h }); return salvaCampi({ hmw: h }); }}
               onInvia={async origine => {
                 patch({ hmw_inviate: true });
-                if (await salvaCampi({ hmw_inviate: true })) setFesta({ titolo: 'Domande inviate', sottotitolo: 'Il docente le legge in aula', origine });
+                if (await salvaCampi({ hmw_inviate: true })) setFesta({ titolo: 'Domande inviate', sottotitolo: 'Le leggiamo insieme in aula', origine });
               }}
             />
             <NavigazioneFase faseAperta={faseAperta}
@@ -534,7 +534,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onIndietro={() => vaiAFase(1)}
               onAvanti={() => avanzaA(3)}
               avantiPossibile={attiva.sketch_sbloccato}
-              motivoBlocco={attiva.hmw_inviate ? 'In attesa che il/la docente sblocchi gli sketch' : 'Inviate le due domande al docente'}
+              motivoBlocco={attiva.hmw_inviate ? 'Prima le leggiamo insieme, poi si passa agli sketch' : 'Inviate le due domande'}
               etichettaAvanti="Avanti: gli sketch"
             />
             {attiva.hmw_inviate && teamAtt && (

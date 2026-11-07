@@ -48,7 +48,7 @@ export default function BachecaContesti({ contesti, scelti, massimo, onCambia }:
           );
         })}
         {contesti.length === 0 && (
-          <p className="text-sm text-stone-500 bg-white rounded-2xl border border-dashed border-stone-300 p-5">Il/la docente non ha ancora appuntato contesti in bacheca.</p>
+          <p className="text-sm text-stone-500 bg-white rounded-2xl border border-dashed border-stone-300 p-5">La bacheca è ancora vuota: stiamo appuntando i contesti.</p>
         )}
       </div>
     </div>

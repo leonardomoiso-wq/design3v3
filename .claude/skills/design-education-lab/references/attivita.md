@@ -24,6 +24,8 @@
 
 ## 3. Crazy 8 + co-creazione generativa (`/crazy8`, `/teacher/crazy8`)
 
+Tono dei testi per gli studenti (vale per tutta la piattaforma): **tra pari**, in prima persona plurale («le leggiamo insieme in aula», «passiamo agli sketch»). Mai «il docente decide / sceglie / sblocca / legge»: crea distanza. Le regole impostate dal pannello si mostrano come fatti («Scegliete 2 contesti»), senza dire chi le ha decise.
+
 Prima di tutto il **team dell'attività** (`team_attivita`, una composizione per ogni attività, visibile nel pannello attività): uno studente lo crea (nome, membri, password), gli altri entrano; la consegna del team usa la password del team come codice (stesso hash, `crea_submission_crazy8_team`).
 
 Sei fasi (`components/crazy8/shared.tsx`, `FASI`):

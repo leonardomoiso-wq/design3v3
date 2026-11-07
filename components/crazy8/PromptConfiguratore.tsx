@@ -429,7 +429,7 @@ export default function PromptConfiguratore({
               ))}
               {suggerimentiDocente.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">💡 Suggeriti dal/dalla docente</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">💡 Spunti per il prompt</p>
                   <div className="flex flex-wrap gap-1.5">
                     {suggerimentiDocente.map(s => (
                       <Chip

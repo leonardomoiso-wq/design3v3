@@ -84,7 +84,7 @@ function ManualiContenuto() {
 
       {statoPerTipo !== null && schedeSbloccate.length < SCHEDE.length && (
         <p className="text-xs text-stone-400 -mt-4">
-          I manuali delle altre attività compariranno qui non appena il/la docente le aprirà.
+          I manuali delle altre attività compariranno qui quando le apriremo insieme.
         </p>
       )}
 
@@ -154,7 +154,7 @@ function ManualiContenuto() {
               </div>
               <p className="text-sm text-stone-600">
                 Con il team già loggato, il passo &quot;Il Gruppo&quot; è già compilato: si parte direttamente da <b>Il Caso Studio</b> (titolo,
-                anno, provenienza Italia/Estero, sito web o fonte, immagine e una descrizione che spieghi perché il caso è (o non è) innovazione), poi <b>Temi</b> (le voci di ciascuna categoria di tag impostata dal/dalla docente, alcune obbligatorie), <b>Valutazione</b> (i 4 driver scelti dal/dalla docente per il corso, da
+                anno, provenienza Italia/Estero, sito web o fonte, immagine e una descrizione che spieghi perché il caso è (o non è) innovazione), poi <b>Temi</b> (le voci di ciascuna categoria di tag, alcune obbligatorie), <b>Valutazione</b> (i 4 driver del corso, da
                 0 a 5, ciascuno con una motivazione scritta) e <b>Riepilogo</b> prima dell&apos;invio definitivo. La scheda resta modificabile
                 o cancellabile in seguito dalla sezione &quot;Elenco &amp; Modifiche&quot; — riaprendola col vostro team non vi verrà richiesto
                 nessun codice.
@@ -177,7 +177,7 @@ function ManualiContenuto() {
                 <h3 className="text-lg font-serif font-bold">Votare in aula</h3>
               </div>
               <p className="text-sm text-stone-600">
-                Quando il/la docente apre la votazione su un caso studio, aprite la scheda &quot;Vota in Aula&quot;: con il team già loggato vedrete
+                Quando apriamo la votazione su un caso studio, aprite la scheda &quot;Vota in Aula&quot;: con il team già loggato vedrete
                 subito &quot;Votate come Gruppo N — Nome&quot;, senza inserire nulla; con l&apos;accesso diretto (nessun team), inserite invece il numero
                 del vostro gruppo a mano. Prima di votare, leggete il pannello <b>&quot;Maggiori dettagli&quot;</b>: descrizione, tag e — per ciascun driver
                 — il valore assegnato e la motivazione scritta dal gruppo che ha presentato il caso studio. Poi assegnate il vostro cartellino:
@@ -206,7 +206,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il team dell&apos;attività</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Ogni attività ha i suoi team. Entrando in Crazy 8 uno di voi <b>crea il team</b> (nome, membri, password), gli altri <b>entrano</b> con nome e password. Il docente vede i team nel pannello attività.
+              Ogni attività ha i suoi team. Entrando in Crazy 8 uno di voi <b>crea il team</b> (nome, membri, password), gli altri <b>entrano</b> con nome e password.
             </p>
           </div>
           <div className="space-y-4">
@@ -215,7 +215,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Su cosa lavorate</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete dalla <b>bacheca</b> i contesti preparati dal docente: quanti ne potete scegliere lo decide il docente.
+              Scegliete dalla <b>bacheca</b> i contesti su cui lavorare.
             </p>
           </div>
           <div className="space-y-4">
@@ -224,7 +224,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Il docente le proietta sul wall: se una è da rivedere potete ancora perfezionarla. Quando sono pronte, il docente <b>sblocca gli sketch</b>.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Le proiettiamo sul wall e le leggiamo insieme: se una è da ritoccare potete ancora perfezionarla. Quando sono pronte, <b>passiamo agli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">
@@ -233,7 +233,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Gli sketch</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>). Il timer del docente compare in alto: 8 idee in 8 minuti.
+              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>). Il timer compare in alto: 8 idee in 8 minuti.
             </p>
           </div>
           <div className="space-y-4">
@@ -242,7 +242,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Gli sketch scelti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni domanda scegliete con la ★ gli sketch che rispondono meglio (quanti, lo decide il docente): li vedete scorrere nella pila in alto. Poi scrivete cosa ci vedete.
+              Per ogni domanda scegliete con la ★ gli sketch che rispondono meglio: li vedete scorrere nella pila in alto. Poi scrivete cosa ci vedete.
             </p>
           </div>
           <div className="space-y-4">
@@ -284,7 +284,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Metterlo alla prova con un ruolo</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete fino a 3 ruoli (stakeholder simulati dall&apos;AI) tra quelli approvati dal/dalla docente, o proponetene uno nuovo.
+              Scegliete fino a 3 ruoli (stakeholder simulati dall&apos;AI) tra quelli disponibili, o proponetene uno nuovo.
               Lo stress test genera, per ciascun ruolo, una reazione al vostro HMW più recente: usatela per capire punti deboli e
               prospettive che non avevate considerato.
             </p>
@@ -318,7 +318,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il voto, anonimo</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Quando il voto è aperto, nella proposta scelta premete <b>&quot;Vota questa proposta&quot;</b> e confermate. Il voto è anonimo: nessuno, nemmeno il/la docente, vede chi ha votato cosa. Potete cambiarlo fino alla scadenza del countdown, ma non votare la vostra proposta.
+              Quando il voto è aperto, nella proposta scelta premete <b>&quot;Vota questa proposta&quot;</b> e confermate. Il voto è anonimo: nessuno vede chi ha votato cosa. Potete cambiarlo fino alla scadenza del countdown, ma non votare la vostra proposta.
             </p>
           </div>
           <div className="space-y-4">
@@ -336,7 +336,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il voto dal vivo in aula</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Il/la docente può aprire anche un voto dal vivo per il pubblico: inquadrate il QR sullo schermo oppure aprite <b>/contest/live</b> e scrivete il codice di 4 cifre. Di norma non serve iscriversi (un voto per telefono); se il contest richiede la matricola, prima si entra con nome, cognome e matricola: una matricola, un voto.
+              In aula possiamo aprire anche un voto dal vivo per il pubblico: inquadrate il QR sullo schermo oppure aprite <b>/contest/live</b> e scrivete il codice di 4 cifre. Di norma non serve iscriversi (un voto per telefono); se il contest richiede la matricola, prima si entra con nome, cognome e matricola: una matricola, un voto.
             </p>
           </div>
         </div>

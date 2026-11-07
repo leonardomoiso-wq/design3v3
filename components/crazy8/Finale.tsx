@@ -226,7 +226,7 @@ export function RisultatoDomanda({ indice, domanda, sketch, promptIniziale, moto
                 </div>
               );
             })}
-            <p className="text-xs text-stone-500 m-0">Con i 4 driver valutati, l&apos;immagine compare sul radar del docente accanto ai casi studio.</p>
+            <p className="text-xs text-stone-500 m-0">Con i 4 driver valutati, l&apos;immagine compare sul radar accanto ai casi studio.</p>
           </div>
         </details>
       )}

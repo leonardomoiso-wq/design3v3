@@ -121,7 +121,7 @@ export default function ComponiHmw({ hmw, opzioniContesto, revisione, inviate, s
               <span className="mz-mono" style={{ color: 'var(--ink)' }}>Domanda ({String(i + 1).padStart(2, '0')})</span>
               {inviate && (
                 <span className={`text-xs font-medium px-3 py-1 rounded-full ${rev === 'ok' ? 'bg-emerald-50 text-emerald-800' : rev === 'rivedere' ? 'bg-red-50 text-red-800' : 'bg-stone-100 text-stone-600'}`}>
-                  {rev === 'ok' ? '✓ Approvata' : rev === 'rivedere' ? 'Da rivedere' : 'In attesa del docente'}
+                  {rev === 'ok' ? '✓ Chiara' : rev === 'rivedere' ? 'Da ritoccare' : 'La stiamo leggendo'}
                 </span>
               )}
             </div>
@@ -157,9 +157,9 @@ export default function ComponiHmw({ hmw, opzioniContesto, revisione, inviate, s
           {stato === 'salvando' ? 'Salvo…' : stato === 'salvato' ? '✓ Salvato' : stato === 'errore' ? <span className="text-red-600">Non salvato, riprovate</span> : ''}
         </span>
         {!inviate ? (
-          <button type="button" className="mz-pill b lg" disabled={!pronte} onClick={e => onInvia({ x: e.clientX, y: e.clientY })}>Inviate al docente →</button>
+          <button type="button" className="mz-pill b lg" disabled={!pronte} onClick={e => onInvia({ x: e.clientX, y: e.clientY })}>Inviate le domande →</button>
         ) : !sketchSbloccati ? (
-          <p className="text-sm text-stone-600 m-0"><span className="mz-live-dot inline-block mr-2 align-middle" />Il docente sta leggendo le domande. Potete ancora perfezionarle.</p>
+          <p className="text-sm text-stone-600 m-0"><span className="mz-live-dot inline-block mr-2 align-middle" />Le stiamo leggendo insieme in aula. Intanto potete ancora perfezionarle.</p>
         ) : null}
       </div>
     </div>

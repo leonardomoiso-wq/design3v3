@@ -469,7 +469,7 @@ export default function Crazy8DocentePage() {
                           {h && (
                             <div className="flex gap-1.5">
                               <button type="button" className={`mz-pill sm ${rev === 'ok' ? 'b' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'ok' ? null : 'ok')}>✓ Pertinente</button>
-                              <button type="button" className={`mz-pill sm ${rev === 'rivedere' ? 'danger-pieno' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'rivedere' ? null : 'rivedere')}>Da rivedere</button>
+                              <button type="button" className={`mz-pill sm ${rev === 'rivedere' ? 'danger-pieno' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'rivedere' ? null : 'rivedere')}>Da ritoccare</button>
                             </div>
                           )}
                         </div>

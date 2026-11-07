@@ -223,7 +223,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
   const pulsantiRevisione = (d: Domanda) => (
     <div className="flex gap-2 flex-wrap">
       <button type="button" className={`mz-pill sm ${d.revisione === 'ok' ? 'b' : 'o'}`} onClick={() => revisiona(d, d.revisione === 'ok' ? null : 'ok')}>✓ Pertinente</button>
-      <button type="button" className={`mz-pill sm ${d.revisione === 'rivedere' ? '' : 'o'}`} style={d.revisione === 'rivedere' ? { background: '#f87171', color: '#1c1917' } : undefined} onClick={() => revisiona(d, d.revisione === 'rivedere' ? null : 'rivedere')}>Da rivedere</button>
+      <button type="button" className={`mz-pill sm ${d.revisione === 'rivedere' ? '' : 'o'}`} style={d.revisione === 'rivedere' ? { background: '#f87171', color: '#1c1917' } : undefined} onClick={() => revisiona(d, d.revisione === 'rivedere' ? null : 'rivedere')}>Da ritoccare</button>
     </div>
   );
 
@@ -303,7 +303,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
                       }}
                     >
                       <span className="mz-mono" style={{ color: aperta === d.chiave ? 'rgba(28,25,23,.7)' : 'var(--accento)' }}>
-                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da rivedere' : ''}{(stelle?.(d.submission.id, d.indice) || 0) > 0 ? `  ★ ${stelle!(d.submission.id, d.indice)}` : ''}
+                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da ritoccare' : ''}{(stelle?.(d.submission.id, d.indice) || 0) > 0 ? `  ★ ${stelle!(d.submission.id, d.indice)}` : ''}
                       </span>
                       <span className="block mt-3" style={{ fontFamily: 'var(--f-display)', fontSize: 'clamp(22px, 2.2vw, 34px)', lineHeight: 1.1, letterSpacing: '-.02em' }}>
                         {testoHmw(d.hmw)}
