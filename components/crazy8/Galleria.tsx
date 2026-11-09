@@ -75,7 +75,10 @@ export function LightboxC8({ immagini, indice, origine, onCambia, onChiudi }: {
     >
       <div className="c8-lightbox-barra" onClick={e => e.stopPropagation()}>
         <span className="mz-mono" style={{ color: '#d6d3d1' }}>{due(indice + 1)} / {due(immagini.length)}</span>
-        <button type="button" className="mz-pill sm ghost" style={{ color: '#d6d3d1' }} onClick={onChiudi}>Chiudi ✕</button>
+        <div className="flex gap-2 items-center">
+          <button type="button" className="mz-pill sm ghost" style={{ color: '#d6d3d1' }} onClick={() => apriInNuovaScheda(corrente.src, corrente.titolo)}>Apri in una nuova scheda ↗</button>
+          <button type="button" className="mz-pill sm ghost" style={{ color: '#d6d3d1' }} onClick={onChiudi}>Chiudi ✕</button>
+        </div>
       </div>
       <figure className="c8-lightbox-figura" onClick={e => e.stopPropagation()}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -96,6 +99,20 @@ export function LightboxC8({ immagini, indice, origine, onCambia, onChiudi }: {
 }
 
 // Stato del lightbox, comodo da usare ovunque
+// Apre l'immagine da sola in una scheda nuova (anche le foto salvate come
+// data URL, che il browser non apre direttamente in una scheda).
+export function apriInNuovaScheda(src: string, titolo = 'Immagine') {
+  const w = window.open('', '_blank');
+  if (!w) { window.location.assign(src); return; }
+  const testo = titolo.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c] as string));
+  w.document.write(`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${testo}</title>`
+    + '<style>html,body{margin:0;height:100%;background:#0c0a09}body{display:grid;place-items:center}img{max-width:100vw;max-height:100vh;object-fit:contain}</style>'
+    + `</head><body><img alt="${testo}"></body></html>`);
+  w.document.close();
+  const img = w.document.querySelector('img');
+  if (img) img.src = src;
+}
+
 export function useLightboxC8() {
   const [stato, setStato] = useState<{ immagini: ImmagineC8[]; indice: number; origine: DOMRect | null } | null>(null);
   const apri = (immagini: ImmagineC8[], indice: number, el?: Element | null) =>

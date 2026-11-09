@@ -221,10 +221,10 @@ function ManualiContenuto() {
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <span className="w-8 h-8 rounded-full bg-orange-700 text-white flex items-center justify-center font-serif font-bold text-sm flex-shrink-0">2</span>
-              <h2 className="text-lg font-serif font-bold">Le due domande HMW</h2>
+              <h2 className="text-lg font-serif font-bold">Le domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per due domande, ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Le proiettiamo sul wall e le leggiamo insieme: se una è da ritoccare potete ancora perfezionarla. Quando sono pronte, <b>passiamo agli sketch</b>.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per ogni domanda (di solito due), ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Le proiettiamo sul wall e le leggiamo insieme: se una è da ritoccare potete ancora perfezionarla. Quando sono pronte, <b>passiamo agli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">
@@ -233,7 +233,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Gli sketch</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ognuna delle due domande disegnate 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>). Il timer compare in alto: 8 idee in 8 minuti.
+              Per ogni domanda disegnate da 5 a 8 idee di prodotto su carta e fotografatele dal telefono (<b>Scatta una foto</b>): ci sono 8 spazi, ne servono almeno 5. Il timer compare in alto.
             </p>
           </div>
           <div className="space-y-4">
@@ -242,7 +242,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Gli sketch scelti</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Per ogni domanda scegliete con la ★ gli sketch che rispondono meglio: li vedete scorrere nella pila in alto. Poi scrivete cosa ci vedete.
+              Per ogni domanda scegliete con la ★ gli sketch che rispondono meglio, fino a quattro: li vedete scorrere nella pila in alto. Poi scrivete cosa ci vedete.
             </p>
           </div>
           <div className="space-y-4">

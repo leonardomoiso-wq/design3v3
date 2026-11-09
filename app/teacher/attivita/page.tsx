@@ -34,6 +34,14 @@ function TeamDellAttivita({ attivitaId, passcode, nomeFile }: { attivitaId: stri
     if (error) setErrore('Eliminazione non riuscita.'); else carica();
   };
 
+  const nuovaPassword = async (id: string, nome: string) => {
+    const nuova = window.prompt(`Nuova password per il team "${nome}" (almeno 4 caratteri):`);
+    if (nuova === null) return;
+    if (nuova.trim().length < 4) { setErrore('La password deve avere almeno 4 caratteri.'); return; }
+    const { error } = await supabase.rpc('docente_reimposta_password_team_attivita', { p_id: id, p_nuova: nuova, p_passcode: passcode });
+    setErrore(error ? 'Password non cambiata: controlla il database (migrazione 20261024).' : `Nuova password del team "${nome}" salvata.`);
+  };
+
   const svuota = async () => {
     if (!window.confirm('Eliminare tutti i team di questa attività (e le loro consegne)? Gli studenti dovranno ricomporli.')) return;
     const { error } = await supabase.rpc('docente_svuota_team_attivita', { p_attivita_id: attivitaId, p_passcode: passcode });
@@ -62,11 +70,14 @@ function TeamDellAttivita({ attivitaId, passcode, nomeFile }: { attivitaId: stri
                 <p className="text-sm font-medium text-stone-900">{String(t.numero).padStart(2, '0')} {t.nome}</p>
                 <p className="text-xs text-stone-500">{t.membri.join(', ')}</p>
               </div>
-              <button type="button" onClick={() => elimina(t.id, t.nome)} className="text-[11px] text-stone-400 hover:text-red-600 flex-shrink-0">Elimina</button>
+              <div className="flex gap-3 flex-shrink-0">
+                <button type="button" onClick={() => nuovaPassword(t.id, t.nome)} className="text-[11px] text-stone-500 hover:text-stone-900">Nuova password</button>
+                <button type="button" onClick={() => elimina(t.id, t.nome)} className="text-[11px] text-stone-400 hover:text-red-600">Elimina</button>
+              </div>
             </div>
           ))}
           {teams.length > 0 && <button type="button" onClick={svuota} className="text-[11px] text-stone-400 hover:text-red-600">Elimina tutti i team di questa attività</button>}
-          {errore && <p className="text-xs text-red-600">{errore}</p>}
+          {errore && <p className={`text-xs ${errore.startsWith('Nuova password') ? 'text-emerald-700' : 'text-red-600'}`} aria-live="polite">{errore}</p>}
         </div>
       )}
     </div>
@@ -76,7 +87,7 @@ function TeamDellAttivita({ attivitaId, passcode, nomeFile }: { attivitaId: stri
 // Impostazioni di Crazy 8 (attivita.config): quanti contesti sceglie ogni
 // team e quanti sketch per ognuna delle due domande.
 function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; passcode: string }) {
-  const [config, setConfig] = useState<{ contesti_per_team?: number; sketch_per_domanda?: number } | null>(null);
+  const [config, setConfig] = useState<{ contesti_per_team?: number; sketch_per_domanda?: number; hmw_per_team?: number } | null>(null);
   const [msg, setMsg] = useState('');
   useEffect(() => {
     supabase.from('attivita').select('config').eq('id', attivitaId).maybeSingle().then(({ data }) => setConfig((data?.config as any) || {}));
@@ -89,18 +100,24 @@ function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; pass
   };
   if (!config) return null;
   const contesti = Number(config.contesti_per_team ?? 2);
-  const sketch = Number(config.sketch_per_domanda ?? 1);
+  const sketch = Number(config.sketch_per_domanda ?? 4);
+  const hmw = Number(config.hmw_per_team ?? 2);
   const scelta = (valore: number, attuale: number, onClick: () => void, etichetta?: string) => (
     <button type="button" onClick={onClick} className={`text-xs px-3 py-1.5 rounded-full font-medium border transition ${valore === attuale ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
       {etichetta || valore}
     </button>
   );
   return (
-    <div className="pt-3 border-t border-stone-100 grid sm:grid-cols-2 gap-4">
+    <div className="pt-3 border-t border-stone-100 grid sm:grid-cols-3 gap-4">
       <div className="space-y-1.5">
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Sketch da scegliere per domanda</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Domande HMW per team</p>
+        <div className="flex flex-wrap gap-1.5">{[1, 2, 3, 4].map(n => <span key={n}>{scelta(n, hmw, () => salva({ hmw_per_team: n }))}</span>)}</div>
+        <p className="text-[11px] text-stone-400">Per ogni domanda: da 5 a 8 sketch.</p>
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Sketch da migliorare con l&apos;AI</p>
         <div className="flex flex-wrap gap-1.5">{[1, 2, 3, 4].map(n => <span key={n}>{scelta(n, sketch, () => salva({ sketch_per_domanda: n }))}</span>)}</div>
-        <p className="text-[11px] text-stone-400">Ogni team ha 2 domande e 8 sketch per domanda.</p>
+        <p className="text-[11px] text-stone-400">Massimo per domanda: il team ne sceglie da 1 a questo numero.</p>
       </div>
       <div className="space-y-1.5">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Contesti per team</p>

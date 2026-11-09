@@ -109,8 +109,8 @@ export type Submission = {
 
 export const FASI = [
   { n: 1, icona: '📌', breve: 'Contesti', titolo: 'Su cosa lavorate', sottotitolo: 'Scegliete dalla bacheca i contesti in cui portare il vostro lavoro.' },
-  { n: 2, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre due domande', sottotitolo: 'Trasformate i contesti in due domande «Come potremmo…». Le leggiamo insieme in aula e, quando sono chiare, passiamo agli sketch.' },
-  { n: 3, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ognuna delle due domande disegnate 8 idee di prodotto in 8 minuti, su carta. Poi fotografatele dal telefono.' },
+  { n: 2, icona: '❓', breve: 'Domande HMW', titolo: 'Le vostre domande', sottotitolo: 'Trasformate i contesti in domande «Come potremmo…». Le leggiamo insieme in aula e, quando sono chiare, passiamo agli sketch.' },
+  { n: 3, icona: '✏️', breve: 'Sketch', titolo: 'Gli sketch', sottotitolo: 'Per ogni domanda disegnate da 5 a 8 idee di prodotto su carta, con il timer. Poi fotografatele dal telefono.' },
   { n: 4, icona: '🔍', breve: 'Selezione', titolo: 'Gli sketch scelti', sottotitolo: 'Per ogni domanda scegliete gli sketch che rispondono meglio: sono quelli che migliorerete con l\'AI.' },
   { n: 5, icona: '🪄', breve: 'Prompt', titolo: 'Il prompt', sottotitolo: 'Componete il prompt per far evolvere ogni sketch scelto, poi apritelo nel modello che preferite.' },
   { n: 6, icona: '🖼️', breve: 'Immagini', titolo: 'Le immagini generate', sottotitolo: 'Caricate le immagini migliori ottenute dal modello, accanto allo sketch da cui sono nate.' },
@@ -159,7 +159,7 @@ export function faseEffettiva(s: Submission): number {
   let fase = Math.max(1, s.fase_raggiunta || 1);
   const sketch = s.immagini || [];
   if ((s.contesti || []).length > 0) fase = Math.max(fase, 2);
-  if (s.sketch_sbloccato && s.hmw_inviate) fase = Math.max(fase, 3);
+  if (s.sketch_sbloccato) fase = Math.max(fase, 3);
   if (sketch.length > 0) fase = Math.max(fase, 4);
   if (sketch.some(x => x.selezionato)) fase = Math.max(fase, 5);
   if (sketch.some(x => x.generazioni_crazy8.length > 0)) fase = Math.max(fase, 6);

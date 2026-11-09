@@ -76,7 +76,7 @@ export function TimerProiezione({ timer, onChiudi, comandi }: { timer: TimerC8 |
   return (
     <div ref={radice} className={`mz c8-timer-scena ${finito ? 'finito' : ''}`} data-theme={finito ? undefined : 'dark'} role="dialog" aria-modal="true" aria-label="Timer di Crazy 8">
       <header className="mz-rail" style={{ position: 'relative', background: 'transparent', borderBottom: 0 }}>
-        <span className="mz-mono" style={{ color: 'inherit' }}>Crazy 8: 8 idee in {Math.round(durata / 60)} minuti</span>
+        <span className="mz-mono" style={{ color: 'inherit' }}>Crazy 8: da 5 a 8 idee in {Math.round(durata / 60)} minuti</span>
         <div className="flex gap-2 items-center">
           {comandi}
           <button type="button" className="mz-pill sm ghost" style={{ color: 'inherit' }} onClick={() => { if (document.fullscreenElement) document.exitFullscreen(); else radice.current?.requestFullscreen?.().catch(() => {}); }}>⤢</button>
@@ -140,6 +140,22 @@ export function PannelloRegia({ attivitaId, passcode, config, onCambiato, onProi
     if (!error) onCambiato();
   };
 
+  // durata regolabile da 1 a 20 minuti
+  const MINUTI_MAX = 20;
+  const impostaMinuti = (m: number) => salva({ timer: { durata: Math.min(MINUTI_MAX, Math.max(1, m)) * 60, fine: null, rimanente: null } });
+  const minuti = Math.round(durata / 60);
+
+  // Aprire una fase dagli sketch in poi sblocca gli sketch a tutti i team:
+  // regia e sblocco restano una cosa sola.
+  const apriFase = async (n: number) => {
+    await salva({ fase_aperta: n });
+    if (n >= 3) {
+      const { error } = await supabase.rpc('docente_sblocca_sketch_tutti_crazy8', { p_attivita_id: attivitaId, p_valore: true, p_passcode: passcode });
+      if (error) setMsg('Fase aperta, ma sblocco degli sketch non riuscito: controlla il database.');
+      else onCambiato();
+    }
+  };
+
   const avvia = () => salva({ timer: { durata, fine: Date.now() + (inPausa ? timer.rimanente! : durata) * 1000, rimanente: null } });
   const pausa = () => rimasti !== null && salva({ timer: { durata, fine: null, rimanente: rimasti } });
   const azzera = () => salva({ timer: { durata, fine: null, rimanente: null } });
@@ -149,11 +165,14 @@ export function PannelloRegia({ attivitaId, passcode, config, onCambiato, onProi
       <section className="space-y-3">
         <p className="text-sm font-medium text-stone-900">Timer</p>
         <p className="mz-display m-0" style={{ fontSize: 56 }}>{formattaTempo(rimasti ?? durata)}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {[5, 8, 10].map(m => (
-            <button key={m} type="button" className={`mz-chip ${durata === m * 60 ? 'on' : ''}`} disabled={inCorso} onClick={() => salva({ timer: { durata: m * 60, fine: null, rimanente: null } })}>{m} min</button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button type="button" className="mz-chip" disabled={inCorso || minuti <= 1} onClick={() => impostaMinuti(minuti - 1)} aria-label="Un minuto in meno">−</button>
+          {[5, 8, 10, 15, 20].map(m => (
+            <button key={m} type="button" className={`mz-chip ${durata === m * 60 ? 'on' : ''}`} disabled={inCorso} onClick={() => impostaMinuti(m)}>{m} min</button>
           ))}
+          <button type="button" className="mz-chip" disabled={inCorso || minuti >= MINUTI_MAX} onClick={() => impostaMinuti(minuti + 1)} aria-label="Un minuto in più">+</button>
         </div>
+        <p className="text-xs text-stone-500 m-0">Da 1 a {MINUTI_MAX} minuti. Ogni team disegna da 5 a 8 sketch per domanda.</p>
         <div className="flex flex-wrap gap-2">
           {inCorso ? (
             <button type="button" className="mz-pill" onClick={pausa}>Pausa</button>
@@ -169,12 +188,12 @@ export function PannelloRegia({ attivitaId, passcode, config, onCambiato, onProi
         <p className="text-sm font-medium text-stone-900">Fin dove possono arrivare gli studenti</p>
         <div className="flex flex-wrap gap-1.5">
           {FASI.map(f => (
-            <button key={f.n} type="button" className={`mz-chip ${faseAperta === f.n ? 'on' : ''}`} onClick={() => salva({ fase_aperta: f.n })}>
+            <button key={f.n} type="button" className={`mz-chip ${faseAperta === f.n ? 'on' : ''}`} onClick={() => apriFase(f.n)}>
               <span className="mz-mono">{due(f.n)}</span>{f.breve}
             </button>
           ))}
         </div>
-        <p className="text-xs text-stone-500 m-0">Le fasi successive restano chiuse finché non le apri. Gli sketch si aprono comunque solo ai team con le domande approvate.</p>
+        <p className="text-xs text-stone-500 m-0">Le fasi successive restano chiuse finché non le apri. Aprendo «Sketch» o una fase successiva, gli sketch si sbloccano a tutti i team; per sbloccarli a un team solo, usa il wall o la sua consegna.</p>
       </section>
       {msg && <p className="text-xs text-red-600" role="alert">{msg}</p>}
     </div>

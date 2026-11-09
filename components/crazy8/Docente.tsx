@@ -142,7 +142,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
 
   const corrente = domande.find(d => d.chiave === aperta) || null;
   const attuale = domande[Math.min(indice, Math.max(0, domande.length - 1))] || null;
-  const daSbloccare = submissions.filter(s => s.hmw_inviate && !s.sketch_sbloccato).length;
+  const daSbloccare = submissions.filter(s => s.team_attivita_id && !s.sketch_sbloccato).length;
   const nomiContesti = Array.from(new Set(domande.map(d => nomeContesto(d.hmw.contesto, contesti)).filter(Boolean)));
 
   const vai = (n: number) => {
@@ -207,7 +207,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
   };
 
   const sbloccaTutti = async () => {
-    if (!window.confirm(`Sbloccare gli sketch a tutti i ${daSbloccare} team che hanno inviato le domande?`)) return;
+    if (!window.confirm(`Sbloccare gli sketch a tutti i ${daSbloccare} team? Si apre anche la fase degli sketch nella regia.`)) return;
     const { error } = await supabase.rpc('docente_sblocca_sketch_tutti_crazy8', { p_attivita_id: attivitaId, p_valore: true, p_passcode: passcode });
     if (!error) onCambiato();
   };

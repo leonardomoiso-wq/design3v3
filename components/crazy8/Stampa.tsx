@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 
 // Esportazione in PDF con la stampa del browser ("Salva come PDF"): una
-// pagina per team con contesti, le due domande, gli sketch scelti e le
+// pagina per team con contesti, le domande, gli sketch scelti e le
 // immagini generate. Si mostra solo in stampa.
 
 export type ConsegnaStampa = {

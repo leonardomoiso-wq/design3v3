@@ -17,10 +17,10 @@ import { StampaCrazy8 } from '../../components/crazy8/Stampa';
 import { due } from '../../components/Vetrina';
 import {
   FASI, NUMERO_FASI, Miniatura, TestoAutosalvato, faseEffettiva, visioneDi, useControlloDbCrazy8,
-  nomeContesto, testoHmw, type Contesto, type Generazione, type Hmw, type Sketch, type Submission,
+  nomeContesto, testoHmw, hmwCompleta, type Contesto, type Generazione, type Hmw, type Sketch, type Submission,
 } from '../../components/crazy8/shared';
 import PromptConfiguratore, { MOTORI } from '../../components/crazy8/PromptConfiguratore';
-import TeamAttivitaGate, { leggiTeamAttivita, salvaTeamAttivita, type TeamAttivita } from '../../components/crazy8/TeamAttivita';
+import TeamAttivitaGate, { MenuTeam, leggiTeamAttivita, salvaTeamAttivita, type TeamAttivita } from '../../components/crazy8/TeamAttivita';
 import BachecaContesti from '../../components/crazy8/Contesti';
 import ComponiHmw from '../../components/crazy8/ComponiHmw';
 
@@ -32,17 +32,23 @@ import ComponiHmw from '../../components/crazy8/ComponiHmw';
 // rivede restano allineati (con l'aggiornamento realtime).
 
 const TUTORIAL_VISTO_KEY = 'crazy8_fasi_tutorial_visto';
+// gli sketch per domanda: 8 spazi, almeno 5 per andare avanti
+const MASSIMO_SKETCH = 8;
+const MINIMO_SKETCH = 5;
 
 const TUTORIAL_SLIDES = [
   { icona: '👥', titolo: 'Prima il team', testo: 'Ogni attività ha i suoi team: uno di voi lo crea, gli altri entrano con nome e password.' },
   { icona: '📌', titolo: 'Scegliete i contesti', testo: 'Dalla bacheca scegliete i contesti su cui lavorare.' },
-  { icona: '❓', titolo: 'Due domande "Come potremmo…"', testo: 'Riempite gli spazi della formula. Le leggiamo insieme in aula, poi passiamo agli sketch.' },
-  { icona: '✏️', titolo: '8 sketch per domanda', testo: 'Su carta, poi una foto dal telefono. Scegliete il migliore per ogni domanda e miglioratelo con l\'AI.' },
+  { icona: '❓', titolo: 'Le domande "Come potremmo…"', testo: 'Riempite gli spazi della formula. Le leggiamo insieme in aula, poi passiamo agli sketch.' },
+  { icona: '✏️', titolo: 'Da 5 a 8 sketch per domanda', testo: 'Su carta, con il timer, poi una foto dal telefono. Scegliete i migliori per ogni domanda e migliorateli con l\'AI.' },
 ];
+
+// se la password del team cambia da un altro dispositivo, si rientra
+const PASSWORD_CAMBIATA = 'La password del team è cambiata: rientrate con quella nuova.';
 
 const messaggioErrore = (codice: string) => {
   switch (codice) {
-    case 'codice_errato': return 'Codice di gruppo errato.';
+    case 'codice_errato': return PASSWORD_CAMBIATA;
     case 'codice_troppo_corto': return 'Il codice di gruppo deve avere almeno 4 caratteri.';
     case 'submission_non_trovata': return 'Questa consegna non esiste più.';
     case 'sketch_non_trovato': return 'Questo sketch non esiste più.';
@@ -183,7 +189,7 @@ export default function Crazy8Page() {
   return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
 }
 
-type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } & ConfigAula };
+type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number; hmw_per_team?: number } & ConfigAula };
 
 function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
@@ -288,6 +294,22 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   }, [teamAtt?.id]);
 
   const faseAperta = Math.max(1, Math.min(NUMERO_FASI, Number(attivitaInfo?.config?.fase_aperta || NUMERO_FASI)));
+
+  // Riserva per il tempo reale: mentre si aspetta lo sblocco degli sketch
+  // o l'apertura della fase successiva, si ricontrolla ogni pochi secondi
+  // (se il tempo reale non arriva, il team non resta bloccato).
+  const inAttesa = !!attiva && (!attiva.sketch_sbloccato || faseAperta < NUMERO_FASI);
+  useEffect(() => {
+    if (!inAttesa || !attiva) return;
+    const id = attiva.id;
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      caricaAttivita();
+      caricaConsegna(id);
+    }, 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inAttesa, attiva?.id]);
   const raggiunta = Math.min(attiva ? faseEffettiva(attiva) : 1, faseAperta);
 
   // alla prima apertura si riparte dal punto raggiunto
@@ -303,6 +325,17 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     salvaTeamAttivita(attivitaInfo.id, t);
     setTeamAtt(t);
   };
+
+  // la password è cambiata altrove: si torna all'ingresso del team
+  const [avvisoTeam, setAvvisoTeam] = useState('');
+  useEffect(() => {
+    if (erroreAzione !== PASSWORD_CAMBIATA || !attivitaInfo) return;
+    salvaTeamAttivita(attivitaInfo.id, null);
+    setTeamAtt(null);
+    setAvvisoTeam(PASSWORD_CAMBIATA);
+    setErroreAzione('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [erroreAzione]);
 
   const cambiaTeam = () => {
     if (!attivitaInfo) return;
@@ -354,9 +387,10 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   // === fase 4: sketch per domanda ===
   const aggiungiSketch = async (e: React.ChangeEvent<HTMLInputElement>, domanda: number) => {
     if (!attiva) return;
-    const files = Array.from(e.target.files || []);
+    const liberi = Math.max(0, MASSIMO_SKETCH - attiva.immagini.filter(x => (x.domanda ?? 0) === domanda).length);
+    const files = Array.from(e.target.files || []).slice(0, liberi);
     e.target.value = '';
-    if (files.length === 0) return;
+    if (files.length === 0) { if (liberi === 0) setErroreAzione(`Avete già ${MASSIMO_SKETCH} sketch per questa domanda: eliminatene uno per sostituirlo.`); return; }
     setCaricamentoSketch(domanda);
     segnalaCaricamento(true);
     setErroreAzione('');
@@ -387,7 +421,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     if (s.selezionato) { await salvaSketch(s.id, { selezionato: false }); return; }
     const giaScelti = attiva.immagini.filter(x => (x.domanda ?? 0) === d && x.selezionato && x.id !== s.id);
     if (giaScelti.length >= sketchPerDomanda) {
-      if (sketchPerDomanda > 1) { setErroreAzione(`Per la domanda ${d + 1} potete sceglierne ${sketchPerDomanda}: togliete prima uno di quelli scelti.`); return; }
+      if (sketchPerDomanda > 1) { setErroreAzione(`Per la domanda ${d + 1} potete sceglierne fino a ${sketchPerDomanda}: togliete prima uno di quelli scelti.`); return; }
       for (const altro of giaScelti) await salvaSketch(altro.id, { selezionato: false });
     }
     await salvaSketch(s.id, { selezionato: true });
@@ -422,9 +456,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
         {teamAtt && (
-          <button type="button" onClick={cambiaTeam} className="mz-chip on mz-abbrevia" style={{ maxWidth: 220 }} title="Cambia team">
-            <span className="mz-mono">{String(teamAtt.numero).padStart(2, "0")}</span> {teamAtt.nome}
-          </button>
+          <MenuTeam team={teamAtt} onEsci={cambiaTeam} onCambiata={t => { if (attivitaInfo) salvaTeamAttivita(attivitaInfo.id, t); setTeamAtt(t); }} />
         )}
         <TimerStudente timer={attivitaInfo?.config?.timer} />
         <a href="/manuali?attivita=crazy8_ai" className="mz-pill sm ghost c8-rail-manuale">Manuale</a>
@@ -462,7 +494,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
         {mostraTutorial && <TutorialOverlay onChiudi={chiudiTutorial} />}
         {rail}
         {avvisoDb}
-        <TeamAttivitaGate attivitaId={attivitaInfo.id} titoloAttivita="Crazy 8" membriSuggeriti={team?.membri || []} onEntrato={entraNelTeam} />
+        <TeamAttivitaGate attivitaId={attivitaInfo.id} titoloAttivita="Crazy 8" membriSuggeriti={team?.membri || []} onEntrato={t => { setAvvisoTeam(''); entraNelTeam(t); }} avviso={avvisoTeam} />
       </main>
     );
   }
@@ -473,7 +505,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
   // === dati derivati ===
   const massimoContesti = Number(attivitaInfo.config?.contesti_per_team ?? 2);
-  const sketchPerDomanda = Math.max(1, Number(attivitaInfo.config?.sketch_per_domanda ?? 1));
+  const sketchPerDomanda = Math.min(4, Math.max(1, Number(attivitaInfo.config?.sketch_per_domanda ?? 4)));
+  const numeroHmw = Math.min(4, Math.max(1, Number(attivitaInfo.config?.hmw_per_team ?? 2)));
+  const domande = Array.from({ length: numeroHmw }, (_, i) => i);
   const sceltiValidi = attiva.contesti.filter(id => contesti.some(c => c.id === id));
   const contestiRichiesti = contesti.length === 0 ? 0 : massimoContesti > 0 ? Math.min(massimoContesti, contesti.length) : 1;
   const opzioniContesto = [
@@ -483,8 +517,10 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const sketchDi = (d: number) => sketchTutti.filter(s => (s.domanda ?? 0) === d);
   const sketchSelezionati = sketchTutti.filter(s => s.selezionato);
   const sceltiDi = (d: number) => sketchDi(d).filter(s => s.selezionato);
-  const richiestiDi = (d: number) => Math.min(sketchPerDomanda, sketchDi(d).length);
-  const sceltaCompleta = [0, 1].every(d => sceltiDi(d).length >= Math.max(1, richiestiDi(d)));
+  const massimoDi = (d: number) => Math.max(1, Math.min(sketchPerDomanda, sketchDi(d).length));
+  const sceltaCompleta = domande.every(d => sceltiDi(d).length >= 1);
+  const hmwPronte = domande.every(d => !!attiva.hmw[d] && hmwCompleta(attiva.hmw[d]) && !!attiva.hmw[d].contesto);
+  const sketchMancanti = domande.reduce((n, d) => n + Math.max(0, MINIMO_SKETCH - sketchDi(d).length), 0);
   const hmwDi = (d: number): Hmw | undefined => attiva.hmw[d];
   const infoFase = FASI[fase - 1];
 
@@ -519,6 +555,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
           <div className="space-y-6">
             <ComponiHmw
               hmw={attiva.hmw}
+              numero={numeroHmw}
               opzioniContesto={opzioniContesto}
               revisione={attiva.hmw_revisione}
               inviate={attiva.hmw_inviate}
@@ -532,9 +569,9 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             <NavigazioneFase faseAperta={faseAperta}
               fase={2}
               onIndietro={() => vaiAFase(1)}
-              onAvanti={() => avanzaA(3)}
-              avantiPossibile={attiva.sketch_sbloccato}
-              motivoBlocco={attiva.hmw_inviate ? 'Prima le leggiamo insieme, poi si passa agli sketch' : 'Inviate le due domande'}
+              onAvanti={() => avanzaA(3, attiva.hmw_inviate ? {} : { hmw_inviate: true })}
+              avantiPossibile={attiva.sketch_sbloccato && hmwPronte}
+              motivoBlocco={!hmwPronte ? (numeroHmw === 1 ? 'Completate la domanda' : 'Completate le domande') : attiva.hmw_inviate ? 'Prima le leggiamo insieme, poi si passa agli sketch' : (numeroHmw === 1 ? 'Inviate la domanda' : 'Inviate le domande')}
               etichettaAvanti="Avanti: gli sketch"
             />
             {attiva.hmw_inviate && teamAtt && (
@@ -547,12 +584,12 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
         return (
           <div className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-5">
-              {[0, 1].map(d => {
+              {domande.map(d => {
                 const lista = sketchDi(d);
                 return (
                   <section key={d} className="bg-white rounded-3xl border border-stone-200 p-5 space-y-4">
                     <div className="space-y-1">
-                      <span className="mz-mono" style={{ color: 'var(--accento)' }}>Domanda ({String(d + 1).padStart(2, '0')}) {lista.length} / 8</span>
+                      <span className="mz-mono" style={{ color: 'var(--accento)' }}>Domanda ({String(d + 1).padStart(2, '0')}) {lista.length} / {MASSIMO_SKETCH}{lista.length < MINIMO_SKETCH ? ` · almeno ${MINIMO_SKETCH}` : ' ✓'}</span>
                       <p className="text-lg leading-snug text-stone-900" style={{ fontFamily: 'var(--f-display)' }}>{testoHmw(hmwDi(d)) || 'Domanda non ancora scritta'}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -573,8 +610,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
                           <button type="button" onClick={() => rimuoviSketch(s.id)} className="absolute top-1 right-1 h-5 w-5 rounded-full bg-white/90 text-stone-400 hover:text-red-600 text-[10px]" aria-label="Elimina sketch">✕</button>
                         </div>
                       ))}
-                      {Array.from({ length: Math.max(0, 8 - lista.length) }).map((_, i) => (
-                        <div key={`v${i}`} className="aspect-square rounded-xl border-2 border-dashed border-stone-200 flex items-center justify-center text-stone-300 text-sm font-bold">{lista.length + i + 1}</div>
+                      {Array.from({ length: Math.max(0, MASSIMO_SKETCH - lista.length) }).map((_, i) => (
+                        <div key={`v${i}`} className={`aspect-square rounded-xl border-2 border-dashed ${lista.length + i < MINIMO_SKETCH ? 'border-stone-300' : 'border-stone-200'} flex items-center justify-center text-stone-300 text-sm font-bold`}>{lista.length + i + 1}</div>
                       ))}
                     </div>
                   </section>
@@ -585,8 +622,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               fase={3}
               onIndietro={() => vaiAFase(2)}
               onAvanti={() => avanzaA(4)}
-              avantiPossibile={sketchDi(0).length > 0 && sketchDi(1).length > 0}
-              motivoBlocco="Caricate gli sketch di entrambe le domande"
+              avantiPossibile={sketchMancanti === 0}
+              motivoBlocco={`Almeno ${MINIMO_SKETCH} sketch per ogni domanda: ne mancano ${sketchMancanti}`}
               etichettaAvanti="Abbiamo finito: scegliamo i migliori"
             />
           </div>
@@ -599,8 +636,8 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             {/* gli sketch scelti, in una pila 3D che scorre da sola */}
             <section className="space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="mz-mono" style={{ color: 'var(--ink)' }}>I vostri scelti ({due(sketchSelezionati.length)} / {due(richiestiDi(0) + richiestiDi(1))})</span>
-                <span className="text-sm text-stone-500">{sketchPerDomanda === 1 ? 'Uno per domanda.' : `${sketchPerDomanda} per domanda.`}</span>
+                <span className="mz-mono" style={{ color: 'var(--ink)' }}>I vostri scelti ({due(sketchSelezionati.length)} / {due(domande.reduce((n, d) => n + massimoDi(d), 0))})</span>
+                <span className="text-sm text-stone-500">{sketchPerDomanda === 1 ? 'Uno per domanda.' : `Da 1 a ${sketchPerDomanda} per domanda.`}</span>
               </div>
               <Pila3D
                 vuoto="Toccate ★ su uno sketch per sceglierlo: comparirà qui."
@@ -611,16 +648,16 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
 
             <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] gap-6 items-start">
               <div className="space-y-5">
-                {[0, 1].map(d => {
+                {domande.map(d => {
                   const scelti = sceltiDi(d).length;
-                  const pieno = scelti >= richiestiDi(d) && sketchPerDomanda > 1;
+                  const pieno = scelti >= massimoDi(d) && sketchPerDomanda > 1;
                   return (
                     <section key={d} className="c8-scelta">
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-base leading-snug text-stone-900 m-0" style={{ fontFamily: 'var(--f-display)' }}>
                           <span className="mz-mono mr-1" style={{ color: 'var(--accento)' }}>({due(d + 1)})</span>{testoHmw(hmwDi(d))}
                         </p>
-                        <span className={`c8-contatore ${scelti >= Math.max(1, richiestiDi(d)) ? 'ok' : ''}`}>{scelti} / {Math.max(1, richiestiDi(d))}</span>
+                        <span className={`c8-contatore ${scelti >= 1 ? 'ok' : ''}`}>{scelti} / {massimoDi(d)}</span>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
                         {sketchDi(d).map((s, k) => {
@@ -662,7 +699,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onIndietro={() => vaiAFase(3)}
               onAvanti={() => avanzaA(5)}
               avantiPossibile={sceltaCompleta}
-              motivoBlocco={sketchPerDomanda === 1 ? 'Scegliete uno sketch per ogni domanda' : `Scegliete ${sketchPerDomanda} sketch per ogni domanda`}
+              motivoBlocco="Scegliete almeno uno sketch per ogni domanda"
               etichettaAvanti="Avanti: il prompt"
             />
           </div>
@@ -771,7 +808,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
             team: teamAtt.nome,
             membri: teamAtt.membri,
             contesti: sceltiValidi.map(id => nomeContesto(id, contesti)),
-            domande: [0, 1].map(d => ({
+            domande: domande.map(d => ({
               testo: testoHmw(hmwDi(d)),
               scelti: sketchSelezionati.filter(sk => (sk.domanda ?? 0) === d).map(sk => ({ sketch: sk.url_file, generate: sk.generazioni_crazy8.map(g => g.url_immagine), nota: sk.interpretazione })),
             })),

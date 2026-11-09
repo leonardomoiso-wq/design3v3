@@ -150,7 +150,7 @@ export default function Crazy8DocentePage() {
   const [vista, setVista] = useState<'consegne' | 'galleria'>('consegne');
   const [filtroGalleria, setFiltroGalleria] = useState<'tutto' | 'sketch' | 'migliorate'>('tutto');
   const [mostraPromptSuggeriti, setMostraPromptSuggeriti] = useState(false);
-  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number; sketch_per_domanda?: number } & ConfigAula } | null>(null);
+  const [attivitaC8, setAttivitaC8] = useState<{ id: string; config: { contesti_per_team?: number; sketch_per_domanda?: number; hmw_per_team?: number } & ConfigAula } | null>(null);
   const [mostraRegia, setMostraRegia] = useState(false);
   const [mostraTimer, setMostraTimer] = useState(false);
   const [stampa, setStampa] = useState(false);
@@ -262,6 +262,17 @@ export default function Crazy8DocentePage() {
   const nomeDi = (s: any) => teamDi(s)?.nome || s.gruppo_nome;
 
   // === azioni ===
+  // password dimenticata: la si reimposta dal pannello
+  const nuovaPasswordTeam = async (s: any) => {
+    const t = teamDi(s);
+    if (!t) return;
+    const nuova = window.prompt(`Nuova password per il team "${t.nome}" (almeno 4 caratteri):`);
+    if (nuova === null) return;
+    if (nuova.trim().length < 4) { window.alert('La password deve avere almeno 4 caratteri.'); return; }
+    const { error } = await supabase.rpc('docente_reimposta_password_team_attivita', { p_id: t.id, p_nuova: nuova, p_passcode: passcode });
+    window.alert(error ? 'Password non cambiata: controlla il database (migrazione 20261024).' : `Fatto: il team "${t.nome}" entra con la nuova password.`);
+  };
+
   const eliminaConsegna = async (s: any) => {
     if (!window.confirm(`Eliminare la consegna di "${nomeDi(s)}"? Sketch, domande e immagini generate verranno cancellati. Non si può annullare.`)) return;
     const { error } = await supabase.rpc('docente_elimina_submission_crazy8', { p_id: s.id, p_passcode: passcode });
@@ -300,7 +311,10 @@ export default function Crazy8DocentePage() {
 
   // === immagini di una consegna ===
   const sketchDi = (s: any, d: number) => (s.immagini || []).filter((x: any) => (x.domanda ?? 0) === d);
-  const domandeDi = (s: any) => (s.team_attivita_id ? [0, 1] : [0]);
+  const sketchPerDomanda = Number(attivitaC8?.config.sketch_per_domanda ?? 4);
+  const contestiPerTeam = Number(attivitaC8?.config.contesti_per_team ?? 2);
+  const numeroHmw = Math.min(4, Math.max(1, Number(attivitaC8?.config.hmw_per_team ?? 2)));
+  const domandeDi = (s: any) => (s.team_attivita_id ? Array.from({ length: Math.max(numeroHmw, Array.isArray(s.hmw) ? s.hmw.length : 0) }, (_, i) => i) : [0]);
   const immaginiDomanda = (s: any, d: number): ImmagineC8[] => {
     const h = (s.hmw || [])[d] as Hmw | undefined;
     return sketchDi(s, d).flatMap((sk: any, k: number) => [
@@ -329,8 +343,6 @@ export default function Crazy8DocentePage() {
       };
     }));
 
-  const sketchPerDomanda = Number(attivitaC8?.config.sketch_per_domanda ?? 1);
-  const contestiPerTeam = Number(attivitaC8?.config.contesti_per_team ?? 2);
 
   return (
     <div className="mz flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
@@ -343,7 +355,7 @@ export default function Crazy8DocentePage() {
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 5vw, 72px)', margin: 0 }}>Crazy 8<span className="mz-sup">({due(submissions.length)})</span></h1>
             <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>
               <TimerStudente timer={attivitaC8?.config.timer} />{' '}
-              {contestiPerTeam === 0 ? 'Contesti liberi' : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {sketchPerDomanda} sketch da scegliere per domanda.{' '}
+              {contestiPerTeam === 0 ? 'Contesti liberi' : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {numeroHmw} {numeroHmw === 1 ? 'domanda' : 'domande'} HMW, fino a {sketchPerDomanda} sketch da migliorare per domanda.{' '}
               <a href="/teacher/attivita" className="underline underline-offset-2">Cambia nel pannello attività</a>
             </p>
           </div>
@@ -446,6 +458,7 @@ export default function Crazy8DocentePage() {
                       {selezionata.team_attivita_id && (selezionata.sketch_sbloccato
                         ? <button type="button" className="mz-pill sm ghost" onClick={() => sbloccaSketch(selezionata, false)}>Richiudi gli sketch</button>
                         : <button type="button" className="mz-pill sm b" onClick={() => sbloccaSketch(selezionata, true)}>Sblocca gli sketch</button>)}
+                      {teamDi(selezionata) && <button type="button" className="mz-pill sm o" onClick={() => nuovaPasswordTeam(selezionata)}>Nuova password</button>}
                       <button type="button" className="mz-pill sm ghost danger" onClick={() => eliminaConsegna(selezionata)}>Elimina consegna</button>
                     </div>
                   </div>

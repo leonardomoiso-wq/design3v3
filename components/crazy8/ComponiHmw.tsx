@@ -53,8 +53,9 @@ function Campo({ valore, onCambia, spazio, onFuoco, i }: { valore: string; onCam
   );
 }
 
-export default function ComponiHmw({ hmw, opzioniContesto, revisione, inviate, sketchSbloccati, onSalva, onInvia }: {
+export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione, inviate, sketchSbloccati, onSalva, onInvia }: {
   hmw: Hmw[];
+  numero?: number;
   opzioniContesto: { id: string; etichetta: string; proprio: boolean }[];
   revisione: (('ok' | 'rivedere') | null)[];
   inviate: boolean;
@@ -62,7 +63,7 @@ export default function ComponiHmw({ hmw, opzioniContesto, revisione, inviate, s
   onSalva: (hmw: Hmw[]) => Promise<boolean>;
   onInvia: (origine: { x: number; y: number }) => void;
 }) {
-  const normalizza = (h: Hmw[]) => [0, 1].map(i => ({ ...HMW_VUOTA, ...(h[i] || {}) }));
+  const normalizza = (h: Hmw[]) => Array.from({ length: numero }, (_, i) => ({ ...HMW_VUOTA, ...(h[i] || {}) }));
   const [bozza, setBozza] = useState<Hmw[]>(normalizza(hmw));
   const [stato, setStato] = useState<'idle' | 'salvando' | 'salvato' | 'errore'>('idle');
   const [fuoco, setFuoco] = useState<{ i: number; s: Spazio } | null>(null);
@@ -75,7 +76,7 @@ export default function ComponiHmw({ hmw, opzioniContesto, revisione, inviate, s
   useEffect(() => {
     if (!inModifica.current) { const n = normalizza(JSON.parse(firma)); ultima.current = n; setBozza(n); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firma]);
+  }, [firma, numero]);
 
   // Si salva sempre l'ultima versione scritta: un salvataggio partito
   // prima non deve riportare indietro quello che si è scritto nel frattempo.
