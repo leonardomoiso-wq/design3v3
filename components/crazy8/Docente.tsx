@@ -99,7 +99,7 @@ export function PannelloContesti({ attivitaId, passcode, contesti, contestiPerTe
   );
 }
 
-type Domanda = { chiave: string; submission: any; indice: number; hmw: Hmw; revisione: 'ok' | 'rivedere' | null };
+type Domanda = { chiave: string; submission: any; indice: number; hmw: Hmw; revisione: 'ok' | 'rivedere' | 'richiesta' | null };
 
 const riduci = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -120,7 +120,7 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
 }) {
   const [vista, setVista] = useState<'wall' | 'una'>('wall');
   const [aperta, setAperta] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<'tutte' | 'ok' | 'da_vedere' | 'votate'>('tutte');
+  const [filtro, setFiltro] = useState<'tutte' | 'ok' | 'da_vedere' | 'votate' | 'rivalutare'>('tutte');
   const [pausa, setPausa] = useState(false);
   const [indice, setIndice] = useState(0);
   const [svelato, setSvelato] = useState(false);
@@ -130,14 +130,15 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
   const trascorso = useRef(0);
   const DURATA = 10000;
 
-  const domande: Domanda[] = submissions
+  const tutteLeDomande: Domanda[] = submissions
     .filter(s => s.hmw_inviate && Array.isArray(s.hmw))
     .flatMap(s => (s.hmw as Hmw[]).map((h, i) => ({
       chiave: `${s.id}:${i}`, submission: s, indice: i, hmw: h,
       revisione: (Array.isArray(s.hmw_revisione) ? s.hmw_revisione[i] : null) || null,
     })))
-    .filter(d => hmwCompleta(d.hmw))
-    .filter(d => filtro === 'tutte' || filtro === 'votate' || (filtro === 'ok' ? d.revisione === 'ok' : d.revisione !== 'ok'))
+    .filter(d => !!d.hmw && hmwCompleta(d.hmw));
+  const domande: Domanda[] = tutteLeDomande
+    .filter(d => filtro === 'tutte' || filtro === 'votate' || (filtro === 'rivalutare' ? d.revisione === 'richiesta' : filtro === 'ok' ? d.revisione === 'ok' : d.revisione !== 'ok'))
     .sort((a, b) => (filtro === 'votate' ? (stelle?.(b.submission.id, b.indice) || 0) - (stelle?.(a.submission.id, a.indice) || 0) : 0));
 
   const corrente = domande.find(d => d.chiave === aperta) || null;
@@ -233,9 +234,9 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
         <span className="mz-mono" style={{ color: 'var(--ink)' }}>Come potremmo… ({String(domande.length).padStart(2, '0')})</span>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Segmentato etichetta="Vista" valore={vista} onCambia={v => { setVista(v); setAperta(null); vai(0); }} opzioni={[{ id: 'wall', label: 'Wall' }, { id: 'una', label: 'Una alla volta' }]} />
-          {(['tutte', 'da_vedere', 'ok', 'votate'] as const).map(f => (
+          {(['tutte', 'da_vedere', 'rivalutare', 'ok', 'votate'] as const).map(f => (
             <button key={f} type="button" className={`mz-chip max-md:hidden ${filtro === f ? 'on' : ''}`} onClick={() => { setFiltro(f); vai(0); }}>
-              {f === 'tutte' ? 'Tutte' : f === 'ok' ? 'Pertinenti' : f === 'votate' ? '★ Più votate' : 'Da vedere'}
+              {f === 'tutte' ? 'Tutte' : f === 'ok' ? 'Pertinenti' : f === 'votate' ? '★ Più votate' : f === 'rivalutare' ? `↻ Da rivalutare (${tutteLeDomande.filter(d => d.revisione === 'richiesta').length})` : 'Da vedere'}
             </button>
           ))}
           <button type="button" className="mz-pill sm b" disabled={daSbloccare === 0} onClick={sbloccaTutti}>Sblocca gli sketch a tutti ({daSbloccare})</button>
@@ -299,11 +300,11 @@ export function WallHmw({ attivitaId, submissions, contesti, teams, passcode, on
                       style={{
                         background: aperta === d.chiave ? 'var(--accento-vivo)' : 'var(--surface)',
                         color: aperta === d.chiave ? '#1c1917' : 'var(--ink)',
-                        boxShadow: d.revisione === 'ok' ? 'inset 0 0 0 2px #34d399' : d.revisione === 'rivedere' ? 'inset 0 0 0 2px #f87171' : 'inset 0 0 0 1px var(--line)',
+                        boxShadow: d.revisione === 'ok' ? 'inset 0 0 0 2px #34d399' : d.revisione === 'rivedere' ? 'inset 0 0 0 2px #f87171' : d.revisione === 'richiesta' ? 'inset 0 0 0 2px #fbbf24' : 'inset 0 0 0 1px var(--line)',
                       }}
                     >
                       <span className="mz-mono" style={{ color: aperta === d.chiave ? 'rgba(28,25,23,.7)' : 'var(--accento)' }}>
-                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da ritoccare' : ''}{(stelle?.(d.submission.id, d.indice) || 0) > 0 ? `  ★ ${stelle!(d.submission.id, d.indice)}` : ''}
+                        {nomeContesto(d.hmw.contesto, contesti) || 'Contesto'}{d.revisione === 'ok' ? ' ✓' : d.revisione === 'rivedere' ? ' — da ritoccare' : d.revisione === 'richiesta' ? ' — ↻ da rivalutare' : ''}{(stelle?.(d.submission.id, d.indice) || 0) > 0 ? `  ★ ${stelle!(d.submission.id, d.indice)}` : ''}
                       </span>
                       <span className="block mt-3" style={{ fontFamily: 'var(--f-display)', fontSize: 'clamp(22px, 2.2vw, 34px)', lineHeight: 1.1, letterSpacing: '-.02em' }}>
                         {testoHmw(d.hmw)}

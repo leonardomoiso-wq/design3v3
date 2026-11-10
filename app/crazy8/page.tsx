@@ -189,7 +189,7 @@ export default function Crazy8Page() {
   return <RichiedeCorso>{corso => <Crazy8PageCorso corso={corso} />}</RichiedeCorso>;
 }
 
-type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; sketch_per_domanda?: number; hmw_per_team?: number } & ConfigAula };
+type InfoAttivita = { id: string; stato: string; titolo: string; config: { contesti_per_team?: number; contesti_min?: number; sketch_per_domanda?: number; hmw_per_team?: number } & ConfigAula };
 
 function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const { team } = useTeam();
@@ -316,7 +316,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   useEffect(() => {
     if (attiva && !faseImpostata.current) {
       faseImpostata.current = true;
-      setFase(faseEffettiva(attiva));
+      setFase(Math.max(1, Math.min(faseEffettiva(attiva), faseAperta)));
     }
   }, [attiva]);
 
@@ -360,6 +360,11 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
     if (error) { setErroreAzione(messaggioErrore(error.message)); return false; }
     return true;
   };
+
+  // se la regia chiude una fase (o la pagina si ricarica), si resta entro quella aperta
+  useEffect(() => {
+    if (fase > faseAperta) setFase(Math.max(1, faseAperta));
+  }, [fase, faseAperta]);
 
   const salvaSketch = async (sketchId: string, campi: Partial<Pick<Sketch, 'selezionato' | 'interpretazione'>>): Promise<boolean> => {
     patchSketch(sketchId, campi);
@@ -507,9 +512,16 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const massimoContesti = Number(attivitaInfo.config?.contesti_per_team ?? 2);
   const sketchPerDomanda = Math.min(4, Math.max(1, Number(attivitaInfo.config?.sketch_per_domanda ?? 4)));
   const numeroHmw = Math.min(4, Math.max(1, Number(attivitaInfo.config?.hmw_per_team ?? 2)));
-  const domande = Array.from({ length: numeroHmw }, (_, i) => i);
+  const tutteLeDomande = Array.from({ length: numeroHmw }, (_, i) => i);
+  // le domande attive sono quelle complete: si può andare avanti anche se
+  // una domanda resta a metà, e sketch e immagini riguardano solo le complete
+  const domandaCompleta = (d: number) => !!attiva.hmw[d] && hmwCompleta(attiva.hmw[d]) && !!attiva.hmw[d].contesto;
+  const domandeComplete = tutteLeDomande.filter(domandaCompleta);
+  const domande = domandeComplete.length > 0 ? domandeComplete : tutteLeDomande;
   const sceltiValidi = attiva.contesti.filter(id => contesti.some(c => c.id === id));
-  const contestiRichiesti = contesti.length === 0 ? 0 : massimoContesti > 0 ? Math.min(massimoContesti, contesti.length) : 1;
+  // minimo di contesti da scegliere (di norma uguale al massimo)
+  const minimoContesti = Math.max(1, Number(attivitaInfo.config?.contesti_min ?? (massimoContesti > 0 ? massimoContesti : 1)));
+  const contestiRichiesti = contesti.length === 0 ? 0 : Math.min(massimoContesti > 0 ? Math.min(minimoContesti, massimoContesti) : minimoContesti, contesti.length);
   const opzioniContesto = [
     ...sceltiValidi.map(id => ({ id, etichetta: nomeContesto(id, contesti), proprio: false })),
   ];
@@ -519,7 +531,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
   const sceltiDi = (d: number) => sketchDi(d).filter(s => s.selezionato);
   const massimoDi = (d: number) => Math.max(1, Math.min(sketchPerDomanda, sketchDi(d).length));
   const sceltaCompleta = domande.every(d => sceltiDi(d).length >= 1);
-  const hmwPronte = domande.every(d => !!attiva.hmw[d] && hmwCompleta(attiva.hmw[d]) && !!attiva.hmw[d].contesto);
+  const hmwPronte = domandeComplete.length > 0;
   const sketchMancanti = domande.reduce((n, d) => n + Math.max(0, MINIMO_SKETCH - sketchDi(d).length), 0);
   const hmwDi = (d: number): Hmw | undefined => attiva.hmw[d];
   const infoFase = FASI[fase - 1];
@@ -533,6 +545,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               contesti={contesti}
               scelti={sceltiValidi}
               massimo={massimoContesti}
+              minimo={contestiRichiesti}
               onCambia={ids => {
                 const titoli = ids.map(id => nomeContesto(id, contesti)).filter(Boolean).join('; ');
                 patch({ contesti: ids, hmw_o_tema: titoli });
@@ -544,7 +557,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onIndietro={() => {}}
               onAvanti={() => avanzaA(2)}
               avantiPossibile={sceltiValidi.length >= contestiRichiesti}
-              motivoBlocco={massimoContesti > 0 ? `Scegliete ${contestiRichiesti} contest${contestiRichiesti === 1 ? 'o' : 'i'}` : 'Scegliete almeno un contesto'}
+              motivoBlocco={massimoContesti > 0 && massimoContesti > contestiRichiesti ? `Scegliete da ${contestiRichiesti} a ${massimoContesti} contesti` : massimoContesti > 0 ? `Scegliete ${contestiRichiesti} contest${contestiRichiesti === 1 ? 'o' : 'i'}` : `Scegliete almeno ${contestiRichiesti === 1 ? 'un contesto' : `${contestiRichiesti} contesti`}`}
               etichettaAvanti="Avanti: le domande"
             />
           </div>
@@ -558,6 +571,12 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               numero={numeroHmw}
               opzioniContesto={opzioniContesto}
               revisione={attiva.hmw_revisione}
+              onRichiediRivalutazione={async i => {
+                const { error } = await supabase.rpc('richiedi_rivalutazione_hmw_crazy8', { p_id: attiva.id, p_codice: codice, p_indice: i });
+                if (error) { setErroreAzione(messaggioErrore(error.message)); return false; }
+                patch({ hmw_revisione: Object.assign([...attiva.hmw_revisione], { [i]: 'richiesta' as const }) });
+                return true;
+              }}
               inviate={attiva.hmw_inviate}
               sketchSbloccati={attiva.sketch_sbloccato}
               onSalva={async h => { patch({ hmw: h }); return salvaCampi({ hmw: h }); }}
@@ -571,7 +590,7 @@ function Crazy8PageCorso({ corso }: { corso: Corso }) {
               onIndietro={() => vaiAFase(1)}
               onAvanti={() => avanzaA(3, attiva.hmw_inviate ? {} : { hmw_inviate: true })}
               avantiPossibile={attiva.sketch_sbloccato && hmwPronte}
-              motivoBlocco={!hmwPronte ? (numeroHmw === 1 ? 'Completate la domanda' : 'Completate le domande') : attiva.hmw_inviate ? 'Prima le leggiamo insieme, poi si passa agli sketch' : (numeroHmw === 1 ? 'Inviate la domanda' : 'Inviate le domande')}
+              motivoBlocco={!hmwPronte ? 'Completate almeno una domanda' : attiva.hmw_inviate ? 'Prima le leggiamo insieme, poi si passa agli sketch' : (numeroHmw === 1 ? 'Inviate la domanda' : 'Inviate le domande')}
               etichettaAvanti="Avanti: gli sketch"
             />
             {attiva.hmw_inviate && teamAtt && (

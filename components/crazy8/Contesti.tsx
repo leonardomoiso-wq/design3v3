@@ -4,7 +4,8 @@ import type { Contesto } from './shared';
 // Bacheca dei contesti preparata dal/dalla docente: il team ne sceglie
 // quanti ne permette l'attività (0 = quanti vuole). È il primo passo del
 // percorso: i contesti scelti diventano gli ambiti su cui lavora il team.
-export default function BachecaContesti({ contesti, scelti, massimo, onCambia }: {
+export default function BachecaContesti({ contesti, scelti, massimo, minimo = 0, onCambia }: {
+  minimo?: number;
   contesti: Contesto[];
   scelti: string[];
   massimo: number;
@@ -20,7 +21,7 @@ export default function BachecaContesti({ contesti, scelti, massimo, onCambia }:
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="mz-mono" style={{ color: 'var(--ink)' }}>
-          {massimo > 0 ? `Scelti ${scelti.length} / ${massimo}` : `Scelti ${scelti.length}`}
+          {massimo > 0 ? `Scelti ${scelti.length} / ${massimo}` : `Scelti ${scelti.length}`}{minimo > 0 && minimo < (massimo || Infinity) ? ` · almeno ${minimo}` : ''}
         </span>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 entra-cascata">

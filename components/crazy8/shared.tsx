@@ -96,7 +96,7 @@ export type Submission = {
   contesti: string[];
   hmw: Hmw[];
   hmw_inviate: boolean;
-  hmw_revisione: (('ok' | 'rivedere') | null)[];
+  hmw_revisione: (('ok' | 'rivedere' | 'richiesta') | null)[];
   sketch_sbloccato: boolean;
   concept_titolo: string | null;
   concept_descrizione: string | null;
@@ -287,7 +287,7 @@ export function scaricaDataUrl(url: string, nomeFile: string) {
 // Il database di Crazy 8 è allineato al codice? Se mancano colonne o
 // funzioni (migrazione non eseguita, o una vecchia rieseguita) i
 // salvataggi fallirebbero con errori generici: qui si scopre prima.
-export const MIGRAZIONE_CRAZY8 = 'supabase/migrations/20261021_crazy8_riallinea.sql e poi 20261022_crazy8_team_contesti_hmw.sql';
+export const MIGRAZIONE_CRAZY8 = 'le migrazioni in supabase/migrations dalla 20261021 alla 20261026, in ordine';
 
 export function useControlloDbCrazy8(): string[] {
   const [problemi, setProblemi] = useState<string[]>([]);

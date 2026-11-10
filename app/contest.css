@@ -442,7 +442,15 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 /* --- Crazy 8: pannello docente --- */
 .c8-doc-testata { position: sticky; top: 0; z-index: 20; display: grid; gap: 16px; padding: clamp(18px, 2.4vw, 32px) max(20px, 2vw) 16px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
 .c8-doc-corpo { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); min-height: 70vh; }
-.c8-doc-elenco { border-right: 1px solid var(--line); display: grid; align-content: start; }
+.c8-doc-elenco { border-right: 1px solid var(--line); display: grid; align-content: start; position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; overscroll-behavior: contain; }
+.c8-doc-cerca { position: sticky; top: 0; z-index: 2; display: grid; gap: 4px; padding: 12px max(20px, 2vw); background: var(--bg); border-bottom: 1px solid var(--line); }
+.c8-indicatore { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 16px; border-radius: 18px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.c8-indicatore strong { font-family: var(--f-display); font-size: 30px; font-weight: 400; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.c8-indicatore strong span { font-size: 18px; color: var(--muted); }
+.c8-indicatore-barra { position: relative; width: 140px; height: 8px; border-radius: 99px; background: var(--card); overflow: hidden; }
+.c8-indicatore-barra i, .c8-indicatore-barra b { position: absolute; inset: 0; transform-origin: 0 50%; transition: transform .8s var(--out); }
+.c8-indicatore-barra b { background: var(--accento-tenue); }
+.c8-indicatore-barra i { background: var(--accento-vivo); z-index: 1; }
 .c8-doc-voce { all: unset; box-sizing: border-box; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 6px; padding: 16px max(20px, 2vw); border-bottom: 1px solid var(--line); }
 .c8-doc-voce::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accento-tenue); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .55s var(--ease); }
 .c8-doc-voce:hover::before { transform: scaleY(1); }
@@ -455,6 +463,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--card); color: var(--ink); white-space: nowrap; }
 .c8-badge.ambra { background: #fde68a; color: #78350f; }
 .c8-badge.verde { background: #d1fae5; color: #065f46; }
+.c8-badge.rosso { background: #fee2e2; color: #991b1b; }
 .c8-doc-dettaglio { padding: clamp(18px, 2.4vw, 36px) max(20px, 2.4vw); min-width: 0; }
 .c8-doc-domanda { display: grid; gap: 18px; padding-top: 18px; border-top: 1px solid var(--ink); }
 .c8-doc-miniature { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; max-width: 760px; }
@@ -469,7 +478,7 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-doc-catena { display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 4px 2px 8px; }
 .c8-striscia-tag.ai { background: var(--accento-vivo); color: #1c1917; }
 .mz-pill.danger-pieno { background: #dc2626; color: #fff; }
-@media (max-width: 900px) { .c8-doc-corpo { grid-template-columns: 1fr; } .c8-doc-elenco { border-right: 0; border-bottom: 1px solid var(--ink); max-height: 45vh; overflow-y: auto; } }
+@media (max-width: 900px) { .c8-doc-corpo { grid-template-columns: 1fr; } .c8-doc-elenco { position: static; border-right: 0; border-bottom: 1px solid var(--ink); max-height: 45vh !important; overflow-y: auto; } }
 
 /* --- Crazy 8: riquadro immagine (intera, zoom col puntatore) --- */
 .c8-riquadro { all: unset; box-sizing: border-box; cursor: zoom-in; position: relative; display: grid; place-items: center; width: 100%; overflow: hidden; border-radius: 18px; background: radial-gradient(circle at 50% 40%, var(--surface), var(--card)); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .3s, transform .5s var(--spring); }
@@ -579,3 +588,4 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-menu-voci > button:hover, .c8-menu-voci > button:focus-visible { background: var(--card, #f5f5f4); }
 .c8-menu-voci > button:disabled { opacity: .4; cursor: default; }
 .c8-menu-destra .c8-menu-voci { left: auto; right: 0; }
+.c8-domanda.incompleta { box-shadow: inset 0 0 0 1.5px var(--line); background-image: repeating-linear-gradient(135deg, transparent 0 14px, rgba(28,25,23,.025) 14px 15px); }

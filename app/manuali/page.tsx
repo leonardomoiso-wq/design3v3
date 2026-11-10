@@ -215,7 +215,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Su cosa lavorate</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Scegliete dalla <b>bacheca</b> i contesti su cui lavorare.
+              Scegliete dalla <b>bacheca</b> i contesti su cui lavorare: in alto vedete quanti, per esempio «almeno 2» su 3.
             </p>
           </div>
           <div className="space-y-4">
@@ -224,7 +224,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Le domande HMW</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per ogni domanda (di solito due), ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Le proiettiamo sul wall e le leggiamo insieme: se una è da ritoccare potete ancora perfezionarla. Quando sono pronte, <b>passiamo agli sketch</b>.
+              Riempite gli spazi della formula <b>Come potremmo … per … così che …?</b> per ogni domanda (di solito due), ognuna legata a un contesto scelto, e inviatele. Sotto trovate le domande degli altri team: date una <b>★</b> a quelle che vi convincono. Se una domanda non è finita potete inviare le altre e completarla dopo. Le proiettiamo sul wall e le leggiamo insieme: se una è da ritoccare, sistematela e premete <b>Ritoccata: rileggetela ↻</b>. Quando sono pronte, <b>passiamo agli sketch</b>.
             </p>
           </div>
           <div className="space-y-4">

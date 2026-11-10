@@ -87,7 +87,7 @@ function TeamDellAttivita({ attivitaId, passcode, nomeFile }: { attivitaId: stri
 // Impostazioni di Crazy 8 (attivita.config): quanti contesti sceglie ogni
 // team e quanti sketch per ognuna delle due domande.
 function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; passcode: string }) {
-  const [config, setConfig] = useState<{ contesti_per_team?: number; sketch_per_domanda?: number; hmw_per_team?: number } | null>(null);
+  const [config, setConfig] = useState<{ contesti_per_team?: number; contesti_min?: number; sketch_per_domanda?: number; hmw_per_team?: number } | null>(null);
   const [msg, setMsg] = useState('');
   useEffect(() => {
     supabase.from('attivita').select('config').eq('id', attivitaId).maybeSingle().then(({ data }) => setConfig((data?.config as any) || {}));
@@ -100,6 +100,7 @@ function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; pass
   };
   if (!config) return null;
   const contesti = Number(config.contesti_per_team ?? 2);
+  const contestiMin = Number(config.contesti_min ?? (contesti > 0 ? contesti : 1));
   const sketch = Number(config.sketch_per_domanda ?? 4);
   const hmw = Number(config.hmw_per_team ?? 2);
   const scelta = (valore: number, attuale: number, onClick: () => void, etichetta?: string) => (
@@ -121,11 +122,16 @@ function ImpostazioniCrazy8({ attivitaId, passcode }: { attivitaId: string; pass
       </div>
       <div className="space-y-1.5">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Contesti per team</p>
-        <div className="flex flex-wrap gap-1.5">
-          {[1, 2, 3].map(n => <span key={n}>{scelta(n, contesti, () => salva({ contesti_per_team: n }))}</span>)}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-stone-500 w-14">Minimo</span>
+          {[1, 2, 3].map(n => <span key={n}>{scelta(n, contestiMin, () => salva(contesti > 0 && n > contesti ? { contesti_min: n, contesti_per_team: n } : { contesti_min: n }))}</span>)}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-stone-500 w-14">Massimo</span>
+          {[1, 2, 3].map(n => <span key={n}>{scelta(n, contesti, () => salva(n < contestiMin ? { contesti_per_team: n, contesti_min: n } : { contesti_per_team: n }))}</span>)}
           {scelta(0, contesti, () => salva({ contesti_per_team: 0 }), 'Tutti')}
         </div>
-        <p className="text-[11px] text-stone-400" aria-live="polite">{msg || 'I contesti si inseriscono dal pannello Crazy 8.'}</p>
+        <p className="text-[11px] text-stone-400" aria-live="polite">{msg || (contesti > 0 && contestiMin < contesti ? `Ogni team ne sceglie da ${contestiMin} a ${contesti}.` : 'I contesti si inseriscono dal pannello Crazy 8.')}</p>
       </div>
     </div>
   );

@@ -53,11 +53,12 @@ function Campo({ valore, onCambia, spazio, onFuoco, i }: { valore: string; onCam
   );
 }
 
-export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione, inviate, sketchSbloccati, onSalva, onInvia }: {
+export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione, inviate, sketchSbloccati, onSalva, onInvia, onRichiediRivalutazione }: {
+  onRichiediRivalutazione?: (indice: number) => Promise<boolean>;
   hmw: Hmw[];
   numero?: number;
   opzioniContesto: { id: string; etichetta: string; proprio: boolean }[];
-  revisione: (('ok' | 'rivedere') | null)[];
+  revisione: (('ok' | 'rivedere' | 'richiesta') | null)[];
   inviate: boolean;
   sketchSbloccati: boolean;
   onSalva: (hmw: Hmw[]) => Promise<boolean>;
@@ -97,7 +98,10 @@ export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione
     }, 900);
   };
 
-  const pronte = bozza.every(h => hmwCompleta(h) && h.contesto);
+  const completa = (h: Hmw) => hmwCompleta(h) && !!h.contesto;
+  const pronte = bozza.some(completa);
+  const incomplete = bozza.map((h, i) => (completa(h) ? -1 : i)).filter(i => i >= 0);
+  const [chiesta, setChiesta] = useState<number | null>(null);
 
   return (
     <div className="space-y-6">
@@ -117,12 +121,20 @@ export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione
         const consiglio = fuoco && fuoco.i === i ? GUIDA[fuoco.s].consiglio : null;
         const avvisoVerbo = h.azione.trim() && !sembraVerbo(h.azione);
         return (
-          <section key={i} className={`c8-domanda ${rev === 'ok' ? 'ok' : rev === 'rivedere' ? 'rivedere' : ''}`}>
+          <section key={i} className={`c8-domanda ${rev === 'ok' ? 'ok' : rev === 'rivedere' ? 'rivedere' : ''} ${inviate && !completa(h) ? 'incompleta' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="mz-mono" style={{ color: 'var(--ink)' }}>Domanda ({String(i + 1).padStart(2, '0')})</span>
               {inviate && (
-                <span className={`text-xs font-medium px-3 py-1 rounded-full ${rev === 'ok' ? 'bg-emerald-50 text-emerald-800' : rev === 'rivedere' ? 'bg-red-50 text-red-800' : 'bg-stone-100 text-stone-600'}`}>
-                  {rev === 'ok' ? '✓ Chiara' : rev === 'rivedere' ? 'Da ritoccare' : 'La stiamo leggendo'}
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {rev === 'rivedere' && onRichiediRivalutazione && (
+                    <button type="button" className="mz-pill sm o" disabled={chiesta === i}
+                      onClick={async () => { setChiesta(i); await onRichiediRivalutazione(i); setChiesta(null); }}>
+                      {chiesta === i ? 'Un momento…' : 'Ritoccata: rileggetela ↻'}
+                    </button>
+                  )}
+                  <span className={`text-xs font-medium px-3 py-1 rounded-full ${!completa(h) ? 'bg-stone-100 text-stone-500' : rev === 'ok' ? 'bg-emerald-50 text-emerald-800' : rev === 'rivedere' ? 'bg-red-50 text-red-800' : rev === 'richiesta' ? 'bg-amber-50 text-amber-900' : 'bg-stone-100 text-stone-600'}`}>
+                    {!completa(h) ? 'Da completare' : rev === 'ok' ? '✓ Chiara' : rev === 'rivedere' ? 'Da ritoccare' : rev === 'richiesta' ? '↻ Da rileggere' : 'La stiamo leggendo'}
+                  </span>
                 </span>
               )}
             </div>
@@ -158,7 +170,14 @@ export default function ComponiHmw({ hmw, numero = 2, opzioniContesto, revisione
           {stato === 'salvando' ? 'Salvo…' : stato === 'salvato' ? '✓ Salvato' : stato === 'errore' ? <span className="text-red-600">Non salvato, riprovate</span> : ''}
         </span>
         {!inviate ? (
-          <button type="button" className="mz-pill b lg" disabled={!pronte} onClick={e => onInvia({ x: e.clientX, y: e.clientY })}>Inviate le domande →</button>
+          <span className="flex flex-col items-end gap-1">
+            {pronte && incomplete.length > 0 && (
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                {incomplete.length === 1 ? `La domanda ${incomplete[0] + 1} non è completa: potete inviare le altre e finirla dopo.` : `Le domande ${incomplete.map(i => i + 1).join(' e ')} non sono complete: potete inviare le altre e finirle dopo.`}
+              </span>
+            )}
+            <button type="button" className="mz-pill b lg" disabled={!pronte} onClick={e => onInvia({ x: e.clientX, y: e.clientY })}>{incomplete.length > 0 && pronte ? 'Inviate quelle pronte →' : 'Inviate le domande →'}</button>
+          </span>
         ) : !sketchSbloccati ? (
           <p className="text-sm text-stone-600 m-0"><span className="mz-live-dot inline-block mr-2 align-middle" />Le stiamo leggendo insieme in aula. Intanto potete ancora perfezionarle.</p>
         ) : null}

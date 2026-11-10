@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Info from '@/components/Info';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
-import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, nomeContesto, testoHmw, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
+import { FASI, MIGRAZIONE_CRAZY8, NUMERO_FASI, faseEffettiva, useControlloDbCrazy8, nomeContesto, testoHmw, hmwCompleta, type Contesto, type Hmw, type Submission } from '@/components/crazy8/shared';
 import { PannelloContesti, WallHmw, type TeamAttivitaElenco } from '@/components/crazy8/Docente';
 import { BottomSheet } from '@/components/PannelliMobile';
 import { PresentazioneRisultati, type Diapositiva } from '@/components/crazy8/Finale';
@@ -160,6 +160,23 @@ export default function Crazy8DocentePage() {
   const [mostraContesti, setMostraContesti] = useState(false);
   const [mostraWall, setMostraWall] = useState(false);
   const [mostraRisultati, setMostraRisultati] = useState(false);
+  const [cerca, setCerca] = useState('');
+  // la colonna dei team scorre da sola: si misura quanto spazio resta sotto la testata
+  const contenitore = useRef<HTMLDivElement>(null);
+  const testata = useRef<HTMLDivElement>(null);
+  const [spazio, setSpazio] = useState({ alto: 0, altezza: 0 });
+  useEffect(() => {
+    const misura = () => {
+      const a = testata.current?.offsetHeight || 0;
+      const h = contenitore.current?.clientHeight || window.innerHeight;
+      setSpazio(s => (s.alto === a && s.altezza === h - a ? s : { alto: a, altezza: h - a }));
+    };
+    misura();
+    const ro = new ResizeObserver(misura);
+    if (testata.current) ro.observe(testata.current);
+    if (contenitore.current) ro.observe(contenitore.current);
+    return () => ro.disconnect();
+  }, []);
 
   // attività Crazy 8 del corso, con la sua bacheca e i suoi team
   const caricaAttivitaC8 = async () => {
@@ -260,6 +277,14 @@ export default function Crazy8DocentePage() {
   const selezionata = visibili.find(s => s.id === selezionataId) || visibili[0] || null;
   const teamDi = (s: any) => teamsAtt.find(t => t.id === s.team_attivita_id);
   const nomeDi = (s: any) => teamDi(s)?.nome || s.gruppo_nome;
+  // ricerca per nome del team (o dei membri), senza badare ad apostrofi e maiuscole
+  const chiave = (t: string) => (t || '').toLowerCase().replace(/[’‘ʼ`´]/g, "'").replace(/\s+/g, ' ').trim();
+  const elencati = cerca.trim()
+    ? visibili.filter(s => chiave(`${nomeDi(s)} ${(teamDi(s)?.membri || []).join(' ')}`).includes(chiave(cerca)))
+    : visibili;
+  // domande HMW: quante scritte e inviate, su quante attese
+  const completeDi = (s: any) => (Array.isArray(s.hmw) ? s.hmw : []).filter((h: Hmw) => h && hmwCompleta(h) && h.contesto).length;
+  const conTeam = submissions.filter(s => s.team_attivita_id);
 
   // === azioni ===
   // password dimenticata: la si reimposta dal pannello
@@ -313,7 +338,12 @@ export default function Crazy8DocentePage() {
   const sketchDi = (s: any, d: number) => (s.immagini || []).filter((x: any) => (x.domanda ?? 0) === d);
   const sketchPerDomanda = Number(attivitaC8?.config.sketch_per_domanda ?? 4);
   const contestiPerTeam = Number(attivitaC8?.config.contesti_per_team ?? 2);
+  const contestiMin = Number((attivitaC8?.config as any)?.contesti_min ?? contestiPerTeam);
   const numeroHmw = Math.min(4, Math.max(1, Number(attivitaC8?.config.hmw_per_team ?? 2)));
+  const domandeAttese = Math.max(teamsAtt.length, conTeam.length) * numeroHmw;
+  const domandeScritte = conTeam.reduce((n, s) => n + completeDi(s), 0);
+  const domandeInviate = conTeam.filter(s => s.hmw_inviate).reduce((n, s) => n + completeDi(s), 0);
+  const daRivalutare = conTeam.reduce((n, s) => n + (Array.isArray(s.hmw_revisione) ? s.hmw_revisione.filter((r: any) => r === 'richiesta').length : 0), 0);
   const domandeDi = (s: any) => (s.team_attivita_id ? Array.from({ length: Math.max(numeroHmw, Array.isArray(s.hmw) ? s.hmw.length : 0) }, (_, i) => i) : [0]);
   const immaginiDomanda = (s: any, d: number): ImmagineC8[] => {
     const h = (s.hmw || [])[d] as Hmw | undefined;
@@ -345,19 +375,30 @@ export default function Crazy8DocentePage() {
 
 
   return (
-    <div className="mz flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
+    <div ref={contenitore} className="mz flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
       {lightbox.nodo}
 
       {/* testata con le funzioni del pannello, tutte con il loro nome */}
-      <div className="c8-doc-testata">
+      <div ref={testata} className="c8-doc-testata">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2">
             <h1 className="mz-display" style={{ fontSize: 'clamp(40px, 5vw, 72px)', margin: 0 }}>Crazy 8<span className="mz-sup">({due(submissions.length)})</span></h1>
             <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>
               <TimerStudente timer={attivitaC8?.config.timer} />{' '}
-              {contestiPerTeam === 0 ? 'Contesti liberi' : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {numeroHmw} {numeroHmw === 1 ? 'domanda' : 'domande'} HMW, fino a {sketchPerDomanda} sketch da migliorare per domanda.{' '}
+              {contestiPerTeam === 0 ? 'Contesti liberi' : contestiMin < contestiPerTeam ? `Da ${contestiMin} a ${contestiPerTeam} contesti per team` : `${contestiPerTeam} contest${contestiPerTeam === 1 ? 'o' : 'i'} per team`}, {numeroHmw} {numeroHmw === 1 ? 'domanda' : 'domande'} HMW, fino a {sketchPerDomanda} sketch da migliorare per domanda.{' '}
               <a href="/teacher/attivita" className="underline underline-offset-2">Cambia nel pannello attività</a>
             </p>
+            {domandeAttese > 0 && (
+              <div className="c8-indicatore" role="status" aria-label={`Domande HMW scritte ${domandeScritte} su ${domandeAttese}, inviate ${domandeInviate}`}>
+                <span className="mz-mono">Domande HMW</span>
+                <strong>{domandeScritte}<span> / {domandeAttese}</span></strong>
+                <span className="c8-indicatore-barra" aria-hidden="true">
+                  <i style={{ transform: `scaleX(${Math.min(1, domandeInviate / domandeAttese)})` }} />
+                  <b style={{ transform: `scaleX(${Math.min(1, domandeScritte / domandeAttese)})` }} />
+                </span>
+                <span className="text-sm" style={{ color: 'var(--muted)' }}>scritte · {domandeInviate} inviate{daRivalutare > 0 ? ` · ${daRivalutare} da rivalutare` : ''}</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="mz-pill o" disabled={!attivitaC8} onClick={() => setMostraRegia(true)}>Regia dell&apos;aula</button>
@@ -403,9 +444,16 @@ export default function Crazy8DocentePage() {
       ) : (
         <div className="c8-doc-corpo">
           {/* elenco delle consegne */}
-          <nav className="c8-doc-elenco" aria-label="Consegne">
+          <nav className="c8-doc-elenco" aria-label="Consegne" style={spazio.altezza > 200 ? { top: spazio.alto, maxHeight: spazio.altezza } : undefined}>
+            {visibili.length > 0 && (
+              <div className="c8-doc-cerca">
+                <input type="search" className="mz-input" value={cerca} onChange={e => setCerca(e.target.value)} placeholder="Cerca un team o un nome" aria-label="Cerca per nome del team" />
+                {cerca.trim() && <span className="mz-mono" style={{ fontSize: 11 }}>{elencati.length} su {visibili.length}</span>}
+              </div>
+            )}
             {visibili.length === 0 && <p className="text-sm p-4" style={{ color: 'var(--muted)' }}>Nessuna consegna ancora.</p>}
-            {visibili.map((s, i) => {
+            {visibili.length > 0 && elencati.length === 0 && <p className="text-sm p-4" style={{ color: 'var(--muted)' }}>Nessun team con questo nome.</p>}
+            {elencati.map((s, i) => {
               const f = faseEffettiva(s as Submission);
               const n = (s.immagini || []).length;
               const ai = (s.immagini || []).reduce((t: number, x: any) => t + (x.generazioni_crazy8 || []).length, 0);
@@ -416,7 +464,8 @@ export default function Crazy8DocentePage() {
                   <span className="c8-doc-voce-meta">{(teamDi(s)?.membri || []).join(', ') || s.hmw_o_tema || ''}</span>
                   <span className="flex flex-wrap gap-1">
                     <span className="c8-badge" title={FASI[f - 1]?.breve}>Fase {due(f)}/{due(NUMERO_FASI)}</span>
-                    {s.team_attivita_id && <span className={`c8-badge ${s.hmw_inviate ? 'ambra' : ''}`}>{s.hmw_inviate ? 'HMW inviate' : 'HMW in corso'}</span>}
+                    {s.team_attivita_id && <span className={`c8-badge ${s.hmw_inviate ? 'ambra' : ''}`} title={s.hmw_inviate ? 'Domande inviate' : 'Domande in scrittura'}>HMW {completeDi(s)}/{numeroHmw}{s.hmw_inviate ? ' inviate' : ''}</span>}
+                    {s.team_attivita_id && Array.isArray(s.hmw_revisione) && s.hmw_revisione.includes('richiesta') && <span className="c8-badge rosso">↻ Da rivalutare</span>}
                     {s.sketch_sbloccato && s.team_attivita_id && <span className="c8-badge verde">Sketch aperti</span>}
                     {n > 0 && <span className="c8-badge">{n} sketch</span>}
                     {ai > 0 && <span className="c8-badge ambra">{ai} AI</span>}
@@ -477,10 +526,11 @@ export default function Crazy8DocentePage() {
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
                             <span className="mz-mono" style={{ color: 'var(--accento)' }}>Domanda ({due(d + 1)}){h ? ` — ${nomeContesto(h.contesto, contesti)}` : ''}</span>
-                            <p className="mz-display" style={{ fontSize: 'clamp(22px, 2.2vw, 32px)', margin: '6px 0 0', lineHeight: 1.1 }}>{h ? testoHmw(h) : 'Non ancora scritta'}</p>
+                            <p className="mz-display" style={{ fontSize: 'clamp(22px, 2.2vw, 32px)', margin: '6px 0 0', lineHeight: 1.1, color: h && hmwCompleta(h) ? undefined : 'var(--muted)' }}>{h && hmwCompleta(h) ? testoHmw(h) : 'Non ancora completa'}</p>
                           </div>
-                          {h && (
+                          {h && hmwCompleta(h) && (
                             <div className="flex gap-1.5">
+                              {rev === 'richiesta' && <span className="c8-badge rosso" style={{ alignSelf: 'center' }}>↻ Chiedono di rileggerla</span>}
                               <button type="button" className={`mz-pill sm ${rev === 'ok' ? 'b' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'ok' ? null : 'ok')}>✓ Pertinente</button>
                               <button type="button" className={`mz-pill sm ${rev === 'rivedere' ? 'danger-pieno' : 'o'}`} onClick={() => revisionaHmw(selezionata, d, rev === 'rivedere' ? null : 'rivedere')}>Da ritoccare</button>
                             </div>
