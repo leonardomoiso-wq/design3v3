@@ -206,7 +206,7 @@ function ManualiContenuto() {
               <h2 className="text-lg font-serif font-bold">Il team dell&apos;attività</h2>
             </div>
             <p className="text-sm text-stone-600">
-              Ogni attività ha i suoi team. Entrando in Crazy 8 uno di voi <b>crea il team</b> (nome, membri, password), gli altri <b>entrano</b> con nome e password.
+              Ogni attività ha i suoi team. Entrando in Crazy 8 uno di voi <b>crea il team</b> (nome, membri, password), gli altri <b>entrano</b> con nome del team, password e il proprio nome e cognome, che si aggiunge ai membri. Toccando il nome del team in alto potete aggiungere o togliere membri e cambiare la password.
             </p>
           </div>
           <div className="space-y-4">

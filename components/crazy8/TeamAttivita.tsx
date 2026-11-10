@@ -52,6 +52,8 @@ export default function TeamAttivitaGate({ attivitaId, titoloAttivita, membriSug
   const [errore, setErrore] = useState('');
   const [inCorso, setInCorso] = useState(false);
   const [aiuto, setAiuto] = useState(false);
+  const [chiSono, setChiSono] = useState(membriSuggeriti.length === 1 ? membriSuggeriti[0] : '');
+  const membriPieni = membri.map(m => m.trim()).filter(Boolean);
 
   useEffect(() => {
     supabase.rpc('elenco_team_attivita', { p_attivita_id: attivitaId }).then(({ data }) => {
@@ -71,7 +73,14 @@ export default function TeamAttivitaGate({ attivitaId, titoloAttivita, membriSug
     if (error) { setErrore(messaggio(error.message)); return; }
     const r = (Array.isArray(data) ? data[0] : data) as any;
     if (!r) { setErrore(messaggio('')); return; }
-    onEntrato({ id: r.id, numero: r.numero, nome: r.nome, membri: r.membri || [], password });
+    let elenco: string[] = r.membri || [];
+    // chi entra si aggiunge ai membri del team, se non c'è già
+    const io = chiSono.trim().replace(/\s+/g, ' ');
+    if (modo === 'entra' && io && !elenco.some(m => m.trim().toLowerCase() === io.toLowerCase())) {
+      const { data: nuovi, error: e2 } = await supabase.rpc('aggiorna_membri_team_attivita', { p_id: r.id, p_password: password, p_membri: [...elenco, io] });
+      if (!e2 && Array.isArray(nuovi)) elenco = nuovi as string[];
+    }
+    onEntrato({ id: r.id, numero: r.numero, nome: r.nome, membri: elenco, password });
   };
 
   return (
@@ -116,6 +125,10 @@ export default function TeamAttivitaGate({ attivitaId, titoloAttivita, membriSug
           </div>
         )}
 
+        {modo === 'entra' && (
+          <input className="mz-input" value={chiSono} onChange={e => setChiSono(e.target.value)} placeholder="Il tuo nome e cognome" aria-label="Il tuo nome e cognome" autoComplete="name" />
+        )}
+
         <input className="mz-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={modo === 'crea' ? 'Password del team (min. 4 caratteri)' : 'Password del team'} aria-label="Password del team" />
         {modo === 'entra' && (
           <div>
@@ -127,8 +140,9 @@ export default function TeamAttivitaGate({ attivitaId, titoloAttivita, membriSug
             )}
           </div>
         )}
+        {modo === 'crea' && membriPieni.length === 0 && <p className="text-sm m-0" style={{ color: 'var(--muted)' }}>Scrivete chi fa parte del team: almeno un nome.</p>}
         {errore && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 m-0">{errore}</p>}
-        <button type="submit" disabled={inCorso || !nome.trim() || password.length < 4} className="mz-pill b lg" style={{ width: '100%' }}>
+        <button type="submit" disabled={inCorso || !nome.trim() || password.length < 4 || (modo === 'crea' ? membriPieni.length === 0 : chiSono.trim().length < 3)} className="mz-pill b lg" style={{ width: '100%' }}>
           {inCorso ? 'Un momento…' : modo === 'crea' ? 'Create il team →' : 'Entrate →'}
         </button>
       </form>
@@ -166,7 +180,7 @@ export function MenuTeam({ team, onCambiata, onEsci }: {
         <span className="mz-mono">{String(team.numero).padStart(2, '0')}</span> {team.nome}
       </summary>
       <div className="c8-menu-voci" style={{ minWidth: 260 }}>
-        <p className="text-xs m-0 px-3 pt-2 pb-1" style={{ color: 'var(--muted)' }}>{team.membri.join(', ')}</p>
+        <MembriTeam team={team} onCambiati={membri => onCambiata({ ...team, membri })} />
         {!forma ? (
           <button type="button" onClick={() => { setForma(true); setMsg(null); }}>Cambia password</button>
         ) : (
@@ -180,5 +194,43 @@ export function MenuTeam({ team, onCambiata, onEsci }: {
         <button type="button" onClick={onEsci}>Esci dal team</button>
       </div>
     </details>
+  );
+}
+
+// I membri del team, modificabili da dentro l'attività
+function MembriTeam({ team, onCambiati }: { team: TeamAttivita; onCambiati: (m: string[]) => void }) {
+  const [nuovo, setNuovo] = useState('');
+  const [errore, setErrore] = useState('');
+  const salva = async (membri: string[]) => {
+    setErrore('');
+    if (membri.length === 0) { setErrore('Nel team deve restare almeno una persona.'); return; }
+    const { data, error } = await supabase.rpc('aggiorna_membri_team_attivita', { p_id: team.id, p_password: team.password, p_membri: membri });
+    if (error) { setErrore(messaggio(error.message)); return; }
+    onCambiati((data as string[]) || membri);
+  };
+  const aggiungi = () => {
+    const n = nuovo.trim().replace(/\s+/g, ' ');
+    if (n.length < 3) return;
+    if (team.membri.some(m => m.toLowerCase() === n.toLowerCase())) { setNuovo(''); return; }
+    salva([...team.membri, n]);
+    setNuovo('');
+  };
+  return (
+    <div className="grid gap-1.5 px-3 pt-2 pb-1">
+      <span className="mz-mono" style={{ fontSize: 11 }}>Membri ({team.membri.length})</span>
+      <div className="flex flex-wrap gap-1.5">
+        {team.membri.map(m => (
+          <span key={m} className="mz-chip" style={{ cursor: 'default' }}>
+            {m}
+            <button type="button" onClick={() => salva(team.membri.filter(x => x !== m))} aria-label={`Togli ${m}`} style={{ marginLeft: 4, color: 'var(--muted)' }}>✕</button>
+          </span>
+        ))}
+      </div>
+      <form className="flex gap-1.5" onSubmit={e => { e.preventDefault(); aggiungi(); }}>
+        <input className="mz-input" value={nuovo} onChange={e => setNuovo(e.target.value)} placeholder="Nome e cognome" aria-label="Aggiungi un membro" style={{ padding: '8px 12px' }} />
+        <button type="submit" className="mz-pill sm o" disabled={nuovo.trim().length < 3}>+</button>
+      </form>
+      {errore && <p role="alert" className="text-xs text-red-700 m-0">{errore}</p>}
+    </div>
   );
 }
