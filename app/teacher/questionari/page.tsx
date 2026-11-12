@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDocente } from '@/lib/docente-context';
 import { QR } from '@/components/moiso/QR';
-import { MODULI, SCALA, colonne, componi, domandePredefinite, type Risposte } from '@/lib/questionari';
+import { INTRO_PREDEFINITA, MODULI, SCALA, colonne, componi, domandePredefinite, type Risposte } from '@/lib/questionari';
 import { scaricaCsv, slugCsv } from '@/lib/csv';
 
 // Questionari anonimi del corso: si compongono scegliendo le domande
@@ -62,7 +62,7 @@ export default function QuestionariDocente() {
     carica();
   };
 
-  const nuovo = () => setModifica({ titolo: `Com'è andata: ${corso.nome}`, intro: '', domande: domandePredefinite(tipiCorso), aperto: false });
+  const nuovo = () => setModifica({ titolo: `Com'è andata: ${corso.nome}`, intro: INTRO_PREDEFINITA.join('\n'), domande: domandePredefinite(tipiCorso), aperto: false });
 
   return (
     <div className="mz flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
@@ -127,7 +127,7 @@ export default function QuestionariDocente() {
 
 function Editor({ q, onAnnulla, onSalva }: { q: Partial<Q>; onAnnulla: () => void; onSalva: (q: Partial<Q>) => void }) {
   const [titolo, setTitolo] = useState(q.titolo || '');
-  const [intro, setIntro] = useState(q.intro || '');
+  const [intro, setIntro] = useState(q.intro ?? INTRO_PREDEFINITA.join('\n'));
   const [scelte, setScelte] = useState<string[]>(q.domande || []);
   const set = new Set(scelte);
   const numeri = useMemo(() => Object.fromEntries(componi(scelte).flatMap(v => v.domande.map(d => [d.domanda.id, d.numero]))), [scelte]);
@@ -142,9 +142,13 @@ function Editor({ q, onAnnulla, onSalva }: { q: Partial<Q>; onAnnulla: () => voi
         <span className="mz-mono">{scelte.length} domande</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1"><span className="mz-mono">Titolo</span><input className="mz-input" value={titolo} onChange={e => setTitolo(e.target.value)} /></label>
-        <label className="grid gap-1"><span className="mz-mono">Frase di apertura (facoltativa)</span><input className="mz-input" value={intro} onChange={e => setIntro(e.target.value)} placeholder="Qualche minuto per dirci com'è andata…" /></label>
+        <label className="grid gap-1 md:col-span-2"><span className="mz-mono">Titolo</span><input className="mz-input" value={titolo} onChange={e => setTitolo(e.target.value)} /></label>
       </div>
+      <label className="grid gap-1">
+        <span className="mz-mono">Introduzione</span>
+        <textarea className="mz-input" rows={4} value={intro} onChange={e => setIntro(e.target.value)} />
+        <span className="text-xs" style={{ color: 'var(--muted)' }}>Ogni a capo diventa un paragrafo. Se la lasci vuota, gli studenti leggono l&apos;introduzione proposta.</span>
+      </label>
       <div className="grid gap-3">
         {MODULI.map(m => {
           const ids = m.domande.map(d => d.id);

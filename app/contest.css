@@ -595,7 +595,9 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-avanzamento { position: sticky; top: 0; z-index: 30; height: 4px; background: var(--line); }
 .q-avanzamento i { position: absolute; inset: 0; background: var(--accento-vivo); transform-origin: 0 50%; transition: transform .7s var(--out); }
 .q-testata { display: grid; gap: 14px; padding: clamp(28px, 6vw, 72px) max(20px, 4vw) clamp(20px, 3vw, 36px); max-width: 1100px; }
-.q-intro { font-size: clamp(17px, 1.6vw, 20px); line-height: 1.45; max-width: 62ch; margin: 0; color: var(--ink-2, var(--ink)); }
+.q-intro { display: grid; gap: 10px; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.45; max-width: 62ch; color: var(--ink-2, var(--ink)); }
+.q-intro p { margin: 0; }
+.q-grazie { flex-basis: 100%; margin: 0; text-align: right; font-family: var(--f-display); font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -.02em; line-height: 1.15; }
 .q-corpo { display: grid; gap: clamp(28px, 4vw, 48px); padding: 0 max(20px, 4vw) 96px; max-width: 980px; }
 .q-parte { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--ink); }
 .q-parte-titolo { font-family: var(--f-display); font-weight: 400; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.025em; line-height: 1.05; margin: 0 0 4px; }
@@ -644,3 +646,4 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-barra-et { font-size: 11px; color: var(--muted); line-height: 1.2; }
 .q-citazioni { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .q-citazioni li { padding: 10px 14px; border-radius: 12px; background: var(--surface); font-size: 14.5px; line-height: 1.45; }
+.q-nota { margin: -6px 0 4px; font-size: 15px; line-height: 1.45; color: var(--muted); max-width: 62ch; }

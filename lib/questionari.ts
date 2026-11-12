@@ -24,6 +24,13 @@ export type Modulo = {
   domande: Domanda[];
 };
 
+// Apertura di ogni questionario, se il docente non ne scrive una sua
+export const INTRO_PREDEFINITA = [
+  'Con questo questionario raccogliamo la tua esperienza con le attività del corso: cosa ha funzionato, cosa no, cosa cambieresti.',
+  'È anonimo: non chiediamo nome, team né altri dati, e leggiamo le risposte solo tutte insieme. Ci servono per migliorare le attività per le prossime classi e per capire come introdurre al meglio strumenti come l\'AI generativa nella didattica del design.',
+  'Le valutazioni da 1 a 5 sono obbligatorie. Le risposte aperte no, ma se riesci a scrivere anche solo qualche riga lo apprezziamo molto: è lì che capiamo meglio. Ci vogliono una decina di minuti.',
+];
+
 export const SCALA = [
   { valore: 1, etichetta: 'Per niente' },
   { valore: 2, etichetta: 'Poco' },

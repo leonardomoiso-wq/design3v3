@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Solidi } from '@/components/moiso/Moiso';
-import { SCALA, chiedeApprofondimento, componi, type Risposte } from '@/lib/questionari';
+import { INTRO_PREDEFINITA, SCALA, chiedeApprofondimento, componi, type Risposte } from '@/lib/questionari';
 
 // Questionario anonimo, aperto da un link diretto (/questionario?q=<id>):
 // non serve accedere al corso e non si salvano nome, team o dispositivo.
@@ -129,7 +129,9 @@ export default function QuestionarioPage() {
 
       <header className="q-testata mz-in">
         <h1 className="mz-display" style={{ fontSize: 'clamp(44px, 8vw, 104px)', margin: 0, lineHeight: .95 }}>{info.titolo}<span className="mz-sup">(anonimo)</span></h1>
-        <p className="q-intro">{info.intro || 'Qualche minuto per dirci com\'è andata. Non chiediamo nome né team: rispondi liberamente.'}</p>
+        <div className="q-intro">
+          {(info.intro ? info.intro.split(/\n+/) : INTRO_PREDEFINITA).map((p, i) => <p key={i}>{p}</p>)}
+        </div>
         <p className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Da 1 (per niente) a 5 (molto). Se scegli 1 o 5 ti chiediamo il perché.</p>
       </header>
 
@@ -137,6 +139,9 @@ export default function QuestionarioPage() {
         {voci.map(v => (
           <section key={v.modulo.id} className="q-parte">
             <h2 className="q-parte-titolo">{v.modulo.titolo}</h2>
+            {v.domande.every(d => d.domanda.tipo === 'aperta') && (
+              <p className="q-nota">Non sono obbligatorie, ma sono le risposte che ci fanno capire di più: anche poche righe sono preziose.</p>
+            )}
             {v.domande.map(({ domanda, numero }) => {
               const valore = risposte[domanda.id];
               const perche = `${domanda.id}__perche`;
@@ -157,12 +162,12 @@ export default function QuestionarioPage() {
                         <label className="q-perche entra-sezione">
                           <span className="mz-mono">{numero}.1</span>
                           <span className="q-perche-testo">{domanda.approfondimento}</span>
-                          <textarea className="mz-input" rows={3} value={(risposte[perche] as string) || ''} onChange={e => imposta(perche, e.target.value)} placeholder="Facoltativo, ma ci aiuta molto" />
+                          <textarea className="mz-input" rows={3} value={(risposte[perche] as string) || ''} onChange={e => imposta(perche, e.target.value)} placeholder="Facoltativo: anche una riga ci aiuta a capire meglio" />
                         </label>
                       )}
                     </>
                   ) : (
-                    <textarea className="mz-input" rows={4} aria-label={domanda.testo} value={(valore as string) || ''} onChange={e => imposta(domanda.id, e.target.value)} placeholder="Scrivi qui (facoltativo)" />
+                    <textarea className="mz-input" rows={4} aria-label={domanda.testo} value={(valore as string) || ''} onChange={e => imposta(domanda.id, e.target.value)} placeholder="Facoltativa, ma molto apprezzata" />
                   )}
                 </fieldset>
               );
@@ -171,8 +176,9 @@ export default function QuestionarioPage() {
         ))}
 
         <div className="q-invio">
+          <p className="q-grazie">La tua compilazione ci è molto utile: grazie!</p>
           {errore && <p role="alert" className="text-sm text-red-700 m-0">{errore}</p>}
-          {!completo && <span className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Mancano {daScala.length - date} risposte da 1 a 5. Le domande aperte sono facoltative.</span>}
+          {!completo && <span className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Mancano {daScala.length - date} valutazioni da 1 a 5. Le risposte aperte sono facoltative, ma molto apprezzate.</span>}
           <button type="submit" className="mz-pill b lg" disabled={!completo || stato === 'invio'}>{stato === 'invio' ? 'Invio…' : mio ? 'Aggiorna le risposte →' : 'Invia, in forma anonima →'}</button>
         </div>
       </form>
