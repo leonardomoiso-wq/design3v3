@@ -21,6 +21,7 @@ const SEZIONI = [
   { href: '/teacher/crazy8', etichetta: '🎨 Crazy 8' },
   { href: '/teacher/hmw', etichetta: '🎭 HMW' },
   { href: '/teacher/contest', etichetta: '🏆 Contest' },
+  { href: '/teacher/questionari', etichetta: '📋 Questionari' },
   { href: '/teacher/testi', etichetta: '📝 Testi' },
   { href: '/teacher/corso', etichetta: '🧭 Corso & Form' },
 ];

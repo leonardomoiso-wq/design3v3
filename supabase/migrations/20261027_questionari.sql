@@ -145,3 +145,9 @@ begin
 end;
 $$;
 grant execute on function docente_risposte_questionario(uuid, text, uuid) to anon;
+
+-- /questionario è una pagina della piattaforma: nessun ateneo può usarne il nome
+create or replace function codice_ateneo_riservato(p text) returns boolean
+language sql immutable as $$
+  select lower(coalesce(p, '')) in ('student', 'teacher', 'crazy8', 'hmw', 'contest', 'manuali', 'api', '_next', 'favicon.ico', 'corsi', 'atenei', 'questionario');
+$$;

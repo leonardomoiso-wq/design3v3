@@ -589,3 +589,58 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .c8-menu-voci > button:disabled { opacity: .4; cursor: default; }
 .c8-menu-destra .c8-menu-voci { left: auto; right: 0; }
 .c8-domanda.incompleta { box-shadow: inset 0 0 0 1.5px var(--line); background-image: repeating-linear-gradient(135deg, transparent 0 14px, rgba(28,25,23,.025) 14px 15px); }
+
+/* --- Questionario anonimo (/questionario) --- */
+.q-pagina { min-height: 100vh; }
+.q-avanzamento { position: sticky; top: 0; z-index: 30; height: 4px; background: var(--line); }
+.q-avanzamento i { position: absolute; inset: 0; background: var(--accento-vivo); transform-origin: 0 50%; transition: transform .7s var(--out); }
+.q-testata { display: grid; gap: 14px; padding: clamp(28px, 6vw, 72px) max(20px, 4vw) clamp(20px, 3vw, 36px); max-width: 1100px; }
+.q-intro { font-size: clamp(17px, 1.6vw, 20px); line-height: 1.45; max-width: 62ch; margin: 0; color: var(--ink-2, var(--ink)); }
+.q-corpo { display: grid; gap: clamp(28px, 4vw, 48px); padding: 0 max(20px, 4vw) 96px; max-width: 980px; }
+.q-parte { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--ink); }
+.q-parte-titolo { font-family: var(--f-display); font-weight: 400; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.025em; line-height: 1.05; margin: 0 0 4px; }
+.q-domanda { border: 0; margin: 0; padding: 18px; border-radius: 22px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 14px; min-width: 0; transition: box-shadow .4s var(--out); }
+.q-domanda.risposta { box-shadow: inset 0 0 0 1.5px var(--accento-vivo); }
+.q-testo { float: left; width: 100%; padding: 0; font-size: 17px; line-height: 1.4; text-wrap: pretty; }
+.q-numero { display: inline-block; min-width: 3.2ch; margin-right: 8px; font-family: var(--f-mono, ui-monospace, monospace); font-size: 13px; font-weight: 700; color: var(--accento); letter-spacing: .02em; }
+.q-scala { clear: both; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.q-voto { all: unset; box-sizing: border-box; cursor: pointer; display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border-radius: 14px; background: var(--card); text-align: center; transition: background .25s, transform .45s var(--spring); }
+.q-voto b { font-family: var(--f-display); font-weight: 400; font-size: 26px; line-height: 1; letter-spacing: -.02em; }
+.q-voto span { font-size: 11.5px; color: var(--muted); line-height: 1.2; }
+.q-voto:hover { transform: translateY(-2px); }
+.q-voto.on { background: var(--accento-vivo); color: #1c1917; transform: scale(1.04); }
+.q-voto.on span { color: rgba(28, 25, 23, .75); }
+.q-voto:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.q-perche { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--accento-tenue); }
+.q-perche-testo { font-size: 15px; line-height: 1.4; }
+.q-domanda textarea { clear: both; width: 100%; resize: vertical; }
+.q-invio { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 18px; padding-top: 22px; border-top: 1px solid var(--ink); }
+.q-scala-estremi { display: none; justify-content: space-between; margin-top: -6px; font-size: 12px; color: var(--muted); }
+@media (max-width: 560px) { .q-voto span { display: none; } .q-voto { padding: 12px 4px; } .q-scala-estremi { display: flex; } .q-domanda { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { .q-voto, .q-avanzamento i { transition: none; } }
+.q-vuoto, .q-scheda { display: grid; gap: 14px; padding: clamp(18px, 2.4vw, 28px); border-radius: 24px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.q-editor { box-shadow: inset 0 0 0 1.5px var(--accento-vivo); }
+.q-link { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 10px 14px; border-radius: 14px; background: var(--card); }
+.q-qr { display: grid; justify-items: start; gap: 8px; }
+.q-modulo { margin: 0; padding: 12px 14px; border: 0; border-radius: 16px; background: var(--card); display: grid; gap: 10px; }
+.q-modulo.on { background: var(--accento-tenue); }
+.q-modulo-testa { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 12px; align-items: start; cursor: pointer; }
+.q-modulo-testa b { display: block; font-weight: 600; }
+.q-modulo-testa small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.q-modulo input { accent-color: #b45309; margin-top: 3px; }
+.q-modulo-domande { display: grid; gap: 2px; padding-left: 30px; }
+.q-modulo-domande label { display: grid; grid-template-columns: 18px 3.6ch minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 4px; font-size: 14px; line-height: 1.4; cursor: pointer; border-radius: 8px; }
+.q-modulo-domande label.spenta { color: var(--muted); }
+.q-modulo-domande em { color: var(--muted); font-style: normal; font-size: 12.5px; }
+.q-risultati { display: grid; gap: 22px; padding-top: 16px; border-top: 1px solid var(--ink); }
+.q-ris-domanda { display: grid; gap: 12px; padding: 14px 16px; border-radius: 18px; background: var(--card); }
+.q-ris-domanda summary { cursor: pointer; line-height: 1.4; }
+.q-ris-testa { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.q-media { font-family: var(--f-display); font-weight: 400; font-size: 38px; line-height: .9; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.q-barre { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; height: 120px; align-items: end; }
+.q-barra { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; gap: 4px; text-align: center; }
+.q-barra i { align-self: end; display: block; border-radius: 8px 8px 3px 3px; background: var(--accento-vivo); min-height: 3px; transition: height .8s var(--out); }
+.q-barra-n { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.q-barra-et { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.q-citazioni { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.q-citazioni li { padding: 10px 14px; border-radius: 12px; background: var(--surface); font-size: 14.5px; line-height: 1.45; }
