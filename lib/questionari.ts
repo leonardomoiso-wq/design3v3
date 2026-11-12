@@ -2,8 +2,9 @@
 // «Feedback Game» e «Territorial Quest»:
 // - domande da 1 a 5; se la risposta è estrema (1 o 5) si chiede di
 //   spiegare, dove previsto (approfondimento, es. Q2.1);
-// - l'impatto dentro il team (Q9–Q11 nel modello) e tra i team (Q12–Q13);
 // - risposte aperte (Q14–Q17).
+// Le domande sui team del modello (Q4–Q5, Q8–Q13) qui non ci sono: i team
+// cambiano da un'attività all'altra e le risposte sarebbero poco confrontabili.
 // Ogni corso compone il suo questionario scegliendo le parti (moduli) e
 // le singole domande: non tutte le classi fanno tutte le attività.
 // Le domande hanno un id stabile (es. 'casi_scheda'), così i risultati si
@@ -72,14 +73,9 @@ export const MODULI: Modulo[] = [
   {
     id: 'casi_confronto',
     titolo: 'Casi studio: confrontare e discutere',
-    descrizione: 'Seconda parte dei casi studio: matrice 2×2, radar multicriterio, revisione tra pari e voto in aula.',
+    descrizione: 'Seconda parte dei casi studio: revisione tra pari e voto in aula.',
     attivita: 'design_case_studies',
     domande: [
-      {
-        id: 'casi_matrice', tipo: 'scala',
-        testo: 'Credi che la matrice 2×2 e il radar multicriterio ti abbiano aiutato a confrontare i casi e a riconoscere spazi di opportunità?',
-        approfondimento: 'Specifica cosa ti è servito (o non ti è servito) nel vedere i casi sulla matrice e sul radar.',
-      },
       {
         id: 'casi_revisione', tipo: 'scala',
         testo: 'Quanto sei stato soddisfatto, a livello personale, della revisione tra pari e del voto in aula sui casi studio?',
@@ -100,15 +96,15 @@ export const MODULI: Modulo[] = [
       },
       {
         id: 'hmw_wall', tipo: 'scala',
-        testo: 'Credi che leggere insieme le domande sul wall (stelle, domande da ritoccare, nuova lettura) abbia migliorato la qualità delle vostre domande?',
+        testo: 'Credi che leggere insieme le domande sul wall, ritoccarle e chiederne una nuova lettura abbia migliorato la qualità delle vostre domande?',
         approfondimento: 'Specifica come il wall e il confronto in aula hanno influenzato positivamente o negativamente le vostre domande.',
       },
     ],
   },
   {
     id: 'crazy8',
-    titolo: 'Crazy 8 e AI generativa',
-    descrizione: 'Sketch a tempo e miglioramento con l\'AI generativa.',
+    titolo: 'Crazy 8: gli sketch',
+    descrizione: 'Sketch a mano, a tempo.',
     attivita: 'crazy8_ai',
     domande: [
       {
@@ -116,55 +112,59 @@ export const MODULI: Modulo[] = [
         testo: 'Credi che disegnare da 5 a 8 sketch a tempo ti abbia aiutato a generare idee diverse e a superare la prima idea?',
         approfondimento: 'Specifica cosa ti ha aiutato o ostacolato nel disegnare gli sketch a tempo.',
       },
+    ],
+  },
+  {
+    id: 'ai',
+    titolo: 'AI generativa: dallo sketch all\'immagine',
+    descrizione: 'Image-to-image, configuratore del prompt, risultati rispetto agli sketch, uso consapevole dell\'AI e suo posto nella didattica.',
+    attivita: 'crazy8_ai',
+    domande: [
       {
-        id: 'c8_ai', tipo: 'scala',
-        testo: 'Quanto sei stato soddisfatto, a livello personale, nel migliorare gli sketch con l\'AI generativa (configuratore del prompt, immagini generate)?',
-        approfondimento: 'Quali aspetti del lavoro con l\'AI generativa ti hanno soddisfatto o deluso, e perché?',
+        id: 'ai_img2img', tipo: 'scala',
+        testo: 'Credi che la tecnica image-to-image (generare l\'immagine partendo dal tuo sketch) ti abbia permesso di mantenere il controllo sull\'idea, rispetto a generare un\'immagine solo da un testo?',
+        approfondimento: 'Spiega in che modo partire dallo sketch ha guidato, o limitato, il risultato dell\'AI.',
       },
-    ],
-  },
-  {
-    id: 'team',
-    titolo: 'Il team',
-    descrizione: 'Collaborazione, competenze e motivazione nel confronto tra team.',
-    domande: [
-      { id: 'team_collaborazione', tipo: 'scala', testo: 'Come valuti la collaborazione e la comunicazione all\'interno del tuo team?' },
-      { id: 'team_competenze', tipo: 'scala', testo: 'In che misura le competenze individuali dei membri del tuo team si sono completate tra loro?' },
       {
-        id: 'team_motivazione', tipo: 'scala',
-        testo: 'Quanto il confronto con gli altri team (voti, stelle, classifiche, presentazioni) ha influenzato la tua motivazione?',
-        approfondimento: 'Puoi condividere esperienze in cui il confronto con gli altri team ha avuto un impatto sulla tua motivazione, positivo o negativo?',
+        id: 'ai_prompt', tipo: 'scala',
+        testo: 'Credi che il configuratore del prompt ti abbia aiutato a capire come scrivere un prompt efficace?',
+        approfondimento: 'Specifica cosa del configuratore ti è stato utile, o cosa ti è mancato.',
       },
-    ],
-  },
-  {
-    id: 'impatto_team',
-    titolo: 'Dentro il tuo team',
-    descrizione: 'Valuta l\'impatto delle attività all\'interno del team (Q9–Q11 nel modello).',
-    gruppo: 'Valuta l\'impatto delle attività all\'interno del tuo team.',
-    domande: [
-      { id: 'imp_competizione_team', tipo: 'scala', testo: 'Livello di competizione nel team' },
-      { id: 'imp_collaborazione_team', tipo: 'scala', testo: 'Collaborazione nel team' },
-      { id: 'imp_produttivita_team', tipo: 'scala', testo: 'Produttività del team' },
-    ],
-  },
-  {
-    id: 'impatto_corso',
-    titolo: 'Tra i team del corso',
-    descrizione: 'Valuta l\'impatto delle attività tra il proprio team e gli altri (Q12–Q13 nel modello).',
-    gruppo: 'Valuta l\'impatto delle attività tra il tuo team e gli altri team del corso.',
-    domande: [
-      { id: 'imp_competizione_corso', tipo: 'scala', testo: 'Livello di competizione tra i team' },
-      { id: 'imp_collaborazione_corso', tipo: 'scala', testo: 'Collaborazione tra i team del corso' },
+      {
+        id: 'ai_fedelta', tipo: 'scala',
+        testo: 'Quanto le immagini generate dall\'AI sono rimaste fedeli alle idee dei vostri sketch?',
+        approfondimento: 'Descrivi cosa l\'AI ha aggiunto, perso o cambiato rispetto agli sketch.',
+      },
+      {
+        id: 'ai_valore', tipo: 'scala',
+        testo: 'Quanto le immagini generate hanno aggiunto valore agli sketch (comunicare meglio l\'idea, scoprire varianti, rendere il concept più credibile)?',
+        approfondimento: 'Fai un esempio di un\'immagine generata che ha migliorato, o peggiorato, uno sketch.',
+      },
+      {
+        id: 'ai_consapevole', tipo: 'scala',
+        testo: 'Ritieni che l\'approccio adottato (prima lo sketch a mano, poi il prompt costruito passo per passo, poi l\'AI) abbia migliorato e reso più consapevole il tuo utilizzo dell\'AI generativa?',
+        approfondimento: 'Spiega cosa è cambiato nel tuo modo di usare l\'AI, o perché non è cambiato.',
+      },
+      {
+        id: 'ai_introdurre', tipo: 'scala',
+        testo: 'Credi che l\'AI generativa sia uno strumento da introdurre maggiormente nei corsi di design?',
+        approfondimento: 'Spiega perché, e in quali momenti del progetto la useresti.',
+      },
+      {
+        id: 'ai_modo', tipo: 'scala',
+        testo: 'Ritieni che questo approccio (l\'AI come passo dopo lo sketch a mano, non al suo posto) sia un modo corretto di introdurla nella didattica del design?',
+        approfondimento: 'Spiega cosa cambieresti nel modo in cui l\'abbiamo introdotta.',
+      },
+      { id: 'ai_futuro', tipo: 'aperta', testo: 'Come pensi di usare l\'AI generativa nei tuoi prossimi progetti?' },
     ],
   },
   {
     id: 'aperte',
     titolo: 'Le tue parole',
-    descrizione: 'Risposte aperte (Q14–Q17 nel modello).',
+    descrizione: 'Risposte aperte, come Q14–Q17 nel modello.',
     domande: [
       { id: 'ap_obiettivo', tipo: 'aperta', testo: 'Come hai interpretato l\'obiettivo delle attività quando le abbiamo presentate all\'inizio?' },
-      { id: 'ap_esempi', tipo: 'aperta', testo: 'Potresti fornire esempi di come le attività hanno influenzato, positivamente o negativamente, il progetto e l\'apprendimento del team?' },
+      { id: 'ap_esempi', tipo: 'aperta', testo: 'Potresti fornire esempi di come le attività hanno influenzato, positivamente o negativamente, il vostro progetto e il tuo apprendimento?' },
       { id: 'ap_positivo', tipo: 'aperta', testo: 'Quali elementi del corso ti hanno lasciato una sensazione positiva, e perché?' },
       { id: 'ap_migliorare', tipo: 'aperta', testo: 'Quali aspetti andrebbero migliorati per rendere l\'esperienza più coinvolgente e soddisfacente?' },
     ],
