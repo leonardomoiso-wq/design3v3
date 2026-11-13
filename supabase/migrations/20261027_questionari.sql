@@ -1,5 +1,4 @@
 -- =============================================================
--- BOZZA: in attesa di approvazione delle domande. Non eseguire ancora.
 -- Questionari anonimi di fine percorso.
 -- Ogni corso compone i suoi questionari scegliendo le domande (non
 -- tutte le classi fanno tutte le attività). Si compilano da un link
