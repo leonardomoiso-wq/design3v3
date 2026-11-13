@@ -603,9 +603,9 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-parte-titolo { font-family: var(--f-display); font-weight: 400; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.025em; line-height: 1.05; margin: 0 0 4px; }
 .q-domanda { border: 0; margin: 0; padding: 18px; border-radius: 22px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 14px; min-width: 0; transition: box-shadow .4s var(--out); }
 .q-domanda.risposta { box-shadow: inset 0 0 0 1.5px var(--accento-vivo); }
-.q-testo { float: left; width: 100%; padding: 0; font-size: 17px; line-height: 1.4; text-wrap: pretty; }
+.q-testo { margin: 0; font-size: 17px; line-height: 1.4; text-wrap: pretty; }
 .q-numero { display: inline-block; min-width: 3.2ch; margin-right: 8px; font-family: var(--f-mono, ui-monospace, monospace); font-size: 13px; font-weight: 700; color: var(--accento); letter-spacing: .02em; }
-.q-scala { clear: both; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.q-scala { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .q-voto { all: unset; box-sizing: border-box; cursor: pointer; display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border-radius: 14px; background: var(--card); text-align: center; transition: background .25s, transform .45s var(--spring); }
 .q-voto b { font-family: var(--f-display); font-weight: 400; font-size: 26px; line-height: 1; letter-spacing: -.02em; }
 .q-voto span { font-size: 11.5px; color: var(--muted); line-height: 1.2; }
@@ -613,13 +613,26 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-voto.on { background: var(--accento-vivo); color: #1c1917; transform: scale(1.04); }
 .q-voto.on span { color: rgba(28, 25, 23, .75); }
 .q-voto:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.q-perche { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--accento-tenue); }
+.q-perche { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--accento-tenue); box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow .4s var(--out), background .4s; cursor: text; }
+.q-perche.aperta { padding: 0; background: transparent; }
+.q-perche.scritto:not(.aperta) { box-shadow: inset 0 0 0 1.5px var(--accento-vivo); }
+.q-perche-testa { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.q-matita { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accento-vivo); color: #1c1917; font-size: 14px; animation: q-matita 1.6s var(--spring) .3s 2; }
+@keyframes q-matita { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg) translateY(-2px); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } }
+.q-perche-campo { position: relative; }
+.q-perche-campo textarea { width: 100%; resize: vertical; background: var(--surface); }
+.q-suggerimento { position: absolute; left: 14px; top: 12px; right: 14px; pointer-events: none; color: var(--muted); font-size: 15px; line-height: 1.45; font-style: italic; }
+.q-cursore { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 2px; vertical-align: -2px; background: var(--accento); animation: q-cursore 1s steps(1) infinite; }
+@keyframes q-cursore { 50% { opacity: 0; } }
+.q-grazie-mini { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: var(--accento-vivo); color: #1c1917; font-size: 12.5px; font-weight: 600; animation: q-pop .5s var(--spring); }
+.q-perche.aperta .q-grazie-mini { justify-self: end; }
+@keyframes q-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .q-perche-testo { font-size: 15px; line-height: 1.4; }
-.q-domanda textarea { clear: both; width: 100%; resize: vertical; }
+.q-domanda textarea { width: 100%; resize: vertical; }
 .q-invio { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 18px; padding-top: 22px; border-top: 1px solid var(--ink); }
 .q-scala-estremi { display: none; justify-content: space-between; margin-top: -6px; font-size: 12px; color: var(--muted); }
 @media (max-width: 560px) { .q-voto span { display: none; } .q-voto { padding: 12px 4px; } .q-scala-estremi { display: flex; } .q-domanda { padding: 14px; } }
-@media (prefers-reduced-motion: reduce) { .q-voto, .q-avanzamento i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .q-voto, .q-avanzamento i { transition: none; } .q-matita, .q-cursore, .q-grazie-mini { animation: none; } }
 .q-vuoto, .q-scheda { display: grid; gap: 14px; padding: clamp(18px, 2.4vw, 28px); border-radius: 24px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .q-editor { box-shadow: inset 0 0 0 1.5px var(--accento-vivo); }
 .q-link { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 10px 14px; border-radius: 14px; background: var(--card); }
@@ -647,3 +660,4 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-citazioni { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .q-citazioni li { padding: 10px 14px; border-radius: 12px; background: var(--surface); font-size: 14.5px; line-height: 1.45; }
 .q-nota { margin: -6px 0 4px; font-size: 15px; line-height: 1.45; color: var(--muted); max-width: 62ch; }
+.q-perche-campo textarea:focus-visible { outline: none; }

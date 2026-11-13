@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Solidi } from '@/components/moiso/Moiso';
-import { INTRO_PREDEFINITA, SCALA, chiedeApprofondimento, componi, type Risposte } from '@/lib/questionari';
+import { INTRO_PREDEFINITA, SCALA, componi, type Risposte } from '@/lib/questionari';
 
 // Questionario anonimo, aperto da un link diretto (/questionario?q=<id>):
 // non serve accedere al corso e non si salvano nome, team o dispositivo.
@@ -64,7 +64,7 @@ export default function QuestionarioPage() {
       if (domanda.tipo === 'scala' && typeof r === 'number') {
         pulite[domanda.id] = r;
         const perche = risposte[`${domanda.id}__perche`];
-        if (domanda.approfondimento && chiedeApprofondimento(r) && typeof perche === 'string' && perche.trim()) pulite[`${domanda.id}__perche`] = perche.trim();
+        if (typeof perche === 'string' && perche.trim()) pulite[`${domanda.id}__perche`] = perche.trim();
       }
       if (domanda.tipo === 'aperta' && typeof r === 'string' && r.trim()) pulite[domanda.id] = r.trim();
     }
@@ -132,7 +132,7 @@ export default function QuestionarioPage() {
         <div className="q-intro">
           {(info.intro ? info.intro.split(/\n+/) : INTRO_PREDEFINITA).map((p, i) => <p key={i}>{p}</p>)}
         </div>
-        <p className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Da 1 (per niente) a 5 (molto). Se scegli 1 o 5 ti chiediamo il perché.</p>
+        <p className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Da 1 (per niente) a 5 (molto). Dopo ogni valutazione puoi aggiungere il perché: è facoltativo, ma ci aiuta tantissimo.</p>
       </header>
 
       <form className="q-corpo" onSubmit={e => { e.preventDefault(); if (completo) invia(); }}>
@@ -146,8 +146,8 @@ export default function QuestionarioPage() {
               const valore = risposte[domanda.id];
               const perche = `${domanda.id}__perche`;
               return (
-                <fieldset key={domanda.id} className={`q-domanda ${typeof valore === 'number' ? 'risposta' : ''}`}>
-                  <legend className="q-testo"><span className="q-numero">{numero}</span>{domanda.testo}</legend>
+                <div key={domanda.id} role="group" aria-labelledby={`t-${domanda.id}`} className={`q-domanda ${typeof valore === 'number' ? 'risposta' : ''}`}>
+                  <p id={`t-${domanda.id}`} className="q-testo"><span className="q-numero">{numero}</span>{domanda.testo}</p>
                   {domanda.tipo === 'scala' ? (
                     <>
                       <div className="q-scala" role="radiogroup" aria-label={`${numero}: da 1 a 5`}>
@@ -158,18 +158,19 @@ export default function QuestionarioPage() {
                         ))}
                       </div>
                       <div className="q-scala-estremi" aria-hidden="true"><span>1 · Per niente</span><span>5 · Molto</span></div>
-                      {domanda.approfondimento && chiedeApprofondimento(valore) && (
-                        <label className="q-perche entra-sezione">
-                          <span className="mz-mono">{numero}.1</span>
-                          <span className="q-perche-testo">{domanda.approfondimento}</span>
-                          <textarea className="mz-input" rows={3} value={(risposte[perche] as string) || ''} onChange={e => imposta(perche, e.target.value)} placeholder="Facoltativo: anche una riga ci aiuta a capire meglio" />
-                        </label>
+                      {typeof valore === 'number' && (
+                        <Perche
+                          numero={`${numero}.1`}
+                          domanda={domanda.approfondimento || 'Vuoi dirci perché?'}
+                          valore={(risposte[perche] as string) || ''}
+                          onCambia={t => imposta(perche, t)}
+                        />
                       )}
                     </>
                   ) : (
-                    <textarea className="mz-input" rows={4} aria-label={domanda.testo} value={(valore as string) || ''} onChange={e => imposta(domanda.id, e.target.value)} placeholder="Facoltativa, ma molto apprezzata" />
+                    <Perche aperta domanda={domanda.testo} valore={(valore as string) || ''} onCambia={t => imposta(domanda.id, t)} />
                   )}
-                </fieldset>
+                </div>
               );
             })}
           </section>
@@ -183,5 +184,65 @@ export default function QuestionarioPage() {
         </div>
       </form>
     </main>
+  );
+}
+
+// Il perché facoltativo (Q1.1, Q2.1…) e le risposte aperte: un invito a
+// scrivere, con l'inizio di una frase che si scrive da sola finché il
+// campo è vuoto, e un grazie appena si scrive qualcosa.
+const INIZI = ['Mi è servito perché…', 'Avrei preferito…', 'Mi ha colpito che…', 'Cambierei…', 'Non mi ha convinto…'];
+
+function Perche({ numero, domanda, valore, onCambia, aperta = false }: {
+  numero?: string; domanda: string; valore: string; onCambia: (t: string) => void; aperta?: boolean;
+}) {
+  const [fuoco, setFuoco] = useState(false);
+  const [suggerimento, setSuggerimento] = useState('');
+  const campo = useRef<HTMLTextAreaElement>(null);
+  const scritto = valore.trim().length >= 3;
+
+  useEffect(() => {
+    if (valore || fuoco) { setSuggerimento(''); return; }
+    const ridotto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (ridotto) { setSuggerimento(INIZI[0]); return; }
+    let frase = Math.floor(Math.random() * INIZI.length), car = 0, attesa = 0;
+    const t = setInterval(() => {
+      const testo = INIZI[frase];
+      if (attesa > 0) { attesa--; if (attesa === 0) { frase = (frase + 1) % INIZI.length; car = 0; } return; }
+      car++;
+      setSuggerimento(testo.slice(0, car));
+      if (car >= testo.length) attesa = 28;
+    }, 70);
+    return () => clearInterval(t);
+  }, [valore, fuoco]);
+
+  return (
+    <div className={`q-perche ${aperta ? 'aperta' : 'entra-sezione'} ${scritto ? 'scritto' : ''}`} onClick={() => campo.current?.focus()}>
+      {!aperta && (
+        <div className="q-perche-testa">
+          <span className="q-matita" aria-hidden="true">✎</span>
+          <span className="mz-mono">{numero} · facoltativa</span>
+          {scritto && <span className="q-grazie-mini" role="status">Grazie ✓</span>}
+        </div>
+      )}
+      {!aperta && <span className="q-perche-testo">{domanda}</span>}
+      <div className="q-perche-campo">
+        <textarea
+          ref={campo}
+          className="mz-input"
+          rows={aperta ? 4 : 3}
+          aria-label={domanda}
+          value={valore}
+          onChange={e => onCambia(e.target.value)}
+          onFocus={() => setFuoco(true)}
+          onBlur={() => setFuoco(false)}
+        />
+        {!valore && (
+          <span className="q-suggerimento" aria-hidden="true">
+            {fuoco ? 'Anche una riga va benissimo' : suggerimento}<i className="q-cursore" />
+          </span>
+        )}
+      </div>
+      {aperta && scritto && <span className="q-grazie-mini" role="status">Grazie, ci aiuta molto ✓</span>}
+    </div>
   );
 }
