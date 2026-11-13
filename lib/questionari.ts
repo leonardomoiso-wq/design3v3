@@ -1,7 +1,7 @@
 // Questionari anonimi di fine percorso, sul modello dei questionari
 // «Feedback Game» e «Territorial Quest»:
-// - domande da 1 a 5, obbligatorie; dopo ogni valutazione un perché
-//   facoltativo (Q1.1, Q2.1…), con la domanda di approfondimento;
+// - domande da 1 a 5, obbligatorie; se la risposta è estrema (1 o 5) un
+//   perché facoltativo (Q1.1, Q2.1…), con la domanda di approfondimento;
 // - risposte aperte (Q14–Q17).
 // Le domande sui team del modello (Q4–Q5, Q8–Q13) qui non ci sono: i team
 // cambiano da un'attività all'altra e le risposte sarebbero poco confrontabili.

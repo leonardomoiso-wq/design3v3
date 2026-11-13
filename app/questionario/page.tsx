@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Solidi } from '@/components/moiso/Moiso';
-import { INTRO_PREDEFINITA, SCALA, componi, type Risposte } from '@/lib/questionari';
+import { INTRO_PREDEFINITA, SCALA, chiedeApprofondimento, componi, type Risposte } from '@/lib/questionari';
 
 // Questionario anonimo, aperto da un link diretto (/questionario?q=<id>):
 // non serve accedere al corso e non si salvano nome, team o dispositivo.
@@ -64,7 +64,7 @@ export default function QuestionarioPage() {
       if (domanda.tipo === 'scala' && typeof r === 'number') {
         pulite[domanda.id] = r;
         const perche = risposte[`${domanda.id}__perche`];
-        if (typeof perche === 'string' && perche.trim()) pulite[`${domanda.id}__perche`] = perche.trim();
+        if (domanda.approfondimento && chiedeApprofondimento(r) && typeof perche === 'string' && perche.trim()) pulite[`${domanda.id}__perche`] = perche.trim();
       }
       if (domanda.tipo === 'aperta' && typeof r === 'string' && r.trim()) pulite[domanda.id] = r.trim();
     }
@@ -132,7 +132,7 @@ export default function QuestionarioPage() {
         <div className="q-intro">
           {(info.intro ? info.intro.split(/\n+/) : INTRO_PREDEFINITA).map((p, i) => <p key={i}>{p}</p>)}
         </div>
-        <p className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Da 1 (per niente) a 5 (molto). Dopo ogni valutazione puoi aggiungere il perché: è facoltativo, ma ci aiuta tantissimo.</p>
+        <p className="mz-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>Da 1 (per niente) a 5 (molto). Se scegli 1 o 5 ti chiediamo di dirci di più: è facoltativo, ma ci aiuta tantissimo.</p>
       </header>
 
       <form className="q-corpo" onSubmit={e => { e.preventDefault(); if (completo) invia(); }}>
@@ -158,7 +158,7 @@ export default function QuestionarioPage() {
                         ))}
                       </div>
                       <div className="q-scala-estremi" aria-hidden="true"><span>1 · Per niente</span><span>5 · Molto</span></div>
-                      {typeof valore === 'number' && (
+                      {domanda.approfondimento && chiedeApprofondimento(valore) && (
                         <Perche
                           numero={`${numero}.1`}
                           domanda={domanda.approfondimento || 'Vuoi dirci perché?'}

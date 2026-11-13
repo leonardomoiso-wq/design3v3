@@ -167,7 +167,7 @@ function Editor({ q, onAnnulla, onSalva }: { q: Partial<Q>; onAnnulla: () => voi
                     <label key={d.id} className={set.has(d.id) ? '' : 'spenta'}>
                       <input type="checkbox" checked={set.has(d.id)} onChange={e => tutteLe([d.id], e.target.checked)} />
                       <span className="q-numero">{numeri[d.id] || '—'}</span>
-                      <span>{d.testo}{d.tipo === 'aperta' ? <em> · aperta</em> : d.approfondimento ? <em> · con il perché facoltativo</em> : null}</span>
+                      <span>{d.testo}{d.tipo === 'aperta' ? <em> · aperta</em> : d.approfondimento ? <em> · con il perché su 1 e 5</em> : null}</span>
                     </label>
                   ))}
                 </div>
