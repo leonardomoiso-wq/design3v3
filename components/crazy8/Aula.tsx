@@ -105,7 +105,7 @@ export function TimerProiezione({ timer, onChiudi, comandi }: { timer: TimerC8 |
 // Piccolo timer per gli studenti (nella barra in alto)
 export function TimerStudente({ timer }: { timer: TimerC8 | undefined }) {
   const attivo = !!timer && (typeof timer.fine === 'number' || typeof timer.rimanente === 'number');
-  const adesso = useAdesso(attivo, 500);
+  const adesso = useAdesso(attivo, 1000);
   const rimasti = secondiRimasti(timer, adesso);
   if (!attivo || rimasti === null) return null;
   const poco = rimasti <= 60;

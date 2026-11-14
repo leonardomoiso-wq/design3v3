@@ -131,7 +131,11 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 
 /* --- Forme appese: cerchio ambra, quadrato, rombo (le tre forme del laboratorio) --- */
 .mz-solids { position: relative; display: flex; justify-content: center; align-items: flex-start; gap: clamp(22px, 5vw, 56px); height: 190px; pointer-events: none; color: var(--ink); }
-.mz-solid { position: relative; transform-origin: 50% -96px; margin-top: 96px; animation: mz-sway 6s ease-in-out infinite; }
+.mz-solid { position: relative; transform-origin: 50% -96px; margin-top: 96px; animation: mz-sway 6s ease-in-out infinite; will-change: transform; }
+/* le animazioni perpetue girano solo quando l'elemento è sullo schermo e la scheda è visibile */
+.mz-solids, .mz-ticker, .c8-fluttua, .mz-float, .mz-breathe { content-visibility: auto; }
+.mz-solids:not(.mz-vede) .mz-solid, .mz-ticker:not(.mz-vede) .mz-ticker-track, .c8-fluttua:not(.mz-vede), .mz-float:not(.mz-vede), .mz-breathe:not(.mz-vede) { animation-play-state: paused; }
+html.mz-nascosta .mz *, html.mz-nascosta .mz *::before, html.mz-nascosta .mz *::after { animation-play-state: paused !important; }
 .mz-solid::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1px; height: 96px; background: currentColor; opacity: .4; }
 .mz-solid.s1 { width: 62px; height: 62px; border-radius: 50%; background: var(--accento-vivo); animation-delay: -1s; }
 .mz-solid.s2 { width: 54px; height: 54px; border-radius: 10px; background: currentColor; animation-duration: 7.2s; animation-delay: -3s; }
@@ -622,8 +626,12 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-perche-campo { position: relative; }
 .q-perche-campo textarea { width: 100%; resize: vertical; background: var(--surface); }
 .q-suggerimento { position: absolute; left: 14px; top: 12px; right: 14px; pointer-events: none; color: var(--muted); font-size: 15px; line-height: 1.45; font-style: italic; }
+.q-battitura { display: inline-block; animation: q-frase 4s ease-in-out infinite; }
+@keyframes q-frase { 0% { opacity: 0; transform: translateY(4px); } 12%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .q-battitura { animation: none; } }
 .q-cursore { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 2px; vertical-align: -2px; background: var(--accento); animation: q-cursore 1s steps(1) infinite; }
 @keyframes q-cursore { 50% { opacity: 0; } }
+.q-cursore { animation-duration: 1.2s; }
 .q-grazie-mini { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: var(--accento-vivo); color: #1c1917; font-size: 12.5px; font-weight: 600; animation: q-pop .5s var(--spring); }
 .q-perche.aperta .q-grazie-mini { justify-self: end; }
 @keyframes q-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -661,3 +669,10 @@ textarea.mz-input { min-height: 96px; white-space: pre-wrap; }
 .q-citazioni li { padding: 10px 14px; border-radius: 12px; background: var(--surface); font-size: 14.5px; line-height: 1.45; }
 .q-nota { margin: -6px 0 4px; font-size: 15px; line-height: 1.45; color: var(--muted); max-width: 62ch; }
 .q-perche-campo textarea:focus-visible { outline: none; }
+
+/* --- Pagine storiche (Casi studio, HMW) nel linguaggio della piattaforma --- */
+.mz-pagina-testa { display: grid; gap: 14px; padding: 18px 0 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.mz-pagina-corpo { max-width: 48rem; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-left)) 56px; }
+.mz-titolo-pagina { font-size: clamp(34px, 6vw, 56px); margin: 0 0 18px; }
+
+@media (max-width: 480px) { .mz-pagina-corpo nav[aria-label="Passaggi della consegna"] { padding: 8px 4px; } }

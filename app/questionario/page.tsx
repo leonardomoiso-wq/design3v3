@@ -196,24 +196,10 @@ function Perche({ numero, domanda, valore, onCambia, aperta = false }: {
   numero?: string; domanda: string; valore: string; onCambia: (t: string) => void; aperta?: boolean;
 }) {
   const [fuoco, setFuoco] = useState(false);
-  const [suggerimento, setSuggerimento] = useState('');
   const campo = useRef<HTMLTextAreaElement>(null);
   const scritto = valore.trim().length >= 3;
-
-  useEffect(() => {
-    if (valore || fuoco) { setSuggerimento(''); return; }
-    const ridotto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (ridotto) { setSuggerimento(INIZI[0]); return; }
-    let frase = Math.floor(Math.random() * INIZI.length), car = 0, attesa = 0;
-    const t = setInterval(() => {
-      const testo = INIZI[frase];
-      if (attesa > 0) { attesa--; if (attesa === 0) { frase = (frase + 1) % INIZI.length; car = 0; } return; }
-      car++;
-      setSuggerimento(testo.slice(0, car));
-      if (car >= testo.length) attesa = 28;
-    }, 70);
-    return () => clearInterval(t);
-  }, [valore, fuoco]);
+  // la frase cambia a ogni giro dell'animazione CSS (nessun timer in JS)
+  const [frase, setFrase] = useState(() => Math.floor(Math.random() * INIZI.length));
 
   return (
     <div className={`q-perche ${aperta ? 'aperta' : 'entra-sezione'} ${scritto ? 'scritto' : ''}`} onClick={() => campo.current?.focus()}>
@@ -238,7 +224,9 @@ function Perche({ numero, domanda, valore, onCambia, aperta = false }: {
         />
         {!valore && (
           <span className="q-suggerimento" aria-hidden="true">
-            {fuoco ? 'Anche una riga va benissimo' : suggerimento}<i className="q-cursore" />
+            {fuoco
+              ? <>Anche una riga va benissimo<i className="q-cursore" /></>
+              : <span key={frase} className="q-battitura" onAnimationIteration={() => setFrase(f => (f + 1) % INIZI.length)}>{INIZI[frase]}<i className="q-cursore" /></span>}
           </span>
         )}
       </div>

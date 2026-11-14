@@ -5,6 +5,7 @@ import { Inter } from 'next/font/google';
 import { TeamProvider } from '../lib/team-context';
 import { CorsoProvider } from '../lib/corso-context';
 import { NOME_PIATTAFORMA } from '../lib/brand';
+import Effetti from '../components/Effetti';
 
 // Le pagine HTML non si tengono in cache (né nel browser né nei CDN):
 // così dopo ogni pubblicazione si carica subito la versione nuova, con il
@@ -12,6 +13,15 @@ import { NOME_PIATTAFORMA } from '../lib/brand';
 export const dynamic = 'force-dynamic';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+
+// Sul telefono la pagina non si ingrandisce da sola toccando un campo e
+// il colore della barra del browser segue la carta della piattaforma.
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover' as const,
+  themeColor: '#fafaf9',
+};
 
 export const metadata: Metadata = {
   title: NOME_PIATTAFORMA,
@@ -26,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="it" className={inter.variable}>
       <body className={inter.className}>
+        <Effetti />
         <CorsoProvider>
           <TeamProvider>{children}</TeamProvider>
         </CorsoProvider>

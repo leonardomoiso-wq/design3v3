@@ -520,21 +520,23 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
   };
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
+    <main className="mz min-h-screen">
       {comprimendoImmagine && <SfondoCaricamento />}
+      <header className="mz-rail mz-rail-pagina">
+        <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', minWidth: 0 }}>
+          <a href="/" className="mz-mono mz-abbrevia" style={{ textDecoration: 'none', maxWidth: '40vw' }}>← {corso.nome}</a>
+          <span className="mz-vetrina-rail-nome max-sm:hidden">Casi studio</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          {team && <span className="mz-chip on mz-abbrevia" style={{ maxWidth: 180, cursor: 'default' }}>{etichettaTeam(team)}</span>}
+          <a href="/manuali?attivita=design_case_studies" className="mz-pill sm ghost">Manuale</a>
+        </div>
+      </header>
+      <div className="mz-pagina-corpo">
       {erroreCasi && (
         <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl p-3 mb-4">{erroreCasi}</p>
       )}
-      <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">&larr; Home</a>
-          {team && (
-            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-              {etichettaTeam(team)}
-            </span>
-          )}
-          <a href="/manuali?attivita=design_case_studies" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 rounded">📚 Manuale</a>
-        </div>
+      <div className="mz-pagina-testa">
         <div className="relative flex flex-wrap gap-2">
           <PillaScorrevole selettore='[aria-pressed="true"]' classe="bg-stone-900" dipendenze={[activeTab, editId, casi.length]} />
           <button aria-pressed={activeTab === 'crea'} onClick={() => setActiveTab('crea')} className={`relative z-10 px-4 py-2.5 rounded-full text-xs font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 ${activeTab === 'crea' ? 'text-white border border-transparent' : 'border border-stone-200'}`}>
@@ -556,7 +558,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
       {activeTab === 'crea' ? (
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-serif">{editId !== null ? 'Modifica Caso Studio' : 'Raccontate il caso studio'}</h1>
+            <h1 className="mz-display mz-titolo-pagina">{editId !== null ? 'Modifica il caso studio' : 'Raccontate il caso studio'}<span className="mz-sup">(casi studio)</span></h1>
           </div>
 
           <nav aria-label="Passaggi della consegna" className="flex items-center justify-between bg-white p-3 rounded-2xl border border-stone-200 shadow-sm">
@@ -1176,6 +1178,7 @@ function StudentPageCorso({ corso }: { corso: Corso }) {
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }

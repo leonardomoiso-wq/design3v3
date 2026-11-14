@@ -37,7 +37,7 @@
 body {
   background-color: var(--paper);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--f-text);
   margin: 0;
   overflow-x: hidden;
   /* Testi scritti dagli studenti possono contenere parole lunghissime
@@ -46,6 +46,12 @@ body {
      agli elementi flex/grid di restringersi; chi deve restare su una riga
      usa già whitespace-nowrap o truncate, che non ne sono toccati. */
   overflow-wrap: anywhere;
+}
+
+/* Sul telefono ogni campo ha testo da 16px: sotto questa soglia iOS
+   ingrandisce la pagina a ogni tocco e poi non torna indietro. */
+@media (max-width: 767px) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select { font-size: 16px !important; }
 }
 
 h1, h2, h3, h4 {

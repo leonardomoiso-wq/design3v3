@@ -224,20 +224,19 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
-      <div className="flex flex-wrap justify-between items-center gap-y-3 mb-8 border-b border-stone-200 pb-4">
-        <a href="/" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">&larr; Home</a>
-        <div className="flex flex-wrap items-center gap-3">
-          {team && (
-            <span className="text-xs uppercase tracking-widest bg-stone-100 border border-stone-200 px-3 py-1.5 rounded-full text-stone-600 font-medium">
-              {etichettaTeam(team)}
-            </span>
-          )}
-          <a href="/manuali?attivita=hmw_role_prompting" className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 font-medium">📚 Manuale</a>
+    <main className="mz min-h-screen">
+      <header className="mz-rail mz-rail-pagina">
+        <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', minWidth: 0 }}>
+          <a href="/" className="mz-mono mz-abbrevia" style={{ textDecoration: 'none', maxWidth: '40vw' }}>← {corso.nome}</a>
+          <span className="mz-vetrina-rail-nome max-sm:hidden">HMW</span>
         </div>
-      </div>
-
-      <h1 className="text-2xl font-serif mb-6">🎭 HMW + Role-Prompting<Info>Scrivete il vostro How Might We, fatelo evolvere da v1 a v2 e mettetelo alla prova con punti di vista diversi.</Info></h1>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          {team && <span className="mz-chip on mz-abbrevia" style={{ maxWidth: 180, cursor: 'default' }}>{etichettaTeam(team)}</span>}
+          <a href="/manuali?attivita=hmw_role_prompting" className="mz-pill sm ghost">Manuale</a>
+        </div>
+      </header>
+      <div className="mz-pagina-corpo">
+      <h1 className="mz-display mz-titolo-pagina">Come potremmo…<span className="mz-sup">(HMW)</span><Info>Scrivete il vostro How Might We, fatelo evolvere da v1 a v2 e mettetelo alla prova con punti di vista diversi.</Info></h1>
 
       <div className="space-y-5">
         {!team && (
@@ -358,6 +357,7 @@ function HmwPageCorso({ corso }: { corso: Corso }) {
             {ruoloInCorso ? 'Invio...' : 'Proponi Ruolo'}
           </button>
         </div>
+      </div>
       </div>
     </main>
   );
